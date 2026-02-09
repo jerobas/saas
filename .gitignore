@@ -11,8 +11,7 @@ my-confectionery-saas/
 .env.*.local
 
 # Cryptographic keys
-src/license/private.pem
-*.pem
+private.pem
 
 # IDE
 .vscode/
