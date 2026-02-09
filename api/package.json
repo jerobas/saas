@@ -1,0 +1,33 @@
+{
+  "name": "sweeters-backend",
+  "version": "1.0.0",
+  "description": "Backend DDD para sistema de licenciamento Sweeters",
+  "type": "module",
+  "main": "src/main.js",
+  "engines": {
+    "node": "22.16.0"
+  },
+  "scripts": {
+    "dev": "node --env-file=.env src/main.js",
+    "start": "node --env-file=.env src/main.js"
+  },
+  "keywords": [
+    "ddd",
+    "license",
+    "payment",
+    "pix"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.5",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "pg": "^8.11.3",
+    "reflect-metadata": "^0.2.1",
+    "swagger-ui-express": "^5.0.0",
+    "typeorm": "^0.3.19"
+  }
+}
