@@ -42,12 +42,12 @@ export const PaymentSchema = new EntitySchema({
       default: 'PENDING',
       comment: 'PENDING, PAID, CANCELLED, EXPIRED',
     },
-    brCode: {
+    pixCode: {
       type: 'text',
       nullable: true,
       comment: 'Código QR do PIX',
     },
-    brCodeBase64: {
+    pixQrCode: {
       type: 'text',
       nullable: true,
       comment: 'Imagem do QR code em base64',

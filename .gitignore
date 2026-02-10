@@ -12,6 +12,7 @@ my-confectionery-saas/
 
 # Cryptographic keys
 private.pem
+public.pem
 
 # IDE
 .vscode/

@@ -3,14 +3,12 @@ export class SimulatePaymentUseCase {
     paymentRepository,
     userRepository,
     abacatePayService,
-    licenseService,
-    emailService
+    licenseService
   ) {
     this.paymentRepository = paymentRepository;
     this.userRepository = userRepository;
     this.abacatePayService = abacatePayService;
     this.licenseService = licenseService;
-    this.emailService = emailService;
   }
 
   async execute(input) {
@@ -62,12 +60,10 @@ export class SimulatePaymentUseCase {
     await this.userRepository.update(user.id, {
       licenseActive: true,
       licenseExpiresAt,
+      licenseToken
     });
 
     console.log(`🔓 Licença ativada para usuário ${user.id}, expira em ${licenseExpiresAt.toISOString()}`);
-
-    // Enviar email
-    await this.emailService.sendLicenseEmail(user.email, licenseToken);
 
     return {
       success: true,

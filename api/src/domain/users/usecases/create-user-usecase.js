@@ -20,19 +20,26 @@ export class CreateUserUseCase {
       cellphone,
     });
 
-    const customerResponse = await this.abacatePayService.createCustomer({
-      name,
-      email,
-      taxId,
-      cellphone,
-    });
+    let customerResponse;
+    try {
+      customerResponse = await this.abacatePayService.createCustomer({
+        name,
+        email,
+        taxId,
+        cellphone,
+      });
 
-    if (customerResponse.error && customerResponse.error !== '<unknown>') {
-      throw new Error(`Erro ao criar cliente: ${customerResponse.error}`);
+      if (customerResponse.error && customerResponse.error !== '<unknown>') {
+        throw new Error(`Erro ao criar cliente: ${customerResponse.error}`);
+      }
+    } catch (error) {
+      await this.userRepository.delete(user.id);
+      throw new Error(`Erro ao criar cliente AbacatePay: ${error.message}`);
     }
 
-    const abacatePayCustomerId = customerResponse.data?.id;
+    const abacatePayCustomerId = customerResponse.id;
     if (!abacatePayCustomerId) {
+      await this.userRepository.delete(user.id);
       throw new Error('Falha ao obter ID do cliente AbacatePay');
     }
 
@@ -43,38 +50,42 @@ export class CreateUserUseCase {
 
     const amount = parseInt(process.env.LICENSE_PRICE || '50000');
     const pixResponse = await this.abacatePayService.createPixQrCode({
-      customerId: abacatePayCustomerId,
       amount,
       description: 'Licença de Software',
       expiresInMinutes: 30,
+      customer: {
+        name,
+        email,
+        taxId,
+        cellphone,
+      },
     });
 
     if (pixResponse.error && pixResponse.error !== '<unknown>') {
       throw new Error(`Erro ao criar PIX: ${pixResponse.error}`);
     }
 
-    const pixData = pixResponse.data;
-    if (!pixData?.id) {
+    if (!pixResponse?.id) {
       throw new Error('Falha ao obter dados do PIX');
     }
 
     const payment = await this.paymentRepository.create({
       userId: user.id,
       abacatePayCustomerId,
-      abacatePayPixId: pixData.id,
+      abacatePayPixId: pixResponse.id,
       amount,
       status: 'PENDING',
-      brCode: pixData.brCode,
-      brCodeBase64: pixData.brCodeBase64,
-      expiresAt: new Date(pixData.expiresAt),
+      pixCode: pixResponse.pixCode,
+      pixQrCode: pixResponse.pixQrCode,
+      expiresAt: new Date(pixResponse.expiresAt),
     });
 
     return {
       userId: user.id,
       paymentId: payment.id,
-      brCode: pixData.brCode,
-      brCodeBase64: pixData.brCodeBase64,
-      expiresAt: pixData.expiresAt,
+      pixCode: pixResponse.pixCode,
+      pixQrCode: pixResponse.pixQrCode,
+      expiresAt: pixResponse.expiresAt,
       amount: amount / 100,
     };
   }

@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { AppError } from '../http/errors/app-error.js';
+import axios from "axios";
+import { AppError } from "../http/errors/app-error.js";
 
 export class AbacatePayService {
   constructor() {
@@ -8,14 +8,14 @@ export class AbacatePayService {
     this.webhookSecret = process.env.ABACATEPAY_WEBHOOK_SECRET;
 
     if (!this.apiKey) {
-      throw new Error('ABACATEPAY_API_KEY não configurada');
+      throw new Error("ABACATEPAY_API_KEY não configurada");
     }
 
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
       },
     });
   }
@@ -25,24 +25,40 @@ export class AbacatePayService {
    */
   createCustomer = async ({ name, email, taxId, cellphone }) => {
     try {
-      const response = await this.client.post('/customers/create', {
+      const response = await this.client.post("/customer/create", {
         name,
         email,
-        taxId: taxId || '',
-        cellphone: cellphone || '',
+        taxId: taxId || "",
+        cellphone: cellphone || "",
       });
 
-      console.log(`✅ Cliente criado no AbacatePay: ${email}`);
+      if (
+        !response.data ||
+        response.data.success === false ||
+        !response.data.data?.id
+      ) {
+        console.error(
+          "Erro ao criar cliente no AbacatePay:",
+          response.data.error,
+        );
+        throw new AppError(
+          `Erro ao criar cliente no AbacatePay: ${response.data.error}`,
+          403,
+        );
+      }
       return {
-        id: response.data.id,
-        name: response.data.name,
-        email: response.data.email,
+        id: response.data.data?.id,
+        name: response.data.data?.metadata?.name,
+        email: response.data.data?.metadata?.email,
       };
     } catch (error) {
-      console.error('AbacatePay - Erro ao criar cliente:', error.response?.data || error.message);
+      console.error(
+        "AbacatePay - Erro ao criar cliente:",
+        error.response?.data || error.message,
+      );
       throw new AppError(
-        'Erro ao criar cliente no AbacatePay',
-        error.response?.status || 500
+        "Erro ao criar cliente no AbacatePay",
+        error.response?.status || 500,
       );
     }
   };
@@ -52,14 +68,14 @@ export class AbacatePayService {
    */
   listCustomers = async () => {
     try {
-      const response = await this.client.get('/customers/list');
+      const response = await this.client.get("/customers/list");
       return response.data || [];
     } catch (error) {
-      console.error('AbacatePay - Erro ao listar clientes:', error.response?.data || error.message);
-      throw new AppError(
-        'Erro ao listar clientes no AbacatePay',
-        500
+      console.error(
+        "AbacatePay - Erro ao listar clientes:",
+        error.response?.data || error.message,
       );
+      throw new AppError("Erro ao listar clientes no AbacatePay", 500);
     }
   };
 
@@ -71,7 +87,10 @@ export class AbacatePayService {
       const customers = await this.listCustomers();
       return customers.find((c) => c.email === email);
     } catch (error) {
-      console.error('AbacatePay - Erro ao buscar cliente por email:', error.message);
+      console.error(
+        "AbacatePay - Erro ao buscar cliente por email:",
+        error.message,
+      );
       return null;
     }
   };
@@ -82,38 +101,51 @@ export class AbacatePayService {
   createPixQrCode = async ({
     amount,
     description,
-    customerId,
     expiresInMinutes = 30,
     metadata = {},
+    customer,
   }) => {
     try {
-      const expiresIn = expiresInMinutes * 60; // converter para segundos
+      const expiresIn = expiresInMinutes * 60;
 
-      const response = await this.client.post('/pixQrCode/create', {
+      const response = await this.client.post("/pixQrCode/create", {
         amount,
         expiresIn,
         description,
-        customerId,
+        customer,
         metadata,
       });
 
-      if (!response.data || !response.data.id) {
-        throw new AppError('Falha ao criar QR Code PIX', 500);
+      if (
+        !response.data ||
+        response.data.success === false ||
+        !response.data.data?.id
+      ) {
+        console.error(
+          "AbacatePay - Resposta da API ao criar QR Code PIX:",
+          response.data,
+        );
+        throw new AppError("Falha ao criar QR Code PIX", 500);
       }
 
-      console.log(`✅ QR Code PIX criado: ${response.data.id}`);
+
       return {
-        id: response.data.id,
-        pixCode: response.data.pixCode || response.data.qr_code || '',
-        pixQrCode: response.data.pixQrCode || response.data.image_url || '',
-        amount: response.data.amount,
-        expiresAt: response.data.expiresAt || new Date(Date.now() + expiresInMinutes * 60 * 1000),
+        id: response.data.data.id,
+        pixCode: response.data.data.brCode || "",
+        pixQrCode: response.data.data.brCodeBase64 || "",
+        amount: response.data.data.amount,
+        expiresAt:
+          response.data.data.expiresAt ||
+          new Date(Date.now() + expiresInMinutes * 60 * 1000),
       };
     } catch (error) {
-      console.error('AbacatePay - Erro ao criar QR Code PIX:', error.response?.data || error.message);
+      console.error(
+        "AbacatePay - Erro ao criar QR Code PIX:",
+        error.response?.data || error.message,
+      );
       throw new AppError(
-        'Erro ao criar QR Code PIX',
-        error.response?.status || 500
+        "Erro ao criar QR Code PIX",
+        error.response?.status || 500,
       );
     }
   };
@@ -123,31 +155,39 @@ export class AbacatePayService {
    * Útil para testes
    */
   simulatePixPayment = async (pixId, metadata = {}) => {
-    if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'testing') {
-      console.error('❌ Simulação de pagamento só permitida em desenvolvimento');
+    if (
+      process.env.NODE_ENV !== "development" &&
+      process.env.NODE_ENV !== "testing"
+    ) {
+      console.error(
+        "❌ Simulação de pagamento só permitida em desenvolvimento",
+      );
       throw new AppError(
-        'Payment simulation is only available in development environment',
-        403
+        "Payment simulation is only available in development environment",
+        403,
       );
     }
 
     try {
       const response = await this.client.post(
         `/pixQrCode/simulate-payment?id=${pixId}`,
-        { metadata }
+        { metadata },
       );
 
       console.log(`✅ Pagamento PIX simulado (DEV only): ${pixId}`);
       return {
         id: response.data.id,
-        status: 'paid',
+        status: "paid",
         paidAt: new Date(),
       };
     } catch (error) {
-      console.error('AbacatePay - Erro ao simular pagamento:', error.response?.data || error.message);
+      console.error(
+        "AbacatePay - Erro ao simular pagamento:",
+        error.response?.data || error.message,
+      );
       throw new AppError(
-        'Erro ao simular pagamento PIX',
-        error.response?.status || 500
+        "Erro ao simular pagamento PIX",
+        error.response?.status || 500,
       );
     }
   };
