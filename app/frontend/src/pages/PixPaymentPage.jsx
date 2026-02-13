@@ -4,21 +4,24 @@ import { QrCode, CopySimple } from "phosphor-react";
 import { checkLicenseStatus } from "../services/apiService";
 import { AppContext } from "../context/AppContext";
 import { ActivateLicense } from "../../wailsjs/go/main/UserService";
+import { useNavigate } from "react-router-dom";
 
 function PixPaymentPage() {
   const { pixData } = useContext(AppContext);
-  const { amount, expiresAt, pixCode, pixQrCode, userId } = pixData.data || {};
+  const { payment, clientId } = pixData.data || {};
   const [licenseActive, setLicenseActive] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const { data } = await checkLicenseStatus(userId, pixData.email);
+        const { data } = await checkLicenseStatus(clientId, pixData.email);
 
         if (data.licenseActive) {
           ActivateLicense(data.licenseToken);
           setLicenseActive(true);
           clearInterval(interval);
+          navigate("/dashboard");
         }
       } catch (error) {
         console.log("erro ao verificar licença:", error);
@@ -29,7 +32,7 @@ function PixPaymentPage() {
   }, [pixData, pixData.email]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(pixCode);
+    navigator.clipboard.writeText(payment.pixCode);
     alert("Código PIX copiado para a área de transferência!");
   };
 
@@ -75,12 +78,16 @@ function PixPaymentPage() {
           className="bg-white rounded-3xl shadow-xl p-8 border border-slate-100 space-y-6"
         >
           <div className="text-center">
-            <img src={pixQrCode} alt="QR Code PIX" className="mx-auto mb-4" />
+            <img
+              src={payment.pixQrCode}
+              alt="QR Code PIX"
+              className="mx-auto mb-4"
+            />
             <p className="text-lg font-semibold text-slate-700">
-              Valor: R$ {amount.toFixed(2).replace(".", ",")}
+              Valor: R$ {payment.amount.toFixed(2).replace(".", ",")}
             </p>
             <p className="text-sm text-slate-500">
-              Expira em: {new Date(expiresAt).toLocaleString("pt-BR")}
+              Expira em: {new Date(payment.expiresAt).toLocaleString("pt-BR")}
             </p>
           </div>
 
@@ -92,7 +99,7 @@ function PixPaymentPage() {
             <div className="relative">
               <textarea
                 readOnly
-                value={pixCode}
+                value={payment.pixCode}
                 className="w-full p-2 border border-slate-200 rounded-md text-sm font-mono bg-gray-100 focus:outline-none"
                 rows="4"
               />

@@ -1,12 +1,13 @@
-import 'reflect-metadata';
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import http from 'http';
-import { AppDataSource } from './infra/database/data-source.js';
-import { setupRoutes } from './infra/http/routes/index.js';
-import { setupSwagger } from './infra/http/swagger/setup.js';
-import { errorHandler } from './infra/http/middlewares/error-handler.js';
+import "reflect-metadata";
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import http from "http";
+import { AppDataSource } from "./infra/database/data-source.js";
+import { setupRoutes } from "./infra/http/routes/index.js";
+import { setupSwagger } from "./infra/http/swagger/setup.js";
+import { errorHandler } from "./infra/http/middlewares/error-handler.js";
+import "./infra/queue/user-strategy-consumer.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -22,9 +23,9 @@ app.use(express.urlencoded({ extended: true }));
 const initializeDatabase = async () => {
   try {
     await AppDataSource.initialize();
-    console.log('✅ Database connected successfully');
+    console.log("✅ Database connected successfully");
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
+    console.error("❌ Database connection failed:", error);
     process.exit(1);
   }
 };
@@ -39,7 +40,7 @@ app.use(errorHandler);
 // Start server
 const startServer = async () => {
   await initializeDatabase();
-  
+
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📚 Swagger docs: http://localhost:${PORT}/api-docs`);

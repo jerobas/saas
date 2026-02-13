@@ -2,41 +2,35 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/x509"
+	_ "embed"
 	"encoding/pem"
 	"fmt"
-	_"embed"
 )
 
 //go:embed license/public.pem
 var publicKeyData []byte
 
-// App struct
 type App struct {
 	ctx context.Context
 }
 
-// NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+
+	ok, _ := getUserStatus()
+	if !ok {
+		fmt.Println("License is not active or has expired.")
+	}
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
-}
-
-// UserService struct
-// Encapsula as funções relacionadas a usuários
 type UserService struct{}
 
-// NewUserService cria uma nova instância de UserService
 func NewUserService() *UserService {
 	return &UserService{}
 }
@@ -53,31 +47,26 @@ func (u *UserService) GetUserStatus() (bool, error) {
 	return getUserStatus()
 }
 
-func (u *UserService) ActivateLicense(license string) (bool, error) {
-	if len(publicKeyData) == 0 {
-		return false, fmt.Errorf("Chave pública embutida não encontrada ou inválida")
-	}
-
+func (u *UserService) ActivateLicense(licenseString string) (bool, error) {
 	block, _ := pem.Decode(publicKeyData)
 	if block == nil {
-		return false, fmt.Errorf("Chave pública embutida inválida")
+		return false, fmt.Errorf("invalid public key")
 	}
 
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return false, fmt.Errorf("Erro ao analisar a chave pública embutida: %v", err)
-	}
-
-	// Validate the license using the public key
-	data, err := ValidateLicenseWithKey(license, pub)
+	pubAny, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return false, err
 	}
 
-	err = updateUserData(data.U, err == nil, data.X)
+	pub := pubAny.(ed25519.PublicKey)
+
+	payload, err := ValidateLicenseWithKey(licenseString, pub)
 	if err != nil {
 		return false, err
 	}
+
+	saveUserData(payload.U, payload.E)
+	updateUserData(payload.U, true, payload.X)
 
 	return true, nil
 }
