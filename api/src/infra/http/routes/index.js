@@ -15,6 +15,7 @@ import { RenewSubscriptionController } from '../controllers/renew-subscription.c
 import { SimulatePaymentController } from '../controllers/simulate-payment.controller.js';
 import { WebhookPaymentController } from '../controllers/webhook-payment.controller.js';
 import { GetLicenseStatusController } from '../controllers/get-license-status.controller.js';
+import { sendSSE } from '../controllers/sse.controller.js';
 
 const router = Router();
 
@@ -113,6 +114,9 @@ router.get('/license', async (req, res, next) => {
     next(error);
   }
 });
+
+// GET /api/sse/:clientId - SSE para atualizações em tempo real
+router.get('/sse/:clientId', sendSSE);
 
 export const setupRoutes = (app) => {
   app.use('/api', router);
