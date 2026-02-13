@@ -86,29 +86,6 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull r
 ### Licença
 Este projeto está licenciado sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
 
-## Fluxo do Projeto
-
-O diagrama abaixo ilustra o fluxo de dados e comunicação entre o frontend e o backend do projeto SaaS:
-
-```mermaid
-graph TD
-    subgraph Frontend
-        A[CadastroPage] -->|POST /api/users| B[Backend]
-        B -->|SSE /api/sse/{userId}| A
-        A -->|Navigate| C[PixPaymentPage]
-        C -->|Check License| B
-        C -->|Activate License| D[Dashboard]
-    end
-
-    subgraph Backend
-        B -->|Queue CREATE_USER_STRATEGY| E[User Strategy Consumer]
-        E -->|Queue CREATE_PIX_STRATEGY| F[Pix Strategy Consumer]
-        F -->|Process Payment| G[AbacatePay Service]
-        G -->|Payment Status| F
-        F -->|License Activated| B
-    end
-```
-
 ## Diagrama de Fluxo
 
 O diagrama abaixo representa o fluxo de execução do projeto SaaS, desde o cadastro do usuário até a ativação da licença:
@@ -116,7 +93,7 @@ O diagrama abaixo representa o fluxo de execução do projeto SaaS, desde o cada
 ```mermaid
 flowchart TD
     CadastroPage -->|POST /api/users| Backend
-    Backend -->|SSE /api/sse/{userId}| CadastroPage
+    Backend -->|SSE /api/sse/[userId]| CadastroPage
     CadastroPage -->|Navigate| PixPaymentPage
     PixPaymentPage -->|Check License| Backend
     PixPaymentPage -->|Activate License| Dashboard
