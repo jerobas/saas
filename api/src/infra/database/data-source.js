@@ -13,7 +13,6 @@ const dataSourceConfig = {
 export const AppDataSource = new DataSource({
   ...dataSourceConfig,
   synchronize: process.env.NODE_ENV !== "production",
-  // logging: process.env.NODE_ENV === "development",
   entities: [UserSchema, PaymentSchema],
   subscribers: [],
 });

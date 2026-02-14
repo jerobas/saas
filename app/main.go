@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,6 +16,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed schema.sql
+var schemaFS embed.FS
+
 type LicenseData struct {
 	ID             string `json:"id"`
 	Email          string `json:"email"`
@@ -24,17 +28,24 @@ type LicenseData struct {
 
 var licenseFile string
 var license LicenseData
+var db *Database
 
 func initDat() {
 	dir, _ := os.UserConfigDir()
 	appDir := filepath.Join(dir, "app")
 
-	print("appDir::: ", appDir)
-
 	_ = os.MkdirAll(appDir, 0700)
 
 	licenseFile = filepath.Join(appDir, "license.dat")
 	loadLicense()
+
+	dbPath := filepath.Join(appDir, "app.db")
+	var err error
+	db, err = NewDatabase(dbPath)
+	if err != nil {
+		log.Fatalf("Erro ao inicializar banco de dados: %v", err)
+	}
+	log.Println("Banco de dados inicializado com sucesso")
 }
 
 func loadLicense() {
@@ -103,9 +114,15 @@ func getUserStatus() (bool, error) {
 
 func main() {
 	initDat()
+	defer db.Close()
 
 	app := NewApp()
 	userService := NewUserService()
+	itemService := NewItemService(db)
+	batchService := NewBatchService(db)
+	recipeService := NewRecipeService(db)
+	productService := NewProductService(db)
+	saleService := NewSaleService(db)
 
 	err := wails.Run(&options.App{
 		Title:  "app",
@@ -118,6 +135,11 @@ func main() {
 		Bind: []interface{}{
 			app,
 			userService,
+			itemService,
+			batchService,
+			recipeService,
+			productService,
+			saleService,
 		},
 	})
 

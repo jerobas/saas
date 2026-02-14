@@ -5,6 +5,7 @@ import {
   FileText,
   CaretRight,
   ShoppingCart,
+  Egg,
 } from "phosphor-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -41,10 +42,16 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       path: "/",
     },
     {
-      icon: <Package size={24} />,
+      icon: <Egg size={24} />,
       label: "Estoque",
       id: "inventory",
       path: "/inventory",
+    },
+    {
+      icon: <Package size={24} />,
+      label: "Lotes",
+      id: "batches",
+      path: "/batches",
     },
     {
       icon: <FileText size={24} />,

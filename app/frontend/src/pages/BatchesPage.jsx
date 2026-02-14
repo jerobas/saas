@@ -1,134 +1,166 @@
-/* eslint-disable no-unused-vars */
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Trash, Warning } from 'phosphor-react';
-import { CreateItem, GetAllItems, DeleteItem } from '../../wailsjs/go/main/ItemService';
-import { GetBatchesByItem } from '../../wailsjs/go/main/BatchService';
+import { Plus, Trash, Package } from 'phosphor-react';
+import { GetAllItems } from '../../wailsjs/go/main/ItemService';
+import { CreateBatch, GetBatchesByItem, DeleteBatch } from '../../wailsjs/go/main/BatchService';
 
-const InventoryPage = () => {
-  const [ingredients, setIngredients] = useState([]);
-  const [ingredientsWithStock, setIngredientsWithStock] = useState([]);
+const BatchesPage = () => {
+  const [batches, setBatches] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [newItem, setNewItem] = useState({
-    name: '',
-    unit: 'kg',
-    minStock: '0',
+  const [selectedItemFilter, setSelectedItemFilter] = useState('all');
+  const [newBatch, setNewBatch] = useState({
+    itemId: '',
+    quantity: '',
+    totalPrice: '',
   });
 
   useEffect(() => {
-    loadIngredients();
+    loadData();
   }, []);
 
-  const loadIngredients = async () => {
+  useEffect(() => {
+    if (selectedItemFilter !== 'all') {
+      loadBatchesByItem(selectedItemFilter);
+    } else {
+      loadAllBatches();
+    }
+  }, [selectedItemFilter]);
+
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const items = await GetAllItems();
-      setIngredients(items || []);
-
-      // Buscar estoque de cada item
-      const itemsWithStock = await Promise.all(
-        (items || []).map(async (item) => {
-          const batches = await GetBatchesByItem(item.id);
-          const totalStock = batches.reduce((acc, batch) => acc + batch.quantity_remaining, 0);
-          const avgPrice = batches.length > 0
-            ? batches.reduce((acc, batch) => acc + batch.unit_price, 0) / batches.length
-            : 0;
-          
-          return {
-            ...item,
-            currentStock: totalStock,
-            avgPrice: avgPrice,
-            totalValue: totalStock * avgPrice,
-            isLowStock: totalStock <= item.min_stock_alert,
-          };
-        })
-      );
-
-      setIngredientsWithStock(itemsWithStock);
+      const itemsData = await GetAllItems();
+      setItems(itemsData || []);
+      await loadAllBatches();
     } catch (err) {
-      console.error('Erro ao carregar ingredientes:', err);
-      setError('Erro ao carregar ingredientes. Tente novamente.');
+      console.error('Erro ao carregar dados:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
-  const addIngredient = async (ingredient) => {
+  const loadAllBatches = async () => {
     try {
-      setError(null);
-
-      const item = await CreateItem(
-        ingredient.name,
-        ingredient.unit,
-        ingredient.minStock
-      );
-
-      if (!item) {
-        throw new Error('Falha ao criar item');
+      const allBatches = [];
+      for (const item of items) {
+        const itemBatches = await GetBatchesByItem(item.id);
+        if (itemBatches && itemBatches.length > 0) {
+          allBatches.push(...itemBatches);
+        }
       }
-
-      await loadIngredients();
-      return true;
+      setBatches(allBatches);
     } catch (err) {
-      console.error('Erro ao adicionar ingrediente:', err);
-      setError(err.message || 'Erro ao adicionar ingrediente. Tente novamente.');
-      return false;
+      console.error('Erro ao carregar lotes:', err);
     }
   };
 
-  const deleteIngredient = async (id) => {
+  const loadBatchesByItem = async (itemId) => {
     try {
-      setError(null);
-      await DeleteItem(id);
-      await loadIngredients();
-      return true;
+      setLoading(true);
+      const itemBatches = await GetBatchesByItem(itemId);
+      setBatches(itemBatches || []);
     } catch (err) {
-      console.error('Erro ao deletar ingrediente:', err);
-      setError('Erro ao deletar ingrediente. Tente novamente.');
-      return false;
+      console.error('Erro ao carregar lotes:', err);
+      setError('Erro ao carregar lotes. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAddItem = async () => {
+  const formatCurrency = (value) => {
+    if (!value) return '';
+    const numericValue = value.replace(/\D/g, '');
+    if (!numericValue) return '';
+    const numberValue = parseInt(numericValue, 10) / 100;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(numberValue);
+  };
+
+  const unformatCurrency = (value) => {
+    const cleaned = value.replace(/\D/g, '');
+    return parseFloat(cleaned) / 100;
+  };
+
+  const handleAddBatch = async () => {
     if (isSubmitting) return;
 
-    if (newItem.name) {
+    if (newBatch.itemId && newBatch.quantity && newBatch.totalPrice) {
       setIsSubmitting(true);
+      setError(null);
 
-      const success = await addIngredient({
-        name: newItem.name,
-        unit: newItem.unit,
-        minStock: parseFloat(newItem.minStock) || 0,
-      });
+      try {
+        const quantity = parseFloat(newBatch.quantity);
+        const totalPrice = unformatCurrency(newBatch.totalPrice);
 
-      if (success) {
-        setNewItem({ name: '', unit: 'kg', minStock: '0' });
+        await CreateBatch(newBatch.itemId, quantity, totalPrice);
+
+        setNewBatch({ itemId: '', quantity: '', totalPrice: '' });
         setOpenDialog(false);
+        
+        if (selectedItemFilter !== 'all') {
+          await loadBatchesByItem(selectedItemFilter);
+        } else {
+          await loadData();
+        }
+      } catch (err) {
+        console.error('Erro ao adicionar lote:', err);
+        setError('Erro ao adicionar lote. Tente novamente.');
+      } finally {
+        setIsSubmitting(false);
       }
-
-      setIsSubmitting(false);
     }
   };
 
-  const handleDeleteItem = async (id) => {
+  const handleDeleteBatch = async (id) => {
     if (loading) return;
     setDeleteConfirmId(id);
   };
 
   const confirmDelete = async () => {
     if (deleteConfirmId && !loading) {
-      await deleteIngredient(deleteConfirmId);
-      setDeleteConfirmId(null);
+      try {
+        setError(null);
+        await DeleteBatch(deleteConfirmId);
+        setDeleteConfirmId(null);
+        
+        if (selectedItemFilter !== 'all') {
+          await loadBatchesByItem(selectedItemFilter);
+        } else {
+          await loadData();
+        }
+      } catch (err) {
+        console.error('Erro ao deletar lote:', err);
+        setError('Erro ao deletar lote. Tente novamente.');
+      }
     }
   };
 
-  const totalInventoryValue = ingredientsWithStock.reduce((acc, item) => acc + item.totalValue, 0);
-  const lowStockItems = ingredientsWithStock.filter((item) => item.isLowStock).length;
+  const getItemName = (itemId) => {
+    const item = items.find((i) => i.id === itemId);
+    return item ? item.name : 'Desconhecido';
+  };
+
+  const getItemUnit = (itemId) => {
+    const item = items.find((i) => i.id === itemId);
+    return item ? item.unit : '';
+  };
+
+  const totalBatchesValue = batches.reduce((acc, batch) => {
+    return acc + (batch.unit_price * batch.quantity_remaining);
+  }, 0);
+
+  const totalQuantity = batches.reduce((acc, batch) => {
+    return acc + batch.quantity_remaining;
+  }, 0);
 
   return (
     <>
@@ -151,7 +183,7 @@ const InventoryPage = () => {
             />
             <div className="text-center">
               <h3 className="text-lg font-semibold text-slate-900">
-                {isSubmitting ? 'Salvando ingrediente...' : 'Carregando estoque...'}
+                {isSubmitting ? 'Salvando lote...' : 'Carregando lotes...'}
               </h3>
               <p className="text-sm text-slate-600 mt-1">Por favor aguarde</p>
             </div>
@@ -176,11 +208,11 @@ const InventoryPage = () => {
             </div>
 
             <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">
-              Deletar Ingrediente?
+              Deletar Lote?
             </h2>
 
             <p className="text-slate-600 text-center mb-6">
-              Tem certeza que deseja remover este ingrediente do estoque? Esta ação não pode ser desfeita.
+              Tem certeza que deseja remover este lote? Esta ação não pode ser desfeita.
             </p>
 
             <div className="flex gap-4">
@@ -218,16 +250,16 @@ const InventoryPage = () => {
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Ingredientes</h1>
-              <p className="text-slate-600 mt-2">Gerencie seu estoque de ingredientes</p>
+              <h1 className="text-3xl font-bold text-slate-900">Lotes de Estoque</h1>
+              <p className="text-slate-600 mt-2">Gerencie os lotes de compra dos ingredientes</p>
             </div>
             <button
               onClick={() => setOpenDialog(true)}
-              disabled={loading || isSubmitting}
+              disabled={loading || isSubmitting || items.length === 0}
               className="flex items-center gap-2 bg-pink-600 text-white px-6 py-3 rounded-lg hover:bg-pink-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed"
             >
               <Plus size={20} />
-              Novo Ingrediente
+              Novo Lote
             </button>
           </div>
         </div>
@@ -252,46 +284,61 @@ const InventoryPage = () => {
           </motion.div>
         )}
 
+        {/* Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm mb-6"
+        >
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Filtrar por Ingrediente
+          </label>
+          <select
+            value={selectedItemFilter}
+            onChange={(e) => setSelectedItemFilter(e.target.value)}
+            className="w-full md:w-96 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
+            disabled={loading}
+          >
+            <option value="all">Todos os ingredientes</option>
+            {items.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </motion.div>
+
         {/* Summary Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
         >
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 className="text-slate-600 text-sm font-medium">Total de Ingredientes</h3>
-            <p className="text-3xl font-bold text-slate-900 mt-2">{ingredientsWithStock.length}</p>
+            <div className="flex items-center gap-3 mb-2">
+              <Package size={24} className="text-pink-600" />
+              <h3 className="text-slate-600 text-sm font-medium">Total de Lotes</h3>
+            </div>
+            <p className="text-3xl font-bold text-slate-900">{batches.length}</p>
           </div>
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 className="text-slate-600 text-sm font-medium">Valor Total em Estoque</h3>
+            <h3 className="text-slate-600 text-sm font-medium">Valor Total</h3>
             <p className="text-3xl font-bold text-green-600 mt-2">
               {new Intl.NumberFormat('pt-BR', {
                 style: 'currency',
                 currency: 'BRL',
-              }).format(totalInventoryValue)}
+              }).format(totalBatchesValue)}
             </p>
           </div>
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 className="text-slate-600 text-sm font-medium">Custo Médio</h3>
+            <h3 className="text-slate-600 text-sm font-medium">Quantidade Total Restante</h3>
             <p className="text-3xl font-bold text-blue-600 mt-2">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-              }).format(
-                ingredientsWithStock.length > 0 ? totalInventoryValue / ingredientsWithStock.length : 0
-              )}
+              {totalQuantity.toFixed(3)}
             </p>
-          </div>
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Warning size={20} className="text-orange-600" />
-              <h3 className="text-slate-600 text-sm font-medium">Estoque Baixo</h3>
-            </div>
-            <p className="text-3xl font-bold text-orange-600 mt-2">{lowStockItems}</p>
           </div>
         </motion.div>
 
-        {/* Items Table */}
+        {/* Batches Table */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -301,67 +348,61 @@ const InventoryPage = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Nome</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Estoque Atual</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Preço Médio</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Valor Total</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Estoque Mínimo</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Status</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Ingrediente</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Qtd. Total</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Qtd. Restante</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Preço Total</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Preço Unitário</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Data Compra</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Ação</th>
                 </tr>
               </thead>
               <tbody>
-                {ingredientsWithStock.length === 0 ? (
+                {batches.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
-                      Nenhum ingrediente cadastrado. Clique em "Novo Ingrediente" para começar.
+                      {items.length === 0
+                        ? 'Cadastre ingredientes primeiro para criar lotes.'
+                        : 'Nenhum lote cadastrado. Clique em "Novo Lote" para começar.'}
                     </td>
                   </tr>
                 ) : (
-                  ingredientsWithStock.map((item) => (
-                    <tr
-                      key={item.id}
-                      className={`border-b border-slate-100 hover:bg-slate-50 ${
-                        item.isLowStock ? 'bg-orange-50' : ''
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-sm text-slate-900 font-medium">{item.name}</td>
+                  batches.map((batch) => (
+                    <tr key={batch.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="px-6 py-4 text-sm text-slate-900 font-medium">
+                        {getItemName(batch.item_id)}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {item.currentStock.toFixed(3)} {item.unit}
+                        {parseFloat(batch.quantity_total).toFixed(3)} {getItemUnit(batch.item_id)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {parseFloat(batch.quantity_remaining).toFixed(3)} {getItemUnit(batch.item_id)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-900 font-semibold">
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(batch.purchase_price_total)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         {new Intl.NumberFormat('pt-BR', {
                           style: 'currency',
                           currency: 'BRL',
-                        }).format(item.avgPrice)}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }).format(item.totalValue)}
+                        }).format(batch.unit_price)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {parseFloat(item.min_stock_alert).toFixed(3)} {item.unit}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {item.isLowStock ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                            <Warning size={14} />
-                            Baixo
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                            OK
-                          </span>
-                        )}
+                        {new Date(batch.purchased_at).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <button
-                          onClick={() => handleDeleteItem(item.id)}
+                          onClick={() => handleDeleteBatch(batch.id)}
                           className="text-red-600 hover:text-red-700 disabled:text-slate-300 disabled:cursor-not-allowed transition-colors"
                           disabled={loading || isSubmitting}
-                          title="Deletar ingrediente"
+                          title="Deletar lote"
                         >
                           <Trash size={18} />
                         </button>
@@ -374,7 +415,7 @@ const InventoryPage = () => {
           </div>
         </motion.div>
 
-        {/* Add Item Dialog */}
+        {/* Add Batch Dialog */}
         {openDialog && (
           <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-md">
             <motion.div
@@ -382,7 +423,7 @@ const InventoryPage = () => {
               animate={{ scale: 1, opacity: 1 }}
               className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl"
             >
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Adicionar Ingrediente</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Adicionar Lote</h2>
 
               {error && (
                 <motion.div
@@ -396,55 +437,70 @@ const InventoryPage = () => {
 
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Nome</label>
-                  <input
-                    type="text"
-                    value={newItem.name}
-                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
-                    placeholder="Ex: Farinha de Trigo"
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Unidade</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Ingrediente
+                  </label>
                   <select
-                    value={newItem.unit}
-                    onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                    value={newBatch.itemId}
+                    onChange={(e) => setNewBatch({ ...newBatch, itemId: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
                     disabled={isSubmitting}
                   >
-                    <option value="kg">Quilograma (kg)</option>
-                    <option value="g">Grama (g)</option>
-                    <option value="l">Litro (l)</option>
-                    <option value="ml">Mililitro (ml)</option>
-                    <option value="dz">Dúzia (dz)</option>
-                    <option value="un">Unidade (un)</option>
+                    <option value="">Selecione um ingrediente</option>
+                    {items.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} ({item.unit})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Estoque Mínimo
+                    Quantidade
                   </label>
                   <input
                     type="number"
                     step="0.001"
-                    value={newItem.minStock}
-                    onChange={(e) => setNewItem({ ...newItem, minStock: e.target.value })}
+                    value={newBatch.quantity}
+                    onChange={(e) => setNewBatch({ ...newBatch, quantity: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
-                    placeholder="0"
+                    placeholder="0.000"
                     disabled={isSubmitting}
                   />
                 </div>
 
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    💡 <strong>Dica:</strong> Após criar o ingrediente, vá para a página de{' '}
-                    <strong>Lotes</strong> para adicionar o estoque inicial.
-                  </p>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Preço Total (R$)
+                  </label>
+                  <input
+                    type="text"
+                    value={formatCurrency(newBatch.totalPrice)}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      const numericOnly = inputValue.replace(/\D/g, '');
+                      setNewBatch({ ...newBatch, totalPrice: numericOnly });
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
+                    placeholder="R$ 0,00"
+                    disabled={isSubmitting}
+                  />
                 </div>
+
+                {newBatch.quantity && newBatch.totalPrice && (
+                  <div className="p-4 bg-slate-50 rounded-lg">
+                    <p className="text-sm text-slate-600">
+                      Preço unitário:{' '}
+                      <span className="font-semibold text-slate-900">
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(unformatCurrency(newBatch.totalPrice) / parseFloat(newBatch.quantity))}
+                      </span>
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4">
@@ -459,8 +515,14 @@ const InventoryPage = () => {
                   Cancelar
                 </button>
                 <button
-                  onClick={handleAddItem}
-                  disabled={isSubmitting || loading || !newItem.name.trim()}
+                  onClick={handleAddBatch}
+                  disabled={
+                    isSubmitting ||
+                    loading ||
+                    !newBatch.itemId ||
+                    !newBatch.quantity ||
+                    !newBatch.totalPrice
+                  }
                   className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isSubmitting || loading ? (
@@ -485,4 +547,4 @@ const InventoryPage = () => {
   );
 };
 
-export default InventoryPage;
+export default BatchesPage;
