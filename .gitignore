@@ -45,3 +45,6 @@ db.json
 # OS
 .DS_Store
 Thumbs.db
+
+wailsjs
+package.json.md5
