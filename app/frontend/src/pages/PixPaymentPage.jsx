@@ -21,7 +21,7 @@ function PixPaymentPage() {
           ActivateLicense(data.licenseToken);
           setLicenseActive(true);
           clearInterval(interval);
-          navigate("/dashboard");
+          navigate("/");
         }
       } catch (error) {
         console.log("erro ao verificar licença:", error);

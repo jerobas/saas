@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   User,
   EnvelopeSimple,
   IdentificationCard,
   Phone,
+  Lock,
 } from "phosphor-react";
 import { createUser } from "../services/apiService";
 import { SaveUserData } from "../../wailsjs/go/main/UserService";
@@ -16,17 +17,24 @@ function CadastroPage() {
   const navigate = useNavigate();
   const { setPixData } = useContext(AppContext);
 
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     taxId: "",
     cellphone: "",
+    password: "",
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
   const validateForm = () => {
     const newErrors = {};
+    if (!formData.password.trim() || formData.password.length < 8)
+      newErrors.password = "A senha deve ter no mínimo 8 caracteres";
+    if (confirmPassword !== formData.password)
+      newErrors.confirmPassword = "As senhas não conferem";
     if (!formData.name.trim()) newErrors.name = "O nome é obrigatório";
     if (
       !formData.email.trim() ||
@@ -43,6 +51,15 @@ function CadastroPage() {
       !/^\(\d{2}\) \d{5}-\d{4}$/.test(formData.cellphone)
     )
       newErrors.cellphone = "Número de celular inválido";
+    return newErrors;
+  };
+
+  const validatePasswordStep = () => {
+    const newErrors = {};
+    if (!formData.password.trim() || formData.password.length < 8)
+      newErrors.password = "A senha deve ter no mínimo 8 caracteres";
+    if (confirmPassword !== formData.password)
+      newErrors.confirmPassword = "As senhas não conferem";
     return newErrors;
   };
 
@@ -64,8 +81,25 @@ function CadastroPage() {
         .replace(/(-\d{4})\d+?$/, "$1");
     }
 
+    if (name === "confirmPassword") {
+      setConfirmPassword(maskedValue);
+      setErrors({ ...errors, confirmPassword: "" });
+      return;
+    }
+
     setFormData({ ...formData, [name]: maskedValue });
     setErrors({ ...errors, [name]: "" });
+  };
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    const validationErrors = validatePasswordStep();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setStep(2);
   };
 
   const handleSubmit = async (e) => {
@@ -127,133 +161,216 @@ function CadastroPage() {
           </p>
         </div>
 
-        <motion.form
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-          onSubmit={handleSubmit}
-          className="bg-white rounded-3xl shadow-xl p-8 border border-slate-100 space-y-6"
-        >
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-slate-700 mb-2"
+        <AnimatePresence mode="wait">
+          {step === 1 ? (
+            <motion.form
+              key="step-1"
+              initial={{ opacity: 0, x: -16, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 16, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
+              onSubmit={handlePasswordSubmit}
+              className="bg-white rounded-3xl shadow-xl p-8 border border-slate-100 space-y-6"
             >
-              Nome
-            </label>
-            <div className="relative">
-              <User
-                size={20}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Seu nome completo"
-                required
-                className={`w-full pl-12 pr-4 py-3 border ${errors.name ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
-              />
-              {errors.name && (
-                <p className="text-red-500 text-sm mt-1">{errors.name}</p>
-              )}
-            </div>
-          </div>
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
+                  Senha
+                </label>
+                <div className="relative">
+                  <Lock
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Crie uma senha"
+                    required
+                    className={`w-full pl-12 pr-4 py-3 border ${errors.password ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
+                  />
+                </div>
+                {errors.password && (
+                  <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+                )}
+              </div>
 
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-slate-700 mb-2"
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
+                  Confirmar senha
+                </label>
+                <div className="relative">
+                  <Lock
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={confirmPassword}
+                    onChange={handleChange}
+                    placeholder="Repita a senha"
+                    required
+                    className={`w-full pl-12 pr-4 py-3 border ${errors.confirmPassword ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
+                  />
+                </div>
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.confirmPassword}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-pink-600 text-white py-3 rounded-xl font-semibold hover:bg-pink-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                Continuar
+              </button>
+            </motion.form>
+          ) : (
+            <motion.form
+              key="step-2"
+              initial={{ opacity: 0, x: 16, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -16, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
+              onSubmit={handleSubmit}
+              className="bg-white rounded-3xl shadow-xl p-8 border border-slate-100 space-y-6"
             >
-              Email
-            </label>
-            <div className="relative">
-              <EnvelopeSimple
-                size={20}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="seu@email.com"
-                required
-                className={`w-full pl-12 pr-4 py-3 border ${errors.email ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
-              />
-              {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-              )}
-            </div>
-          </div>
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
+                  Nome
+                </label>
+                <div className="relative">
+                  <User
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder="Seu nome completo"
+                    required
+                    className={`w-full pl-12 pr-4 py-3 border ${errors.name ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
+                  />
+                </div>
+                {errors.name && (
+                  <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                )}
+              </div>
 
-          <div>
-            <label
-              htmlFor="taxId"
-              className="block text-sm font-medium text-slate-700 mb-2"
-            >
-              CPF ou CNPJ
-            </label>
-            <div className="relative">
-              <IdentificationCard
-                size={20}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="text"
-                id="taxId"
-                name="taxId"
-                value={formData.taxId}
-                onChange={handleChange}
-                placeholder="000.000.000-00"
-                required
-                className={`w-full pl-12 pr-4 py-3 border ${errors.taxId ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
-              />
-              {errors.taxId && (
-                <p className="text-red-500 text-sm mt-1">{errors.taxId}</p>
-              )}
-            </div>
-          </div>
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
+                  Email
+                </label>
+                <div className="relative">
+                  <EnvelopeSimple
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="seu@email.com"
+                    required
+                    className={`w-full pl-12 pr-4 py-3 border ${errors.email ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                )}
+              </div>
 
-          <div>
-            <label
-              htmlFor="cellphone"
-              className="block text-sm font-medium text-slate-700 mb-2"
-            >
-              Celular
-            </label>
-            <div className="relative">
-              <Phone
-                size={20}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="text"
-                id="cellphone"
-                name="cellphone"
-                value={formData.cellphone}
-                onChange={handleChange}
-                placeholder="(00) 00000-0000"
-                required
-                className={`w-full pl-12 pr-4 py-3 border ${errors.cellphone ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
-              />
-              {errors.cellphone && (
-                <p className="text-red-500 text-sm mt-1">{errors.cellphone}</p>
-              )}
-            </div>
-          </div>
+              <div>
+                <label
+                  htmlFor="taxId"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
+                  CPF ou CNPJ
+                </label>
+                <div className="relative">
+                  <IdentificationCard
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    id="taxId"
+                    name="taxId"
+                    value={formData.taxId}
+                    onChange={handleChange}
+                    placeholder="000.000.000-00"
+                    required
+                    className={`w-full pl-12 pr-4 py-3 border ${errors.taxId ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
+                  />
+                </div>
+                {errors.taxId && (
+                  <p className="text-red-500 text-sm mt-1">{errors.taxId}</p>
+                )}
+              </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className={`w-full bg-pink-600 text-white py-3 rounded-xl font-semibold hover:bg-pink-700 active:scale-95 transition-all flex items-center justify-center gap-2 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            {isSubmitting ? "Enviando..." : "Enviar"}
-          </button>
-        </motion.form>
+              <div>
+                <label
+                  htmlFor="cellphone"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
+                  Celular
+                </label>
+                <div className="relative">
+                  <Phone
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    id="cellphone"
+                    name="cellphone"
+                    value={formData.cellphone}
+                    onChange={handleChange}
+                    placeholder="(00) 00000-0000"
+                    required
+                    className={`w-full pl-12 pr-4 py-3 border ${errors.cellphone ? "border-red-500" : "border-slate-200"} rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all`}
+                  />
+                </div>
+                {errors.cellphone && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.cellphone}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`w-full bg-pink-600 text-white py-3 rounded-xl font-semibold hover:bg-pink-700 active:scale-95 transition-all flex items-center justify-center gap-2 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                {isSubmitting ? "Enviando..." : "Enviar"}
+              </button>
+            </motion.form>
+          )}
+        </AnimatePresence>
 
         <p className="text-center text-sm text-slate-500 mt-6">
           Ao se cadastrar, você concorda com nossos Termos de Serviço e Política

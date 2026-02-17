@@ -8,31 +8,10 @@ import {
   Egg,
 } from "phosphor-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    // Buscar dados do usuário da sessão armazenada
-    const storedSession = localStorage.getItem("supabase_session");
-    if (storedSession) {
-      try {
-        const { user: sessionUser } = JSON.parse(storedSession);
-        setUser(sessionUser);
-      } catch (err) {
-        console.error("Erro ao ler sessão:", err);
-      }
-    }
-  }, []);
-
-  const defaultUser = {
-    name: user?.email?.split("@")[0] || "Usuário",
-    email: user?.email || "usuario@confeitaria.com",
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || "user"}`,
-  };
 
   const menuItems = [
     {
@@ -101,28 +80,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           )}
         </motion.div>
       </div>
-
-      {/* User Info */}
-      {!isCollapsed && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="p-6 border-b border-slate-700"
-        >
-          <img
-            src={defaultUser.avatar}
-            alt={defaultUser.name}
-            className="w-12 h-12 rounded-full mb-4"
-          />
-          <h3 className="font-semibold text-sm">{user?.name}</h3>
-          <p className="text-xs text-slate-400 mb-3">{user?.email}</p>
-          <div className="bg-slate-700 rounded-lg p-3">
-            <p className="text-xs text-slate-300 mb-1">Loja</p>
-            <p className="text-sm font-semibold">{user?.businessName}</p>
-          </div>
-        </motion.div>
-      )}
 
       {/* Menu Items */}
       <nav className="p-4 space-y-2">
