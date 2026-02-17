@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/jerobas/saas/service"
+	"github.com/jerobas/saas/database"
+
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -15,9 +18,6 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
-
-//go:embed schema.sql
-var schemaFS embed.FS
 
 type LicenseData struct {
 	ID             string `json:"id"`
@@ -28,7 +28,7 @@ type LicenseData struct {
 
 var licenseFile string
 var license LicenseData
-var db *Database
+var db *database.Database
 
 func initDat() {
 	dir, _ := os.UserConfigDir()
@@ -41,7 +41,7 @@ func initDat() {
 
 	dbPath := filepath.Join(appDir, "app.db")
 	var err error
-	db, err = NewDatabase(dbPath)
+	db, err = database.NewDatabase(dbPath)
 	if err != nil {
 		log.Fatalf("Erro ao inicializar banco de dados: %v", err)
 	}
@@ -118,11 +118,11 @@ func main() {
 
 	app := NewApp()
 	userService := NewUserService()
-	itemService := NewItemService(db)
-	batchService := NewBatchService(db)
-	recipeService := NewRecipeService(db)
-	productService := NewProductService(db)
-	saleService := NewSaleService(db)
+	itemService := service.NewItemService(db)
+	batchService := service.NewBatchService(db)
+	recipeService := service.NewRecipeService(db)
+	productService := service.NewProductService(db)
+	saleService := service.NewSaleService(db)
 
 	err := wails.Run(&options.App{
 		Title:  "app",

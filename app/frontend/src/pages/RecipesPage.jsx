@@ -2,13 +2,13 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Plus, Trash, Pencil, Package } from "phosphor-react";
-import { GetAllItems } from "../../wailsjs/go/main/ItemService";
+import { GetAllItems } from "../../wailsjs/go/service/ItemService";
 import {
   CreateRecipe,
   GetAllRecipes,
   UpdateRecipe,
   DeleteRecipe,
-} from "../../wailsjs/go/main/RecipeService";
+} from "../../wailsjs/go/service/RecipeService";
 
 const RecipesPage = () => {
   const [items, setItems] = useState([]);

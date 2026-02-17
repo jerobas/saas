@@ -1,4 +1,4 @@
-module app
+module github.com/jerobas/saas
 
 go 1.24.0
 

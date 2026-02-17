@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash, Warning } from 'phosphor-react';
-import { CreateItem, GetAllItems, DeleteItem } from '../../wailsjs/go/main/ItemService';
-import { GetBatchesByItem } from '../../wailsjs/go/main/BatchService';
+import { CreateItem, GetAllItems, DeleteItem } from '../../wailsjs/go/service/ItemService';
+import { GetBatchesByItem } from '../../wailsjs/go/service/BatchService';
 
 const InventoryPage = () => {
   const [ingredients, setIngredients] = useState([]);

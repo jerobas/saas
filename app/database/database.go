@@ -1,14 +1,18 @@
-package main
+package database
 
 import (
+	"embed"
 	"database/sql"
 	"log"
 
 	_ "modernc.org/sqlite"
 )
 
+//go:embed schema.sql
+var schemaFS embed.FS
+
 type Database struct {
-	conn *sql.DB
+	Conn *sql.DB
 }
 
 func NewDatabase(dbPath string) (*Database, error) {
@@ -21,7 +25,7 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, err
 	}
 
-	database := &Database{conn: db}
+	database := &Database{Conn: db}
 	if err := database.createTables(); err != nil {
 		return nil, err
 	}
@@ -36,7 +40,7 @@ func (d *Database) createTables() error {
 		return err
 	}
 
-	if _, err := d.conn.Exec(string(schema)); err != nil {
+	if _, err := d.Conn.Exec(string(schema)); err != nil {
 		log.Printf("Erro ao criar tabelas: %v", err)
 		return err
 	}
@@ -45,9 +49,9 @@ func (d *Database) createTables() error {
 }
 
 func (d *Database) Close() error {
-	return d.conn.Close()
+	return d.Conn.Close()
 }
 
 func (d *Database) GetConnection() *sql.DB {
-	return d.conn
+	return d.Conn
 }

@@ -1,4 +1,4 @@
-package main
+package model
 
 import "time"
 
@@ -53,7 +53,7 @@ type SaleDTO struct {
 // Conversores (Entity -> DTO)
 // ============================================
 
-func toItemDTO(item *Item) *ItemDTO {
+func ToItemDTO(item *Item) *ItemDTO {
 	if item == nil {
 		return nil
 	}
@@ -66,15 +66,15 @@ func toItemDTO(item *Item) *ItemDTO {
 	}
 }
 
-func toItemDTOList(items []*Item) []*ItemDTO {
+func ToItemDTOList(items []*Item) []*ItemDTO {
 	dtos := make([]*ItemDTO, len(items))
 	for i, item := range items {
-		dtos[i] = toItemDTO(item)
+		dtos[i] = ToItemDTO(item)
 	}
 	return dtos
 }
 
-func toBatchDTO(batch *InventoryBatch) *InventoryBatchDTO {
+func ToBatchDTO(batch *InventoryBatch) *InventoryBatchDTO {
 	if batch == nil {
 		return nil
 	}
@@ -89,15 +89,15 @@ func toBatchDTO(batch *InventoryBatch) *InventoryBatchDTO {
 	}
 }
 
-func toBatchDTOList(batches []*InventoryBatch) []*InventoryBatchDTO {
+func ToBatchDTOList(batches []*InventoryBatch) []*InventoryBatchDTO {
 	dtos := make([]*InventoryBatchDTO, len(batches))
 	for i, batch := range batches {
-		dtos[i] = toBatchDTO(batch)
+		dtos[i] = ToBatchDTO(batch)
 	}
 	return dtos
 }
 
-func toRecipeDTO(recipe *Recipe) *RecipeDTO {
+func ToRecipeDTO(recipe *Recipe) *RecipeDTO {
 	if recipe == nil {
 		return nil
 	}
@@ -109,15 +109,15 @@ func toRecipeDTO(recipe *Recipe) *RecipeDTO {
 	}
 }
 
-func toRecipeDTOList(recipes []*Recipe) []*RecipeDTO {
+func ToRecipeDTOList(recipes []*Recipe) []*RecipeDTO {
 	dtos := make([]*RecipeDTO, len(recipes))
 	for i, recipe := range recipes {
-		dtos[i] = toRecipeDTO(recipe)
+		dtos[i] = ToRecipeDTO(recipe)
 	}
 	return dtos
 }
 
-func toProductDTO(product *Product) *ProductDTO {
+func ToProductDTO(product *Product) *ProductDTO {
 	if product == nil {
 		return nil
 	}
@@ -131,15 +131,15 @@ func toProductDTO(product *Product) *ProductDTO {
 	}
 }
 
-func toProductDTOList(products []*Product) []*ProductDTO {
+func ToProductDTOList(products []*Product) []*ProductDTO {
 	dtos := make([]*ProductDTO, len(products))
 	for i, product := range products {
-		dtos[i] = toProductDTO(product)
+		dtos[i] = ToProductDTO(product)
 	}
 	return dtos
 }
 
-func toSaleDTO(sale *Sale) *SaleDTO {
+func ToSaleDTO(sale *Sale) *SaleDTO {
 	if sale == nil {
 		return nil
 	}
@@ -153,10 +153,10 @@ func toSaleDTO(sale *Sale) *SaleDTO {
 	}
 }
 
-func toSaleDTOList(sales []*Sale) []*SaleDTO {
+func ToSaleDTOList(sales []*Sale) []*SaleDTO {
 	dtos := make([]*SaleDTO, len(sales))
 	for i, sale := range sales {
-		dtos[i] = toSaleDTO(sale)
+		dtos[i] = ToSaleDTO(sale)
 	}
 	return dtos
 }

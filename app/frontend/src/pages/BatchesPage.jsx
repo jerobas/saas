@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash, Package } from 'phosphor-react';
-import { GetAllItems } from '../../wailsjs/go/main/ItemService';
-import { CreateBatch, GetBatchesByItem, DeleteBatch } from '../../wailsjs/go/main/BatchService';
+import { GetAllItems } from '../../wailsjs/go/service/ItemService';
+import { CreateBatch, GetBatchesByItem, DeleteBatch } from '../../wailsjs/go/service/BatchService';
 
 const BatchesPage = () => {
   const [batches, setBatches] = useState([]);
