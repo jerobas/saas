@@ -4,7 +4,7 @@ set -e
 ROOT=$(pwd)
 
 API_KEYS="$ROOT/api/src/license"
-APP_KEYS="$ROOT/app/src/license"
+APP_KEYS="$ROOT/app/license"
 
 mkdir -p "$API_KEYS"
 mkdir -p "$APP_KEYS"

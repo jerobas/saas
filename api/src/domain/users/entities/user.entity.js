@@ -1,4 +1,4 @@
-import { EntitySchema } from 'typeorm';
+import { EntitySchema } from "typeorm";
 
 export class User {
   constructor(data) {
@@ -7,66 +7,71 @@ export class User {
 }
 
 export const UserSchema = new EntitySchema({
-  name: 'User',
+  name: "User",
   target: User,
-  tableName: 'users',
+  tableName: "users",
   columns: {
     id: {
-      type: 'uuid',
+      type: "uuid",
       primary: true,
-      generated: 'uuid',
+      generated: "uuid",
     },
     email: {
-      type: 'varchar',
+      type: "varchar",
       unique: true,
       nullable: false,
     },
     name: {
-      type: 'varchar',
+      type: "varchar",
       nullable: false,
     },
     taxId: {
-      type: 'varchar',
+      type: "varchar",
       nullable: true,
     },
     cellphone: {
-      type: 'varchar',
+      type: "varchar",
       nullable: true,
     },
     abacatePayCustomerId: {
-      type: 'varchar',
+      type: "varchar",
       nullable: true,
-      comment: 'ID do customer no AbacatePay',
+      comment: "ID do customer no AbacatePay",
     },
     licenseActive: {
-      type: 'boolean',
+      type: "boolean",
       default: false,
-      comment: 'Se a licença está ativa',
+      comment: "Se a licença está ativa",
     },
     licenseExpiresAt: {
-      type: 'timestamp',
+      type: "timestamp",
       nullable: true,
-      comment: 'Data de expiração da licença (1 ano após pagamento confirmado)',
+      comment: "Data de expiração da licença (1 ano após pagamento confirmado)",
     },
     licenseToken: {
-      type: 'text',
+      type: "text",
       nullable: true,
-      comment: 'Token de licença assinado digitalmente',
+      comment: "Token de licença assinado digitalmente",
     },
     createdAt: {
-      type: 'timestamp',
+      type: "timestamp",
       createDate: true,
     },
     updatedAt: {
-      type: 'timestamp',
+      type: "timestamp",
       updateDate: true,
+    },
+    passwordHash: {
+      type: "varchar",
+      nullable: false,
+      comment: "Hash da senha do usuário",
     },
   },
   relations: {
     payments: {
-      type: 'one-to-many',
-      target: 'Payment',
-      inverseSide: 'user',
+      type: "one-to-many",
+      target: "Payment",
+      inverseSide: "user",
       cascade: true,
     },
   },
