@@ -1,8 +1,8 @@
 package database
 
 import (
-	"embed"
 	"database/sql"
+	"embed"
 	"log"
 
 	_ "modernc.org/sqlite"
@@ -13,6 +13,7 @@ var schemaFS embed.FS
 
 type Database struct {
 	Conn *sql.DB
+	path string
 }
 
 func NewDatabase(dbPath string) (*Database, error) {
@@ -25,7 +26,7 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, err
 	}
 
-	database := &Database{Conn: db}
+	database := &Database{Conn: db, path: dbPath}
 	if err := database.createTables(); err != nil {
 		return nil, err
 	}

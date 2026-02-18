@@ -7,13 +7,17 @@ import (
 	_ "embed"
 	"encoding/pem"
 	"fmt"
+
+	"github.com/jerobas/saas/service"
 )
 
 //go:embed license/public.pem
 var publicKeyData []byte
 
 type App struct {
-	ctx context.Context
+	ctx             context.Context
+	Notifier        *service.Notifier
+	DatabaseService *service.DatabaseService
 }
 
 func NewApp() *App {
@@ -24,6 +28,10 @@ func NewApp() *App {
 // Aqui você pode verificar a licença logo na abertura.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.Notifier = service.NewNotifier(ctx)
+	if a.DatabaseService != nil {
+		a.DatabaseService.SetContext(ctx)
+	}
 
 	ok, _ := getUserStatus()
 	if !ok {

@@ -1,4 +1,5 @@
 import { createContext, useState, useRef, useEffect } from "react";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import notificationSound from "../assets/notification.mp3";
 
 export const AppContext = createContext();
@@ -13,6 +14,12 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     audioRef.current = new Audio(notificationSound);
     audioRef.current.volume = 0.7;
+  }, []);
+
+  useEffect(() => {
+    EventsOn("notification:new", (payload) => {
+      addNotification(payload);
+    });
   }, []);
 
   useEffect(() => {
@@ -31,38 +38,6 @@ export const AppProvider = ({ children }) => {
 
     document.addEventListener("click", unlockAudio, { once: true });
     return () => document.removeEventListener("click", unlockAudio);
-  }, []);
-
-  // Loop de teste - gera notificações automaticamente a cada 10 segundos
-  useEffect(() => {
-    const testMessages = [
-      { title: "Nova venda", message: "Venda #1234 realizada com sucesso!" },
-      {
-        title: "Estoque baixo",
-        message: "Produto XYZ está com estoque baixo.",
-      },
-      {
-        title: "Lote pronto",
-        message: "Lote #567 está pronto para expedição.",
-      },
-      {
-        title: "Pagamento recebido",
-        message: "Pagamento PIX de R$ 150,00 confirmado.",
-      },
-      { title: "Novo pedido", message: "Pedido #890 aguardando separação." },
-    ];
-
-    let counter = 0;
-    const interval = setInterval(() => {
-      const randomMsg = testMessages[counter % testMessages.length];
-      addNotification({
-        title: randomMsg.title,
-        message: randomMsg.message,
-      });
-      counter++;
-    }, 10000); // A cada 10 segundos
-
-    return () => clearInterval(interval);
   }, []);
 
   const buildId = () => {

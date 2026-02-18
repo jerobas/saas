@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/jerobas/saas/service"
 	"github.com/jerobas/saas/database"
+	"github.com/jerobas/saas/service"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -123,6 +123,8 @@ func main() {
 	recipeService := service.NewRecipeService(db)
 	productService := service.NewProductService(db)
 	saleService := service.NewSaleService(db)
+	databaseService := service.NewDatabaseService(db)
+	app.DatabaseService = databaseService
 
 	err := wails.Run(&options.App{
 		Title:  "app",
@@ -140,6 +142,7 @@ func main() {
 			recipeService,
 			productService,
 			saleService,
+			databaseService,
 		},
 	})
 

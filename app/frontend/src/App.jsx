@@ -10,6 +10,7 @@ import RecipesPage from "./pages/RecipesPage";
 import ProductsPage from "./pages/ProductsPage";
 import SalesPage from "./pages/SalesPage";
 import BatchesPage from "./pages/BatchesPage";
+import DatabasePage from "./pages/DatabasePage";
 import AppLayout from "./components/AppLayout";
 import { GetUserStatus } from "../wailsjs/go/main/UserService";
 import { AppProvider } from "./context/AppContext";
@@ -97,6 +98,16 @@ function App() {
               <PrivateRoute isActive={isActive}>
                 <AppLayout>
                   <SalesPage />
+                </AppLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/database"
+            element={
+              <PrivateRoute isActive={isActive}>
+                <AppLayout>
+                  <DatabasePage />
                 </AppLayout>
               </PrivateRoute>
             }
