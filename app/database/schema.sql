@@ -1,13 +1,29 @@
 PRAGMA foreign_keys = ON;
 
 -- =========================
+-- PROFILE (Enterprise Settings)
+-- =========================
+CREATE TABLE IF NOT EXISTS profile (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+
+  hourly_cost REAL NOT NULL,
+  default_profit_margin REAL NOT NULL,
+
+  expected_monthly_profit REAL,
+  fixed_monthly_expenses REAL,
+
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- =========================
 -- ITEMS
 -- =========================
 CREATE TABLE IF NOT EXISTS items (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     unit TEXT NOT NULL,
-    min_stock_alert REAL DEFAULT 0,
+    min_stock REAL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

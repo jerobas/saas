@@ -11,6 +11,7 @@ import ProductsPage from "./pages/ProductsPage";
 import SalesPage from "./pages/SalesPage";
 import BatchesPage from "./pages/BatchesPage";
 import DatabasePage from "./pages/DatabasePage";
+import EnterprisePage from "./pages/EnterprisePage";
 import AppLayout from "./components/AppLayout";
 import { GetUserStatus } from "../wailsjs/go/main/UserService";
 import { AppProvider } from "./context/AppContext";
@@ -98,6 +99,16 @@ function App() {
               <PrivateRoute isActive={isActive}>
                 <AppLayout>
                   <SalesPage />
+                </AppLayout>
+              </PrivateRoute>
+            }
+          />
+            <Route
+            path="/enterprise"
+            element={
+              <PrivateRoute isActive={isActive}>
+                <AppLayout>
+                  <EnterprisePage />
                 </AppLayout>
               </PrivateRoute>
             }

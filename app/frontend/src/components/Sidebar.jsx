@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import {
   ArrowsClockwise as ArrowsClockwiseIcon,
+  CurrencyDollar,
   House,
   Package,
   FileText,
@@ -52,7 +53,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       path: "/sales",
     },
     {
-      icon: <ArrowsClockwiseIcon size={32} />,
+      icon: <CurrencyDollar size={24} />,
+      label: "Empresa",
+      id: "enterprise",
+      path: "/enterprise",
+    },
+    {
+      icon: <ArrowsClockwiseIcon size={24} />,
       label: "Backup",
       id: "database",
       path: "/database",
