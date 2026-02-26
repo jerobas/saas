@@ -11,12 +11,13 @@ jobs:
 
     steps:
       - name: Checkout
+        working-directory: /home/alfred/repos/saas
         uses: actions/checkout@v4
 
       - name: Generate Keys (if not exists)
         working-directory: /home/alfred/repos/saas
         run: |
-          LICENSES_DIR="/home/alfred/licenses"
+          LICENSES_DIR="/home/alfred/repos/saas/licenses"
           mkdir -p "$LICENSES_DIR"
 
           if [ ! -f "$LICENSES_DIR/private.pem" ] || [ ! -f "$LICENSES_DIR/public.pem" ]; then
@@ -44,11 +45,11 @@ jobs:
         run: cp /home/alfred/envs/.env.saas.api api/.env
 
       - name: Install dependencies
-        working-directory: /home/alfred/repos/saas/saas
+        working-directory: /home/alfred/repos/saas
         run: npm install
 
       - name: Restart app
-        working-directory: /home/alfred/repos/saas/saas
+        working-directory: /home/alfred/repos/saas
         run: |
           pm2 delete saas-backend || true
           pm2 start src/main.js --name saas-backend --node-args="--env-file=.env" --watch
