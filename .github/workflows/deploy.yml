@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: 24.13.1
 
+      - name: Copy .env file
+        run: cp ~/envs/.env.api api/.env
+
       - name: Install dependencies
         working-directory: api
         run: npm install
