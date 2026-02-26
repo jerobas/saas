@@ -11,7 +11,6 @@ jobs:
 
     steps:
       - name: Checkout
-        working-directory: /home/alfred/repos/saas
         uses: actions/checkout@v4
 
       - name: Generate Keys (if not exists)
