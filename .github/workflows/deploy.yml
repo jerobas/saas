@@ -18,6 +18,26 @@ jobs:
         with:
           node-version: 24.13.1
 
+      - name: Generate Keys (if not exists)
+        run: |
+          PERSISTENT_KEYS_DIR="/var/saas-keys"
+          mkdir -p "$PERSISTENT_KEYS_DIR"
+
+          if [ ! -f "$PERSISTENT_KEYS_DIR/private.pem" ] || [ ! -f "$PERSISTENT_KEYS_DIR/public.pem" ]; then
+            chmod +x scripts/generate-keys.sh
+            ./scripts/generate-keys.sh
+
+            # Copiar as chaves geradas para o diretório persistente
+            cp api/src/license/private.pem "$PERSISTENT_KEYS_DIR/private.pem"
+            cp app/license/public.pem "$PERSISTENT_KEYS_DIR/public.pem"
+          else
+            echo "Keys already exist in persistent storage. Skipping generation."
+
+            # Restaurar as chaves do diretório persistente
+            cp "$PERSISTENT_KEYS_DIR/private.pem" api/src/license/private.pem
+            cp "$PERSISTENT_KEYS_DIR/public.pem" app/license/public.pem
+          fi
+
       - name: Copy .env file
         run: cp ~/envs/.env.api api/.env
 
