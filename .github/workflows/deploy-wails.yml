@@ -1,9 +1,11 @@
 name: Deploy Wails App
 
 on:
-  push:
-    tags:
-      - 'v*'   # dispara quando criar tag tipo v1.0.0
+  workflow_run:
+    workflows:
+      - Deploy
+    types:
+      - completed
 
 permissions:
   contents: write
