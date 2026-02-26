@@ -43,9 +43,13 @@ jobs:
 
       - name: Copy .env file
         run: cp /home/alfred/envs/.env.saas.api api/.env
+        with:
+          path: repos/saas
 
       - name: Install dependencies
         run: npm install
+        with:
+          path: repos/saas
 
       - name: Restart app
         run: |
