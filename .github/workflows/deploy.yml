@@ -20,7 +20,7 @@ jobs:
 
       - name: Generate Keys (if not exists)
         run: |
-          PERSISTENT_KEYS_DIR="/var/saas-keys"
+          PERSISTENT_KEYS_DIR="/home/flaviovf/keys"
           mkdir -p "$PERSISTENT_KEYS_DIR"
 
           if [ ! -f "$PERSISTENT_KEYS_DIR/private.pem" ] || [ ! -f "$PERSISTENT_KEYS_DIR/public.pem" ]; then
