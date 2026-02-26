@@ -17,7 +17,7 @@ import { SimulatePaymentController } from "../controllers/simulate-payment.contr
 import { WebhookPaymentController } from "../controllers/webhook-payment.controller.js";
 import { GetLicenseStatusController } from "../controllers/get-license-status.controller.js";
 import { sendSSE } from "../controllers/sse.controller.js";
-import { authenticateAndCheckLicenseController } from "../controllers/authenticate-and-check-license.controller.js";
+import { AuthenticateAndCheckLicenseController } from "../controllers/authenticate-and-check-license.controller.js";
 
 const router = Router();
 
@@ -54,6 +54,11 @@ const createControllers = () => {
       licenseService,
     ),
     getLicenseStatusController: new GetLicenseStatusController(userRepository),
+    authenticateAndCheckLicenseController: new AuthenticateAndCheckLicenseController(
+      userRepository,
+      licenseService,
+      abacatePayService,
+    ),
   };
 };
 
@@ -121,7 +126,14 @@ router.get("/license", async (req, res, next) => {
 router.get("/sse/:clientId", sendSSE);
 
 // POST /api/auth/check-license - Autenticar usuário e verificar a licença
-router.post("/auth/check-license", authenticateAndCheckLicenseController);
+router.post("/auth/check-license", async (req, res, next) => {
+  try {
+    const ctrl = getControllers();
+    await ctrl.authenticateAndCheckLicenseController.handle(req, res);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // GET /api/health - Verificar status da API
 router.get("/health", (req, res) => {

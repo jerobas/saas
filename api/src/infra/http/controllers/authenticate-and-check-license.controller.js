@@ -13,16 +13,27 @@ const authenticateAndCheckLicenseUseCase = new AuthenticateAndCheckLicenseUseCas
   paymentService
 );
 
-async function authenticateAndCheckLicenseController(req, res, next) {
-  try {
-    const { email, password } = req.body;
+export class AuthenticateAndCheckLicenseController {
+  constructor(userRepository, licenseService, paymentService) {
+    this.authenticateAndCheckLicenseUseCase = new AuthenticateAndCheckLicenseUseCase(
+      userRepository,
+      licenseService,
+      paymentService
+    );
+  }
 
-    const result = await authenticateAndCheckLicenseUseCase.execute({ email, password });
+  async handle(req, res, next) {
+    try {
+      const { email, password } = req.body;
 
-    res.status(200).json(result);
-  } catch (error) {
-    next(error);
+      const result = await this.authenticateAndCheckLicenseUseCase.execute({
+        email,
+        password,
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
   }
 }
-
-module.exports = authenticateAndCheckLicenseController;
