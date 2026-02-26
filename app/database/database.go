@@ -1,14 +1,17 @@
 package database
+// package main
 
 import (
 	"database/sql"
 	"embed"
 	"log"
+	"slices"
+	"io/fs"
 
 	_ "modernc.org/sqlite"
 )
 
-//go:embed schema.sql
+//go:embed schemas/*.sql
 var schemaFS embed.FS
 
 type Database struct {
@@ -35,15 +38,32 @@ func NewDatabase(dbPath string) (*Database, error) {
 }
 
 func (d *Database) createTables() error {
-	schema, err := schemaFS.ReadFile("schema.sql")
+	schema, err := schemaFS.ReadDir("schemas")
 	if err != nil {
-		log.Printf("Erro ao ler schema.sql: %v", err)
+		log.Printf("Erro ao ler diretório schemas: %v", err)
 		return err
 	}
 
-	if _, err := d.Conn.Exec(string(schema)); err != nil {
-		log.Printf("Erro ao criar tabelas: %v", err)
-		return err
+	slices.SortFunc(schema, func(a, b fs.DirEntry) int {
+		if a.Name() < b.Name() {
+			return -1
+		}
+		if a.Name() > b.Name() {
+			return 1
+		}
+		return 0
+	})
+
+	for _, file := range schema {
+		content, err := schemaFS.ReadFile("schemas/" + file.Name())
+		if err != nil {
+			log.Printf("Erro ao ler arquivo %s: %v", file.Name(), err)
+			return err
+		}
+		if _, err := d.Conn.Exec(string(content)); err != nil {
+			log.Printf("Erro ao criar tabela do arquivo %s: %v", file.Name(), err)
+			return err
+		}
 	}
 
 	return nil
