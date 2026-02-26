@@ -33,6 +33,10 @@ jobs:
           else
             echo "Keys already exist in persistent storage. Skipping generation."
 
+            # Criar os diretórios necessários antes de copiar
+            mkdir -p api/src/license
+            mkdir -p app/license
+
             # Restaurar as chaves do diretório persistente
             cp "$PERSISTENT_KEYS_DIR/private.pem" api/src/license/private.pem
             cp "$PERSISTENT_KEYS_DIR/public.pem" app/license/public.pem
@@ -44,10 +48,6 @@ jobs:
       - name: Install dependencies
         working-directory: api
         run: npm install
-
-      - name: Build application
-        working-directory: api
-        run: npm run build --if-present
 
       - name: Ensure RabbitMQ
         run: |
