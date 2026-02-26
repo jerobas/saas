@@ -123,6 +123,11 @@ router.get("/sse/:clientId", sendSSE);
 // POST /api/auth/check-license - Autenticar usuário e verificar a licença
 router.post("/auth/check-license", authenticateAndCheckLicenseController);
 
+// GET /api/health - Verificar status da API
+router.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
 export const setupRoutes = (app) => {
   app.use("/api", router);
 };
