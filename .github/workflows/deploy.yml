@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: saas
 
       - name: Generate Keys (if not exists)
         working-directory: saas
@@ -55,8 +53,3 @@ jobs:
           pm2 delete saas-backend || true
           pm2 start src/main.js --name saas-backend --node-args="--env-file=.env" --watch
           pm2 save
-
-      - name: Ensure PM2 startup
-        run: |
-          pm2 startup
-          pm2 resurrect
