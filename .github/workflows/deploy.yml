@@ -13,10 +13,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: _work/saas
+          path: repos/saas
 
       - name: Generate Keys (if not exists)
-        working-directory: _work/saas
+        working-directory: repos/saas
         run: |
           LICENSES_DIR="/home/alfred/licenses"
           mkdir -p "$LICENSES_DIR"
@@ -42,31 +42,12 @@ jobs:
           fi
 
       - name: Copy .env file
-        working-directory: _work/saas
         run: cp /home/alfred/envs/.env.saas.api api/.env
 
       - name: Install dependencies
-        working-directory: _work/saas/api
         run: npm install
 
-      - name: Ensure RabbitMQ
-        run: |
-          if [ -z "$(docker ps -q -f name=rabbitmq)" ]; then
-            if [ -n "$(docker ps -aq -f status=exited -f name=rabbitmq)" ]; then
-              docker rm rabbitmq
-            fi
-            docker run -d \
-              --name rabbitmq \
-              -p 5672:5672 \
-              -p 15672:15672 \
-              -e RABBITMQ_DEFAULT_USER=guest \
-              -e RABBITMQ_DEFAULT_PASS=guest \
-              --restart unless-stopped \
-              rabbitmq:3-management
-          fi
-
       - name: Restart app
-        working-directory: _work/saas/api
         run: |
           pm2 delete saas-backend || true
           pm2 start src/main.js --name saas-backend --node-args="--env-file=.env" --watch
