@@ -43,7 +43,7 @@ const startServer = async () => {
 
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📚 Swagger docs: http://localhost:${PORT}/api-docs`);
+    console.log(`📚 Swagger docs: http://localhost:${PORT}/api/api-docs`);
   });
 };
 
