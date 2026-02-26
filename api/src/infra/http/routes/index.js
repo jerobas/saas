@@ -17,6 +17,7 @@ import { SimulatePaymentController } from "../controllers/simulate-payment.contr
 import { WebhookPaymentController } from "../controllers/webhook-payment.controller.js";
 import { GetLicenseStatusController } from "../controllers/get-license-status.controller.js";
 import { sendSSE } from "../controllers/sse.controller.js";
+import { authenticateAndCheckLicenseController } from "../controllers/authenticate-and-check-license.controller.js";
 
 const router = Router();
 
@@ -118,6 +119,9 @@ router.get("/license", async (req, res, next) => {
 
 // GET /api/sse/:clientId - SSE para atualizações em tempo real
 router.get("/sse/:clientId", sendSSE);
+
+// POST /api/auth/check-license - Autenticar usuário e verificar a licença
+router.post("/auth/check-license", authenticateAndCheckLicenseController);
 
 export const setupRoutes = (app) => {
   app.use("/api", router);
