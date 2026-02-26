@@ -16,6 +16,8 @@ jobs:
       - name: Embed license keys
         working-directory: /home/alfred/repos/saas/saas
         run: |
+          mkdir -p /home/alfred/repos/saas/saas/saas/api/src/license
+          mkdir -p /home/alfred/repos/saas/saas/saas/app/license
           echo "$PRIVATE_KEY" > "/home/alfred/repos/saas/saas/saas/api/src/license/private.pem"
           echo "$PUBLIC_KEY" > "/home/alfred/repos/saas/saas/saas/app/license/public.pem"
         env:
