@@ -1,4 +1,4 @@
-import { AuthenticateAndCheckLicenseUseCase } from '../../domain/users/usecases/authenticate-and-check-license-usecase.js';
+import AuthenticateAndCheckLicenseUseCase from '../../../domain/users/usecases/authenticate-and-check-license-usecase.js';
 import { UserRepository } from '../../domain/users/repositories/user.repository.js';
 import { LicenseService } from '../../infra/services/license.service.js';
 import { PaymentService } from '../../infra/services/abacatepay.service.js';
