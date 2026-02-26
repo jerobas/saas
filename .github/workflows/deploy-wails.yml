@@ -41,7 +41,7 @@ jobs:
           wails build
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wails-app-build-${{ matrix.os }}
           path: app/build/bin
@@ -52,12 +52,12 @@ jobs:
 
     steps:
       - name: Download Build Artifacts (Windows)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wails-app-build-windows-latest
 
       - name: Download Build Artifacts (MacOS)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wails-app-build-macos-latest
 
