@@ -12,41 +12,41 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
         with:
-          node-version: 24.13.1
+          path: _work/saas
 
       - name: Generate Keys (if not exists)
+        working-directory: _work/saas
         run: |
-          PERSISTENT_KEYS_DIR="/home/flaviovf/keys"
-          mkdir -p "$PERSISTENT_KEYS_DIR"
+          LICENSES_DIR="/home/alfred/licenses"
+          mkdir -p "$LICENSES_DIR"
 
-          if [ ! -f "$PERSISTENT_KEYS_DIR/private.pem" ] || [ ! -f "$PERSISTENT_KEYS_DIR/public.pem" ]; then
+          if [ ! -f "$LICENSES_DIR/private.pem" ] || [ ! -f "$LICENSES_DIR/public.pem" ]; then
+            echo "Generating keys for the first time..."
             chmod +x scripts/generate-keys.sh
             ./scripts/generate-keys.sh
 
-            # Copiar as chaves geradas para o diretório persistente
-            cp api/src/license/private.pem "$PERSISTENT_KEYS_DIR/private.pem"
-            cp app/license/public.pem "$PERSISTENT_KEYS_DIR/public.pem"
+            # Save the generated keys to the licenses directory
+            cp api/src/license/private.pem "$LICENSES_DIR/private.pem"
+            cp app/license/public.pem "$LICENSES_DIR/public.pem"
           else
-            echo "Keys already exist in persistent storage. Skipping generation."
+            echo "Keys already exist in $LICENSES_DIR. Moving to project directories..."
 
-            # Criar os diretórios necessários antes de copiar
+            # Ensure the target directories exist
             mkdir -p api/src/license
             mkdir -p app/license
 
-            # Restaurar as chaves do diretório persistente
-            cp "$PERSISTENT_KEYS_DIR/private.pem" api/src/license/private.pem
-            cp "$PERSISTENT_KEYS_DIR/public.pem" app/license/public.pem
+            # Move the keys to the project directories
+            cp "$LICENSES_DIR/private.pem" api/src/license/private.pem
+            cp "$LICENSES_DIR/public.pem" app/license/public.pem
           fi
 
       - name: Copy .env file
-        run: cp ~/envs/.env.api api/.env
+        working-directory: _work/saas
+        run: cp /home/alfred/envs/.env.saas.api api/.env
 
       - name: Install dependencies
-        working-directory: api
+        working-directory: _work/saas/api
         run: npm install
 
       - name: Ensure RabbitMQ
@@ -65,7 +65,7 @@ jobs:
           fi
 
       - name: Restart app
-        working-directory: api
+        working-directory: _work/saas/api
         run: |
-          pm2 delete app || true
-          pm2 start src/main.js --name app
+          pm2 delete saas-backend || true
+          pm2 start src/main.js --name saas-backend --node-args="--env-file=.env"
