@@ -1,7 +1,7 @@
-const AuthenticateAndCheckLicenseUseCase = require('../../domain/users/usecases/authenticate-and-check-license-usecase');
-const UserRepository = require('../../domain/users/repositories/user.repository');
-const LicenseService = require('../../infra/services/license.service');
-const PaymentService = require('../../infra/services/abacatepay.service');
+import { AuthenticateAndCheckLicenseUseCase } from '../../domain/users/usecases/authenticate-and-check-license-usecase.js';
+import { UserRepository } from '../../domain/users/repositories/user.repository.js';
+import { LicenseService } from '../../infra/services/license.service.js';
+import { PaymentService } from '../../infra/services/abacatepay.service.js';
 
 const userRepository = new UserRepository();
 const licenseService = new LicenseService();
@@ -14,19 +14,11 @@ const authenticateAndCheckLicenseUseCase = new AuthenticateAndCheckLicenseUseCas
 );
 
 export class AuthenticateAndCheckLicenseController {
-  constructor(userRepository, licenseService, paymentService) {
-    this.authenticateAndCheckLicenseUseCase = new AuthenticateAndCheckLicenseUseCase(
-      userRepository,
-      licenseService,
-      paymentService
-    );
-  }
-
   async handle(req, res, next) {
     try {
       const { email, password } = req.body;
 
-      const result = await this.authenticateAndCheckLicenseUseCase.execute({
+      const result = await authenticateAndCheckLicenseUseCase.execute({
         email,
         password,
       });
