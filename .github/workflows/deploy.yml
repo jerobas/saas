@@ -25,7 +25,9 @@ jobs:
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
 
       - name: Copy .env file
-        run: cp /home/alfred/envs/.env.saas.api /home/alfred/repos/saas/saas/saas/api/.env
+        run: echo "$ENV_API_SAAS" > /home/alfred/repos/saas/saas/saas/api/.env
+        env:
+          ENV_API_SAAS: ${{ secrets.ENV_API_SAAS }}
 
       - name: Install dependencies
         working-directory: /home/alfred/repos/saas/saas/saas/api
