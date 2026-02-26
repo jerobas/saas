@@ -13,31 +13,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate Keys (if not exists)
+      - name: Embed license keys
         working-directory: /home/alfred/repos/saas
         run: |
           LICENSES_DIR="/home/alfred/repos/saas/licenses"
           mkdir -p "$LICENSES_DIR"
 
-          if [ ! -f "$LICENSES_DIR/private.pem" ] || [ ! -f "$LICENSES_DIR/public.pem" ]; then
-            echo "Generating keys for the first time..."
-            chmod +x ./scripts/generate-keys.sh
-            ./scripts/generate-keys.sh
+          echo "$PRIVATE_KEY" > "$LICENSES_DIR/private.pem"
+          echo "$PUBLIC_KEY" > "$LICENSES_DIR/public.pem"
 
-            # Save the generated keys to the licenses directory
-            cp api/src/license/private.pem "$LICENSES_DIR/private.pem"
-            cp app/license/public.pem "$LICENSES_DIR/public.pem"
-          else
-            echo "Keys already exist in $LICENSES_DIR. Moving to project directories..."
+          # Ensure the target directories exist
+          mkdir -p api/src/license
+          mkdir -p app/license
 
-            # Ensure the target directories exist
-            mkdir -p api/src/license
-            mkdir -p app/license
-
-            # Move the keys to the project directories
-            cp "$LICENSES_DIR/private.pem" api/src/license/private.pem
-            cp "$LICENSES_DIR/public.pem" app/license/public.pem
-          fi
+          # Move the keys to the project directories
+          cp "$LICENSES_DIR/private.pem" api/src/license/private.pem
+          cp "$LICENSES_DIR/public.pem" app/license/public.pem
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
 
       - name: Copy .env file
         working-directory: /home/alfred/repos/saas
