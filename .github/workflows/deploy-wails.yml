@@ -1,0 +1,75 @@
+name: Deploy Wails App
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy
+    types:
+      - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.20
+
+      - name: Install Wails CLI
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Embed license key for Wails
+        run: |
+          mkdir -p app/license
+          echo "$PUBLIC_KEY" > app/license/public.pem
+        env:
+          PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
+
+      - name: Build Wails App
+        working-directory: app
+        run: |
+          wails build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wails-app-build-${{ matrix.os }}
+          path: app/build/bin
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Build Artifacts (Windows)
+        uses: actions/download-artifact@v3
+        with:
+          name: wails-app-build-windows-latest
+
+      - name: Download Build Artifacts (MacOS)
+        uses: actions/download-artifact@v3
+        with:
+          name: wails-app-build-macos-latest
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: |
+            app/build/bin
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            This release contains the latest build of the Wails app for Windows and MacOS.
+          draft: false
+          prerelease: false
