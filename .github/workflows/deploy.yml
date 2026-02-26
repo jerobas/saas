@@ -44,4 +44,4 @@ jobs:
       - name: Restart app
         working-directory: api
         run: |
-          pm2 restart app || pm2 start dist/main.js --name app
+          pm2 restart app || pm2 start src/main.js --name app
