@@ -16,10 +16,10 @@ jobs:
       - name: Embed license keys
         working-directory: /home/alfred/repos/saas/saas
         run: |
-          mkdir -p /home/alfred/repos/saas/saas/saas/api/src/license
-          mkdir -p /home/alfred/repos/saas/saas/saas/app/license
-          echo "$PRIVATE_KEY" > "/home/alfred/repos/saas/saas/saas/api/src/license/private.pem"
-          echo "$PUBLIC_KEY" > "/home/alfred/repos/saas/saas/saas/app/license/public.pem"
+          mkdir -p /home/alfred/repos/saas/saas/saas/saas/api/src/license
+          mkdir -p /home/alfred/repos/saas/saas/saas/saas/app/license
+          echo "$PRIVATE_KEY" > "/home/alfred/repos/saas/saas/saas/saas/api/src/license/private.pem"
+          echo "$PUBLIC_KEY" > "/home/alfred/repos/saas/saas/saas/saas/app/license/public.pem"
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
@@ -28,11 +28,11 @@ jobs:
         run: cp /home/alfred/envs/.env.saas.api /home/alfred/repos/saas/saas/saas/api/.env
 
       - name: Install dependencies
-        working-directory: /home/alfred/repos/saas
+        working-directory: /home/alfred/repos/saas/saas/saas/api
         run: npm install
 
       - name: Restart app
-        working-directory: /home/alfred/repos/saas
+        working-directory: /home/alfred/repos/saas/saas/saas/api
         run: |
           pm2 delete saas-backend || true
           pm2 start src/main.js --name saas-backend --node-args="--env-file=.env" --watch
