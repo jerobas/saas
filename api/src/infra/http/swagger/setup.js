@@ -283,8 +283,8 @@ const swaggerSpec = {
               schema: {
                 type: 'object',
                 properties: {
-                  userId: { type: 'string', format: 'uuid', description: 'ID do usuário (alternativa: email)' },
-                  email: { type: 'string', format: 'email', description: 'Email do usuário (alternativa: userId)' },
+                  email: { type: 'string', format: 'email', description: 'Email do usuário' },
+                  password: { type: 'string', description: 'Senha do usuário para autenticação' },
                 },
               },
             },

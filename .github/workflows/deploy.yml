@@ -61,6 +61,7 @@ jobs:
               -p 15672:15672 \
               -e RABBITMQ_DEFAULT_USER=guest \
               -e RABBITMQ_DEFAULT_PASS=guest \
+              --restart unless-stopped \
               rabbitmq:3-management
           fi
 
@@ -68,4 +69,10 @@ jobs:
         working-directory: _work/saas/api
         run: |
           pm2 delete saas-backend || true
-          pm2 start src/main.js --name saas-backend --node-args="--env-file=.env"
+          pm2 start src/main.js --name saas-backend --node-args="--env-file=.env" --watch
+          pm2 save
+
+      - name: Ensure PM2 startup
+        run: |
+          pm2 startup
+          pm2 resurrect
