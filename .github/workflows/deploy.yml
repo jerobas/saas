@@ -13,10 +13,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: repos/saas
+          path: saas
 
       - name: Generate Keys (if not exists)
-        working-directory: repos/saas
+        working-directory: saas
         run: |
           LICENSES_DIR="/home/alfred/licenses"
           mkdir -p "$LICENSES_DIR"
@@ -42,15 +42,15 @@ jobs:
           fi
 
       - name: Copy .env file
-        working-directory: repos/saas
+        working-directory: saas
         run: cp /home/alfred/envs/.env.saas.api api/.env
 
       - name: Install dependencies
-        working-directory: repos/saas/api
+        working-directory: saas/api
         run: npm install
 
       - name: Restart app
-        working-directory: repos/saas/api
+        working-directory: saas/api
         run: |
           pm2 delete saas-backend || true
           pm2 start src/main.js --name saas-backend --node-args="--env-file=.env" --watch
