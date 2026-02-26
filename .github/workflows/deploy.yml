@@ -13,29 +13,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate Keys (if not exists)
+      - name: Embed license keys
         working-directory: /home/alfred/repos/saas/saas
         run: |
-          LICENSES_DIR="/home/alfred/repos/saas/saas/licenses"
-          mkdir -p "$LICENSES_DIR"
-
-          echo "$PRIVATE_KEY" > "$LICENSES_DIR/private.pem"
-          echo "$PUBLIC_KEY" > "$LICENSES_DIR/public.pem"
-
-          # Ensure the target directories exist
-          mkdir -p api/src/license
-          mkdir -p app/license
-
-          # Move the keys to the project directories
-          cp "$LICENSES_DIR/private.pem" api/src/license/private.pem
-          cp "$LICENSES_DIR/public.pem" app/license/public.pem
+          echo "$PRIVATE_KEY" > "/home/alfred/repos/saas/saas/saas/api/src/license/private.pem"
+          echo "$PUBLIC_KEY" > "/home/alfred/repos/saas/saas/saas/app/license/public.pem"
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
 
       - name: Copy .env file
-        working-directory: /home/alfred/repos/saas
-        run: cp /home/alfred/envs/.env.saas.api api/.env
+        run: cp /home/alfred/envs/.env.saas.api /home/alfred/repos/saas/saas/saas/api/.env
 
       - name: Install dependencies
         working-directory: /home/alfred/repos/saas
