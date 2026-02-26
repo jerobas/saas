@@ -44,11 +44,11 @@ jobs:
         run: cp /home/alfred/envs/.env.saas.api api/.env
 
       - name: Install dependencies
-        working-directory: /home/alfred/repos/saas/api
+        working-directory: /home/alfred/repos/saas/saas
         run: npm install
 
       - name: Restart app
-        working-directory: /home/alfred/repos/saas/api
+        working-directory: /home/alfred/repos/saas/saas
         run: |
           pm2 delete saas-backend || true
           pm2 start src/main.js --name saas-backend --node-args="--env-file=.env" --watch
