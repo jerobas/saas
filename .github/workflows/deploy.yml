@@ -13,20 +13,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.13.1
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application
+        run: npm run build --if-present
+
       - name: Ensure RabbitMQ
         run: |
-          if [ ! $(docker ps -q -f name=rabbitmq) ]; then
-            if [ $(docker ps -aq -f status=exited -f name=rabbitmq) ]; then
+          if [ -z "$(docker ps -q -f name=rabbitmq)" ]; then
+            if [ -n "$(docker ps -aq -f status=exited -f name=rabbitmq)" ]; then
               docker rm rabbitmq
             fi
-            docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 \
+            docker run -d \
+              --name rabbitmq \
+              -p 5672:5672 \
+              -p 15672:15672 \
               -e RABBITMQ_DEFAULT_USER=guest \
               -e RABBITMQ_DEFAULT_PASS=guest \
               rabbitmq:3-management
           fi
 
-      - name: Install deps
-        run: npm install
-
       - name: Restart app
-        run: pm2 restart app || pm2 start src/main.js --name app
+        run: |
+          pm2 restart app || pm2 start dist/main.js --name app
