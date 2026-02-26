@@ -21,7 +21,7 @@ jobs:
 
           if [ ! -f "$LICENSES_DIR/private.pem" ] || [ ! -f "$LICENSES_DIR/public.pem" ]; then
             echo "Generating keys for the first time..."
-            chmod +x scripts/generate-keys.sh
+            chmod +x ./scripts/generate-keys.sh
             ./scripts/generate-keys.sh
 
             # Save the generated keys to the licenses directory
