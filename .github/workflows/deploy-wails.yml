@@ -1,85 +1,76 @@
 name: Deploy Wails App
 
+on:
+  push:
+    tags:
+      - 'v*'   # dispara quando criar tag tipo v1.0.0
+
 permissions:
   contents: write
 
-on:
-  workflow_run:
-    workflows:
-      - Deploy
-    types:
-      - completed
-
 jobs:
   build:
-    runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            platform: windows/amd64
+          - os: macos-latest
+            platform: darwin/universal
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.20
-
-      - name: Configure Go Environment
-        run: |
-          echo "GOPATH=$HOME/go" >> $GITHUB_ENV
-          echo "PATH=$GOPATH/bin:$PATH" >> $GITHUB_ENV
+          go-version: '1.22'
+          cache: true
 
       - name: Install Wails CLI
-        env:
-          PATH: ${{ env.PATH }}
-        run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Embed license key for Wails
+      - name: Embed license key
         run: |
           mkdir -p app/license
-          echo "$PUBLIC_KEY" > app/license/public.pem
-        env:
-          PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
+          echo "${{ secrets.PUBLIC_KEY }}" > app/license/public.pem
 
-      - name: Build Wails App
+      - name: Build Application
         working-directory: app
         run: |
-          wails build
+          wails build -clean -platform ${{ matrix.platform }}
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: wails-app-build-${{ matrix.os }}
-          path: app/build/bin
+          name: build-${{ matrix.platform }}
+          path: app/build/bin/*
 
   release:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Build Artifacts (Windows)
+      - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: wails-app-build-windows-latest
+          path: dist
 
-      - name: Download Build Artifacts (MacOS)
-        uses: actions/download-artifact@v4
-        with:
-          name: wails-app-build-macos-latest
-
-      - name: Create GitHub Release
+      - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: |
-            app/build/bin
-          token: ${{ secrets.GH_TOKEN }}
+          artifacts: "dist/**/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            This release contains the latest build of the Wails app for Windows and MacOS.
+            🚀 Official release of version ${{ github.ref_name }}
+
+            Includes:
+            - Windows build
+            - macOS universal build
           draft: false
           prerelease: false
