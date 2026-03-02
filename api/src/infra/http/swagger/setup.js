@@ -16,7 +16,7 @@ const swaggerSpec = {
       description: 'Development server',
     },
     {
-      url: 'https://api.example.com',
+      url: 'https://api.vezono.com/saas/api',
       description: 'Production server',
     },
   ],
@@ -271,6 +271,78 @@ const swaggerSpec = {
         },
       },
     },
+    '/auth/check-license': {
+      post: {
+        tags: ['Authentication'],
+        summary: 'Verificar se o usuário tem licença ativa',
+        description: 'Verifica se o usuário tem licença ativa',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  email: { type: 'string', format: 'email', description: 'Email do usuário' },
+                  password: { type: 'string', description: 'Senha do usuário para autenticação' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Usuário tem licença ativa',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        userId: { type: 'string', format: 'uuid' },
+                        email: { type: 'string', format: 'email' },
+                        licenseActive: { type: 'boolean', example: true },
+                        licenseExpiresAt: { type: 'string', format: 'date-time' },
+                        licenseToken: { type: 'string', description: 'Token de licença assinado' },
+                        daysRemaining: { type: 'integer', example: 365 },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Dados inválidos ou email já cadastrado' },
+          500: { description: 'Erro ao verificar se o usuário tem licença ativa' },
+        },
+      },
+    },
+    '/health': {
+      get: {
+        tags: ['Health'],
+        summary: 'Verificar status da saúde do servidor',
+        description: 'Retorna o status da saúde do servidor',
+        responses: {
+          200: {
+            description: 'Servidor está funcionando',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'OK' },
+                    timestamp: { type: 'string', example: '2023-04-05T12:34:56.789Z' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   components: {
     schemas: {
@@ -309,5 +381,5 @@ const swaggerSpec = {
 };
 
 export const setupSwagger = (app) => {
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.use('/api/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 };

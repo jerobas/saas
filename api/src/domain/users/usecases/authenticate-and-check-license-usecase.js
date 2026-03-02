@@ -1,4 +1,4 @@
-class AuthenticateAndCheckLicenseUseCase {
+export class AuthenticateAndCheckLicenseUseCase {
   constructor(userRepository, licenseService, paymentService) {
     this.userRepository = userRepository;
     this.licenseService = licenseService;
@@ -33,5 +33,3 @@ class AuthenticateAndCheckLicenseUseCase {
     };
   }
 }
-
-module.exports = AuthenticateAndCheckLicenseUseCase;

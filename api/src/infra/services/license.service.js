@@ -1,10 +1,17 @@
-import fs from "node:fs";
-import zlib from "node:zlib";
-import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 
-const privateKey = fs.readFileSync("./src/license/private.pem");
+const privateKeyPath = path.resolve("src/license/private.pem");
 
 export class LicenseService {
+  constructor() {
+    if (!fs.existsSync(privateKeyPath)) {
+      throw new Error(`Private key not found at ${privateKeyPath}`);
+    }
+
+    this.privateKey = fs.readFileSync(privateKeyPath, "utf8");
+  }
+
   /**
    * Gera uma licença assinada digitalmente em formato JWT
    * @param {Object} params Parâmetros
@@ -41,7 +48,7 @@ export class LicenseService {
 
     const payload64 = packed.toString("base64");
 
-    const signature = crypto.sign(null, Buffer.from(payload64), privateKey);
+    const signature = crypto.sign(null, Buffer.from(payload64), this.privateKey);
 
     return `${payload64}.${signature.toString("base64")}`;
   }
