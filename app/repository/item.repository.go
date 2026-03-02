@@ -13,50 +13,114 @@ func NewItemRepository(db *Database) *ItemRepository {
 	return &ItemRepository{db: db}
 }
 
-func (r *ItemRepository) Create(item *model.Item) error {
-	query := `INSERT INTO items (id, name, unit, min_stock_alert) VALUES (?, ?, ?, ?)`
-	_, err := r.db.Conn.Exec(query, item.ID, item.Name, item.Unit, item.MinStockAlert)
-	return err
+func (r *ItemRepository) Create(itm *model.ItemInsertDTO) (int64, error) {
+	query := `
+		INSERT INTO items
+			(name, unit, sellable, purchasable, producible, default_sale_price)
+		VALUES
+			(?, ?, ?, ?, ?, ?)
+	`
+
+	res, err := r.db.Conn.Exec(
+		query,
+		itm.Name,
+		itm.Unit,
+		itm.Sellable,
+		itm.Purchasable,
+		itm.Producible,
+		itm.DefaultSalePrice,
+	)
+	
+	if err != nil {
+		return (-1, err)
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return (-1, err)
+	}
+
+	return (id, nil)
 }
 
-func (r *ItemRepository) GetByID(id string) (*model.Item, error) {
-	query := `SELECT id, name, unit, min_stock_alert, created_at FROM items WHERE id = ?`
-	item := &model.Item{}
+func (r *ItemRepository) GetByID(id int64) (*model.Item, error) {
+	query := `
+		SELECT 
+			id,
+			name,
+			unit,
+			sellable,
+			purchasable,
+			producible,
+			default_sale_price,
+			created_at 
+		FROM items
+		WHERE id = ?
+	`
+	
+	itm := &model.Item{}
 	err := r.db.Conn.QueryRow(query, id).Scan(
-		&item.ID, &item.Name, &item.Unit, &item.MinStockAlert, &item.CreatedAt,
+		&itm.ID,
+		&itm.Name,
+		&itm.Unit,
+		&itm.Sellable,
+		&itm.Purchasable,
+		&itm.Producible,
+		&itm.DefaultSalePrice,
 	)
-	if err == sql.ErrNoRows {
-		return nil, nil
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, err
 	}
-	return item, err
+
+	return itm, err
 }
 
 func (r *ItemRepository) GetAll() ([]*model.Item, error) {
-	query := `SELECT id, name, unit, min_stock_alert, created_at FROM items ORDER BY name`
+	query := `
+		SELECT 
+			id,
+			name,
+			unit,
+			sellable,
+			purchasable,
+			producible,
+			default_sale_price,
+			created_at 
+		FROM items
+		ORDER BY name ASC
+	`
+
 	rows, err := r.db.Conn.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	items := []*model.Item{}
+	itms := []*model.Item{}
 	for rows.Next() {
-		item := &model.Item{}
-		if err := rows.Scan(&item.ID, &item.Name, &item.Unit, &item.MinStockAlert, &item.CreatedAt); err != nil {
+		itm := &model.Item{}
+		if err := rows.Scan(
+			&itm.ID,
+			&itm.Name,
+			&itm.Unit,
+			&itm.Sellable,
+			&itm.Purchasable,
+			&itm.Producible,
+			&itm.DefaultSalePrice,
+		); err != nil {
 			return nil, err
 		}
-		items = append(items, item)
+		itms = append(itms, itm)
 	}
-	return items, rows.Err()
+	return itms, rows.Err()
 }
 
-func (r *ItemRepository) Update(item *model.Item) error {
-	query := `UPDATE items SET name = ?, unit = ?, min_stock_alert = ? WHERE id = ?`
-	_, err := r.db.Conn.Exec(query, item.Name, item.Unit, item.MinStockAlert, item.ID)
-	return err
-}
-
-func (r *ItemRepository) Delete(id string) error {
-	_, err := r.db.Conn.Exec(`DELETE FROM items WHERE id = ?`, id)
-	return err
-}
+// func (r *ItemRepository) Delete(id int64) error {
+// 	query := `DELETE FROM items WHERE id = ?`
+// 	_, err := r.db.Conn.Exec(query, id)
+// 	return err
+// }
