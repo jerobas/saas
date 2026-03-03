@@ -42,7 +42,7 @@ func (r *InventoryMovementRepository) Create(mov *model.InventoryMovementInsertD
 		return (-1, err)
 	}
 
-	return (&id, nil)
+	return (id, nil)
 }
 
 func (r *InventoryMovementRepository) GetByID(id int64) (*model.InventoryMovement, error) {
@@ -103,7 +103,7 @@ func (r *InventoryMovementRepository) GetAll() ([]*model.InventoryMovement, erro
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, eventID)
+	rows, err := r.db.Conn.Query(query)
 	if err != nil {
 		return nil, err
 	}

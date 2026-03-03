@@ -16,7 +16,7 @@ func NewRecipeComponentRepository(db *Database) *RecipeComponentRepository {
 func (r *RecipeComponentRepository) Create(cpn *model.RecipeComponentInsertDTO) (int64, error) {
 	query := `
 		INSERT INTO recipe_components
-			(id, recipe_id, item_id, quantity, created_at)
+			(recipe_id, item_id, quantity)
 		VALUES
 			(?, ?, ?)
 	`
@@ -37,7 +37,7 @@ func (r *RecipeComponentRepository) Create(cpn *model.RecipeComponentInsertDTO) 
 		return (-1, err)
 	}
 
-	return (&id, nil)
+	return (id, nil)
 }
 
 func (r *RecipeComponentRepository) GetByID(id int64) (*model.RecipeComponent, error) {
@@ -80,10 +80,10 @@ func (r *RecipeComponentRepository) GetAll() ([]*model.RecipeComponent, error) {
 			quantity,
 			created_at
 		FROM recipe_components
-		ORDER BY occurred_at DESC
+		ORDER BY recipe_id ASC
 	`
 
-	rows, err := r.db.Conn.Query(query, eventID)
+	rows, err := r.db.Conn.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (r *RecipeComponentRepository) GetAllByRecipeID(recipeID int64) ([]*model.R
 			created_at
 		FROM recipe_components
 		WHERE recipe_id = ?
-		ORDER BY item_id DESC
+		ORDER BY item_id ASC
 	`
 
 	rows, err := r.db.Conn.Query(query, recipeID)
@@ -154,7 +154,7 @@ func (r *RecipeComponentRepository) GetAllByItemID(itemID int64) ([]*model.Recip
 			created_at
 		FROM recipe_components
 		WHERE item_id = ?
-		ORDER BY recipe_id DESC
+		ORDER BY recipe_id ASC
 	`
 
 	rows, err := r.db.Conn.Query(query, itemID)

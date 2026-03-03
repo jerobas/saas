@@ -67,6 +67,7 @@ func (r *ItemRepository) GetByID(id int64) (*model.Item, error) {
 		&itm.Purchasable,
 		&itm.Producible,
 		&itm.DefaultSalePrice,
+		&itm.CreatedAt
 	)
 	
 	if err != nil {
@@ -111,6 +112,7 @@ func (r *ItemRepository) GetAll() ([]*model.Item, error) {
 			&itm.Purchasable,
 			&itm.Producible,
 			&itm.DefaultSalePrice,
+			&itm.CreatedAt
 		); err != nil {
 			return nil, err
 		}

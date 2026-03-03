@@ -39,7 +39,7 @@ func (r *RecipeRepository) Create(rcp *model.RecipeInsertDTO) (int64, error) {
 		return (-1, err)
 	}
 
-	return (&id, nil)
+	return (id, nil)
 }
 
 func (r *RecipeRepository) GetByID(id int64) (*model.Recipe, error) {
@@ -91,7 +91,7 @@ func (r *RecipeRepository) GetAll() ([]*model.Recipe, error) {
 		ORDER BY name ASC
 	`
 
-	rows, err := r.db.Conn.Query(query, eventID)
+	rows, err := r.db.Conn.Query(query)
 	if err != nil {
 		return nil, err
 	}

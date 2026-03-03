@@ -46,6 +46,7 @@ func (r *ItemConversionRepository) GetByID(id int64) (*model.ItemConversion, err
 			id,
 			from_item_id,
 			to_item_id,
+			factor,
 			created_at 
 		FROM item_conversions
 		WHERE id = ?
@@ -76,6 +77,7 @@ func (r *ItemConversionRepository) GetAll() ([]*model.ItemConversion, error) {
 			id,
 			from_item_id,
 			to_item_id,
+			factor,
 			created_at 
 		FROM item_conversions
 		ORDER BY created_at DESC
@@ -110,6 +112,7 @@ func (r *ItemConversionRepository) GetAllByFromID(fromID int64) ([]*model.ItemCo
 			id,
 			from_item_id,
 			to_item_id,
+			factor,
 			created_at 
 		FROM item_conversions
 		WHERE from_item_id = ?
@@ -145,6 +148,7 @@ func (r *ItemConversionRepository) GetAllByToID(toID int64) ([]*model.ItemConver
 			id,
 			from_item_id,
 			to_item_id,
+			factor,
 			created_at 
 		FROM item_conversions
 		WHERE to_item_id = ?

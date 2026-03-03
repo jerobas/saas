@@ -21,7 +21,7 @@ func (r *ItemStockRepository) GetByID(itemID int64) (*model.ItemStock, error) {
 			average_unit_cost,
 			updated_at 
 		FROM item_stock
-		WHERE id = ?
+		WHERE item_id = ?
 	`
 	
 	sto := &model.ItemStock{}
@@ -42,7 +42,7 @@ func (r *ItemStockRepository) GetByID(itemID int64) (*model.ItemStock, error) {
 	return sto, err
 }
 
-func (r *ItemRepository) GetAll() ([]*model.Item, error) {
+func (r *ItemStockRepository) GetAll() ([]*model.ItemStock, error) {
 	query := `
 		SELECT 
 			item_id,
@@ -62,7 +62,7 @@ func (r *ItemRepository) GetAll() ([]*model.Item, error) {
 	stos := []*model.ItemStock{}
 	for rows.Next() {
 		sto := &model.ItemStock{}
-		if err := r.db.Conn.QueryRow(query, itemID).Scan(
+		if err := rows.Scan(
 			&sto.ItemID,
 			&sto.Quantity,
 			&sto.AverageUnitCost,

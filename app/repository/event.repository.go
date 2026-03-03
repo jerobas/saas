@@ -39,7 +39,7 @@ func (r *EventRepository) Create(evt *model.EventInsertDTO) (int64, error) {
 		return (-1, err)
 	}
 
-	return (&id, nil)
+	return (id, nil)
 }
 
 func (r *EventRepository) GetByID(id int64) (*model.Event, error) {
@@ -91,7 +91,7 @@ func (r *EventRepository) GetAll() ([]*model.Event, error) {
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, eventID)
+	rows, err := r.db.Conn.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (r *EventRepository) GetAllByCounterpartyID(counterpartyID int64) ([]*model
 			occurred_at,
 			created_at
 		FROM events
-		WHERE counterparty_id = ?
+		WHERE counterparty_entity_id = ?
 		ORDER BY occurred_at DESC
 	`
 
