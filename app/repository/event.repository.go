@@ -27,7 +27,7 @@ func (r *EventRepository) Create(evt *model.EventInsertDTO) (int64, error) {
 		evt.Status,
 		evt.CounterpartyEntityId, 
 		evt.Notes,
-		evt.OcurredAt,
+		evt.OccurredAt,
 	)
 
 	if err != nil {
@@ -63,7 +63,7 @@ func (r *EventRepository) GetByID(id int64) (*model.Event, error) {
 		&evt.Status,
 		&evt.CounterpartyEntityId, 
 		&evt.Notes,
-		&evt.OcurredAt,
+		&evt.OccurredAt,
 		&evt.CreatedAt,
 	)
 
@@ -106,7 +106,7 @@ func (r *EventRepository) GetAll() ([]*model.Event, error) {
 			&evt.Status,
 			&evt.CounterpartyEntityId, 
 			&evt.Notes,
-			&evt.OcurredAt,
+			&evt.OccurredAt,
 			&evt.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -147,7 +147,7 @@ func (r *EventRepository) GetAllByCounterpartyID(counterpartyID int64) ([]*model
 			&evt.Status,
 			&evt.CounterpartyEntityId, 
 			&evt.Notes,
-			&evt.OcurredAt,
+			&evt.OccurredAt,
 			&evt.CreatedAt,
 		); err != nil {
 			return nil, err

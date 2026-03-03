@@ -7,7 +7,7 @@ type PurchaseLine struct {
 	EventID      int       `json:"event_id"`
 	ItemID       int       `json:"item_id"`
 	Quantity     float64   `json:"quantity"`
-	UnitCost     int       `json:"unit_price"`
+	UnitCost     int       `json:"unit_cost"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -22,5 +22,5 @@ type PurchaseLineInsertDTO struct {
 // 	EventID      *int      `json:"event_id"`
 // 	ItemID       *int      `json:"item_id"`
 // 	Quantity     *float64  `json:"quantity"`
-// 	UnitPrice    *int      `json:"unit_price"`
+// 	UnitCost     *int      `json:"unit_cost"`
 // }
