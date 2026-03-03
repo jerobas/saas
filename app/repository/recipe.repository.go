@@ -13,80 +13,153 @@ func NewRecipeRepository(db *Database) *RecipeRepository {
 	return &RecipeRepository{db: db}
 }
 
-func (r *RecipeRepository) Create(recipe *model.Recipe) error {
-	query := `INSERT INTO recipes (id, name, profit_margin_percent) VALUES (?, ?, ?)`
-	_, err := r.db.Conn.Exec(query, recipe.ID, recipe.Name, recipe.ProfitMarginPercent)
-	return err
+func (r *RecipeRepository) Create(rcp *model.RecipeInsertDTO) (int64, error) {
+	query := `
+		INSERT INTO recipes
+			(name, output_item_id, preparation_time_minutes, instructions, standard_yield_quantity)
+		VALUES
+			(?, ?, ?, ?, ?)
+	`
+
+	res, err := r.db.Conn.Exec(
+		query,
+		rcp.Name,
+		rcp.OutputItemId,
+		rcp.PreparationTimeMinutes,
+		rcp.Instructions,
+		rcp.StandardYieldQuantity
+	)
+
+	if err != nil {
+		return (-1, err)
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return (-1, err)
+	}
+
+	return (&id, nil)
 }
 
-func (r *RecipeRepository) GetByID(id string) (*model.Recipe, error) {
-	query := `SELECT id, name, profit_margin_percent, created_at FROM recipes WHERE id = ?`
-	recipe := &model.Recipe{}
+func (r *RecipeRepository) GetByID(id int64) (*model.Recipe, error) {
+	query := `
+		SELECT
+			id,
+			name,
+			output_item_id,
+			preparation_time_minutes,
+			instructions,
+			standard_yield_quantity,
+			created_at
+		FROM recipes
+		WHERE id = ?
+	`
+
+	rcp := &model.Recipe{}
 	err := r.db.Conn.QueryRow(query, id).Scan(
-		&recipe.ID, &recipe.Name, &recipe.ProfitMarginPercent, &recipe.CreatedAt,
+		&rcp.ID,
+		&rcp.Name,
+		&rcp.OutputItemId,
+		&rcp.PreparationTimeMinutes,
+		&rcp.Instructions,
+		&rcp.StandardYieldQuantity,
+		&rcp.CreatedAt
 	)
-	if err == sql.ErrNoRows {
-		return nil, nil
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, err
 	}
-	return recipe, err
+
+	return rcp, nil
 }
 
 func (r *RecipeRepository) GetAll() ([]*model.Recipe, error) {
-	query := `SELECT id, name, profit_margin_percent, created_at FROM recipes ORDER BY name`
-	rows, err := r.db.Conn.Query(query)
+	query := `
+		SELECT
+			id,
+			name,
+			output_item_id,
+			preparation_time_minutes,
+			instructions,
+			standard_yield_quantity,
+			created_at
+		FROM recipes
+		ORDER BY name ASC
+	`
+
+	rows, err := r.db.Conn.Query(query, eventID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	recipes := []*model.Recipe{}
+	rcps := []*model.Recipe{}
 	for rows.Next() {
-		recipe := &model.Recipe{}
-		if err := rows.Scan(&recipe.ID, &recipe.Name, &recipe.ProfitMarginPercent, &recipe.CreatedAt); err != nil {
+		rcp := &model.Recipe{}
+		if err := rows.Scan(
+			&rcp.ID,
+			&rcp.Name,
+			&rcp.OutputItemId,
+			&rcp.PreparationTimeMinutes,
+			&rcp.Instructions,
+			&rcp.StandardYieldQuantity,
+			&rcp.CreatedAt
+		); err != nil {
 			return nil, err
 		}
-		recipes = append(recipes, recipe)
+		rcps = append(rcps, rcp)
 	}
-	return recipes, rows.Err()
+
+	return rcps, rows.Err()
 }
 
-func (r *RecipeRepository) Update(recipe *model.Recipe) error {
-	query := `UPDATE recipes SET name = ?, profit_margin_percent = ? WHERE id = ?`
-	_, err := r.db.Conn.Exec(query, recipe.Name, recipe.ProfitMarginPercent, recipe.ID)
-	return err
-}
+func (r *RecipeRepository) GetAllByOutputID(outputID int64) ([]*model.Recipe, error) {
+	query := `
+		SELECT
+			id,
+			name,
+			output_item_id,
+			preparation_time_minutes,
+			instructions,
+			standard_yield_quantity,
+			created_at
+		FROM recipes
+		WHERE output_item_id = ?
+		ORDER BY name ASC
+	`
 
-func (r *RecipeRepository) Delete(id string) error {
-	_, err := r.db.Conn.Exec(`DELETE FROM recipes WHERE id = ?`, id)
-	return err
-}
-
-func (r *RecipeRepository) AddIngredient(ingredient *model.RecipeIngredient) error {
-	query := `INSERT INTO recipe_ingredients (recipe_id, item_id, quantity_needed) VALUES (?, ?, ?)`
-	_, err := r.db.Conn.Exec(query, ingredient.RecipeID, ingredient.ItemID, ingredient.QuantityNeeded)
-	return err
-}
-
-func (r *RecipeRepository) GetIngredients(recipeID string) ([]*model.RecipeIngredient, error) {
-	query := `SELECT recipe_id, item_id, quantity_needed FROM recipe_ingredients WHERE recipe_id = ?`
-	rows, err := r.db.Conn.Query(query, recipeID)
+	rows, err := r.db.Conn.Query(query, outputID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	ingredients := []*model.RecipeIngredient{}
+	rcps := []*model.Recipe{}
 	for rows.Next() {
-		ing := &model.RecipeIngredient{}
-		if err := rows.Scan(&ing.RecipeID, &ing.ItemID, &ing.QuantityNeeded); err != nil {
+		rcp := &model.Recipe{}
+		if err := rows.Scan(
+			&rcp.ID,
+			&rcp.Name,
+			&rcp.OutputItemId,
+			&rcp.PreparationTimeMinutes,
+			&rcp.Instructions,
+			&rcp.StandardYieldQuantity,
+			&rcp.CreatedAt
+		); err != nil {
 			return nil, err
 		}
-		ingredients = append(ingredients, ing)
+		rcps = append(rcps, rcp)
 	}
-	return ingredients, rows.Err()
+
+	return rcps, rows.Err()
 }
 
-func (r *RecipeRepository) RemoveIngredient(recipeID, itemID string) error {
-	_, err := r.db.Conn.Exec(`DELETE FROM recipe_ingredients WHERE recipe_id = ? AND item_id = ?`, recipeID, itemID)
+func (r *RecipeRepository) Delete(id int64) error {
+	query := `DELETE FROM recipes WHERE id = ?`
+	_, err := r.db.Conn.Exec(query, id)
 	return err
 }
