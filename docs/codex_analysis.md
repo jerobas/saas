@@ -1,3 +1,26 @@
+```
+chat
+
+you'll only consider the folllowing files for this next task:
+"app/database/schemas/*"
+"app/database/model/*"
+"app/repository/*"
+"docs/app/database/database.md"
+"docs/app/database/tests.md"
+"docs/app/service/service_proposal.txt"
+
+take database.md as the specifications for the architecture of this app's db
+
+analyze service_proposal.txt and, by reading the repos, models, schema definitions and database.md, do the following:
+
+1 - create a file inside docs directory called "codex_analysis.md"
+2 - create section 1, and add there any functional mistakes my proposal for services may have (eg: "you tried to create A before B but this is impossible")
+3 - create section 2, and answer any "question" I did in my proposal (eg: lines starting with ?maybe, the "comment" asking where should conversions be
+4 - create section 3, and add there any feature suggestions you may have based on the purpose you presume this app may achieve (eg: "service A requires repository B to have get_all_by_C") 
+5 - create section 4, and add there any structural suggestions you may have (eg: "service A and B should actually be the same service")
+6 - create section 5, add anything else you want to suggest that may not fit in the previous sections
+```
+
 # Codex Analysis of `service_proposal.txt`
 
 This analysis uses `docs/app/database/database.md` as the source of truth for the DB architecture, and cross-checks with current schemas/repositories.
