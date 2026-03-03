@@ -1,7 +1,7 @@
 # Bug Analysis Report (`app/database/schemas`, `app/model`, `app/repository`)
 
-This report lists bugs found without modifying the analyzed files.  
-Each item includes **impact** and a **proposed fix snippet**.
+This report was refreshed against the current code in the requested directories.
+Solved items from the previous version were removed (except 1.1, as requested), and newly found issues were added.
 
 ---
 
@@ -26,7 +26,7 @@ res, err := r.db.Conn.Exec(query,
     status,
     evt.CounterpartyEntityId,
     evt.Notes,
-    evt.OccurredAt,
+    evt.OcurredAt,
 )
 ```
 
@@ -34,204 +34,52 @@ res, err := r.db.Conn.Exec(query,
 
 ## 2) Integration syntax bugs
 
-### 2.1 `purchase_lines` column mismatch: schema uses `unit_cost`, model/repo use `unit_price`
+### 2.1 `PurchaseLine` JSON tag mismatch: model uses `unit_price`, SQL/repo use `unit_cost`
 **Where:**
 - Schema: `app/database/schemas/006_purchases.sql`
 - Model: `app/model/purchase_line.model.go`
 - Repository: `app/repository/purchase_line.repository.go`
 
-**Problem:** SQL table defines `unit_cost`, but code inserts/selects `unit_price`.
+**Problem:** `PurchaseLine` and `PurchaseLineInsertDTO` expose `UnitCost` with JSON tag `unit_price`, while schema/repository use `unit_cost`.
 
-**Impact:** All purchase-line CRUD paths fail at runtime with SQL column errors.
+**Impact:** API payloads using `unit_cost` will not bind as expected; inserted `unit_cost` may silently become zero-value.
 
-**Fix snippet (align to `unit_cost`):**
+**Fix snippet:**
 ```go
 // model
 UnitCost int `json:"unit_cost"`
-
-// repository INSERT/SELECT
-INSERT INTO purchase_lines (event_id, item_id, quantity, unit_cost) VALUES (?, ?, ?, ?)
-SELECT id, event_id, item_id, quantity, unit_cost, created_at FROM purchase_lines
 ```
 
-### 2.2 Wrong events filter column in repository
-**Where:** `app/repository/event.repository.go`
+### 2.2 `Event` JSON tag typo: `ocurred_at` vs `occurred_at`
+**Where:**
+- Schema: `app/database/schemas/003_events.sql`
+- Model: `app/model/event.model.go`
+- Repository: `app/repository/event.repository.go`
 
-**Problem:** `GetAllByCounterpartyID` uses `WHERE counterparty_id = ?`, but schema column is `counterparty_entity_id`.
+**Problem:** Model uses `json:"ocurred_at"` (missing `r`), but DB/repository semantics are `occurred_at`.
 
-**Impact:** Query always fails (`no such column: counterparty_id`).
-
-**Fix snippet:**
-```sql
-WHERE counterparty_entity_id = ?
-```
-
-### 2.3 Wrong key column in `item_stock` repository lookup
-**Where:** `app/repository/item_stock.repository.go`
-
-**Problem:** `GetByID` filters `WHERE id = ?`, but `item_stock` PK is `item_id`.
-
-**Impact:** Lookup fails with `no such column: id`.
+**Impact:** Inputs using `occurred_at` may not populate the DTO field correctly, leading to incorrect timestamps being stored.
 
 **Fix snippet:**
-```sql
-WHERE item_id = ?
-```
-
-### 2.4 `recipe_components` list orders by nonexistent `occurred_at`
-**Where:** `app/repository/recipe_component.repository.go`
-
-**Problem:** `GetAll` uses `ORDER BY occurred_at`, but table has `created_at`.
-
-**Impact:** Query fails at runtime.
-
-**Fix snippet:**
-```sql
-ORDER BY created_at DESC
+```go
+OcurredAt time.Time `json:"occurred_at"`
 ```
 
 ---
 
 ## 3) Solo syntax bugs
 
-### 3.1 Returning `&id` where function return type is `int64`
-**Where:**
-- `app/repository/event.repository.go`
-- `app/repository/inventory_movement.repository.go`
-- `app/repository/recipe.repository.go`
-- `app/repository/recipe_component.repository.go`
-
-**Problem:** `return (&id, nil)` returns `*int64` for methods declared `(int64, error)`.
-
-**Impact:** Code does not compile.
-
-**Fix snippet:**
-```go
-return id, nil
-```
-
-### 3.2 Undefined variable `eventID` used in `GetAll` methods
-**Where:**
-- `app/repository/event.repository.go`
-- `app/repository/inventory_movement.repository.go`
-- `app/repository/recipe.repository.go`
-- `app/repository/recipe_component.repository.go`
-
-**Problem:** `Query(query, eventID)` is used in methods that do not declare `eventID` and do not need args.
-
-**Impact:** Code does not compile.
-
-**Fix snippet:**
-```go
-rows, err := r.db.Conn.Query(query)
-```
-
-### 3.3 `PurchaseLineRepository.GetAllByItemID` uses undefined `itemID`
-**Where:** `app/repository/purchase_line.repository.go`
-
-**Problem:** Method argument is `itemId`, but query uses `itemID`.
-
-**Impact:** Code does not compile.
-
-**Fix snippet:**
-```go
-rows, err := r.db.Conn.Query(query, itemId)
-```
-
-### 3.4 `ItemStockRepository.GetAll` has invalid receiver/signature/body
-**Where:** `app/repository/item_stock.repository.go`
-
-**Problems:**
-- Receiver is `*ItemRepository`, not `*ItemStockRepository`
-- Return type is `[]*model.Item` but function builds `[]*model.ItemStock`
-- Loop uses `QueryRow(..., itemID)` with undefined `itemID` instead of scanning `rows`
-
-**Impact:** Code does not compile.
-
-**Fix snippet:**
-```go
-func (r *ItemStockRepository) GetAll() ([]*model.ItemStock, error) {
-    query := `
-        SELECT item_id, quantity, average_unit_cost, updated_at
-        FROM item_stock
-        ORDER BY updated_at DESC
-    `
-
-    rows, err := r.db.Conn.Query(query)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
-
-    stos := []*model.ItemStock{}
-    for rows.Next() {
-        sto := &model.ItemStock{}
-        if err := rows.Scan(&sto.ItemID, &sto.Quantity, &sto.AverageUnitCost, &sto.UpdatedAt); err != nil {
-            return nil, err
-        }
-        stos = append(stos, sto)
-    }
-    return stos, rows.Err()
-}
-```
-
-### 3.5 `RecipeComponentRepository.Create` has invalid `INSERT` column/value count
-**Where:** `app/repository/recipe_component.repository.go`
-
-**Problem:** INSERT lists 5 columns `(id, recipe_id, item_id, quantity, created_at)` but only 3 placeholders.
-
-**Impact:** SQL statement fails at runtime.
-
-**Fix snippet:**
-```go
-query := `
-    INSERT INTO recipe_components (recipe_id, item_id, quantity)
-    VALUES (?, ?, ?)
-`
-```
+No current solo syntax bugs found in the analyzed scope.
 
 ---
 
 ## 4) Solo functional bugs
 
-### 4.1 `ItemRepository` scan target count mismatch
-**Where:** `app/repository/item.repository.go`
-
-**Problem:** `SELECT` includes `created_at`, but `Scan` in `GetByID` and `GetAll` does not read `CreatedAt`.
-
-**Impact:** Runtime error (`sql: expected N destination arguments in Scan`).
-
-**Fix snippet:**
-```go
-err := r.db.Conn.QueryRow(query, id).Scan(
-    &itm.ID,
-    &itm.Name,
-    &itm.Unit,
-    &itm.Sellable,
-    &itm.Purchasable,
-    &itm.Producible,
-    &itm.DefaultSalePrice,
-    &itm.CreatedAt,
-)
-```
-
-### 4.2 `ItemConversionRepository` scan target count mismatch
-**Where:** `app/repository/item_conversion.model.go`
-
-**Problem:** Queries select `id, from_item_id, to_item_id, created_at`, but scan attempts `Factor` and `CreatedAt` (5 targets).
-
-**Impact:** Runtime scan errors in `GetByID`, `GetAll`, `GetAllByFromID`, `GetAllByToID`.
-
-**Fix snippet:**
-```sql
-SELECT id, from_item_id, to_item_id, factor, created_at
-FROM item_conversions
-```
+No current solo functional bugs found in the analyzed scope.
 
 ---
 
 ## Suggested execution order for fixes
-1. Fix compile blockers (Section 3).
-2. Fix column-name mismatches (Section 2).
-3. Fix scan mismatches and event defaulting behavior (Sections 4 and 1).
-4. Add repository-level tests for each table/repo pair to prevent SQL/model drift.
+1. Keep/implement status fallback in `EventRepository.Create` (1.1).
+2. Fix model JSON tags to align payload names with DB/repository contracts (2.1, 2.2).
+3. Add table/repository contract tests to catch future model/repo/schema drift.
