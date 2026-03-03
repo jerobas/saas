@@ -1,0 +1,155 @@
+event types: 
+    PURCHASE
+    PRODUCTION
+    SALE
+    ADJUSTMENT
+    CONVERSION
+
+OBS1 => presume every line that should exist and would start with "check" (eg: check if event type equals purchase) exists
+
+purchase service
+    buy
+        create event type purchase
+        create purchase lines
+        create inventory movements
+        ?maybe post event
+
+    get purchase by id
+        get event
+        get purchase lines by event id
+        ?maybe get inventory movements by event id
+
+    get all purchases
+        get all events (with type purchase)
+
+    get all purchases by counterparty
+        get all events (with type purchase) by counterparty
+    
+    ?maybe get all purchases by item id
+        get all purchase lines by item id
+        get all events (with type purchase)
+        filter events by purchase lines event ids
+
+    update (future)
+        update event if necessary
+        update purchase lines if necessary
+        update inventory movements if necessary
+    
+    cancel (future)
+        update event (status cancelled)
+
+production service
+    produce
+        create event type production
+        calculate result price/cost/value
+        create inventory movements
+        ?maybe post event
+
+    # will not create gets for now
+
+    # should conversion be here, in its own service, or inside inventory service
+
+    cancel (future)
+        update event (status cancelled)
+
+sales service
+    sell
+        create event type sale
+        create sale lines
+        create inventory movements
+        ?maybe post event
+
+    get sale by id
+        get event
+        get sale lines by event id
+        ?maybe get inventory movements by event id
+
+    get all sales
+        get all events (with type sale)
+
+    get all sales by counterparty
+        get all events (with type sale) by counterparty
+    
+    get all sales by item id
+        get all sale lines by item id
+        get all events (with type sale)
+        filter events by sale lines event ids
+
+    update (future)
+        update event if necessary
+        update sale lines if necessary
+        update inventory movements if necessary
+    
+    cancel (future)
+        update event (status cancelled)
+
+inventory service
+    adjust
+        create event type adjustment
+        create inventory movements
+        ?maybe post event
+
+    # will not create gets for adjustments for now
+
+    get stock by item id
+        get item stock by item id
+    
+    get all stocks
+        get all item stocks (with quantity > 0)
+
+    cancel (future)
+        update event (status cancelled)
+
+recipe service
+    create
+        create recipe
+    
+    add component
+        create recipe component with recipe id
+
+    get recipe by id
+        get recipe by id
+
+    get all recipes by item id
+        get all components by item id
+        get all recipes
+        filter recipes by components
+
+    get all recipes
+        get all recipes
+
+    get all components by recipe id
+        get all components by recipe id
+
+    ?maybe get all components
+        get all components
+
+    remove component
+        delete recipe component
+
+    update recipe (future)
+        update recipe
+        version control
+
+    delete recipe (future)
+        soft delete recipe
+
+item service
+    create
+        create item
+
+    get item by id
+        get item by id
+
+    get all items
+        get all items
+
+    get all items by flag
+        get all items
+        filter by sellable, producible, purchasable
+
+    update item (future)
+        update item
+
+    delete item (future)
+        soft delete item
