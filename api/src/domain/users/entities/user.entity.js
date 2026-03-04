@@ -66,6 +66,11 @@ export const UserSchema = new EntitySchema({
       nullable: false,
       comment: "Hash da senha do usuário",
     },
+    isPending: {
+      type: "boolean",
+      default: true,
+      comment: "Indica se o cadastro está pendente",
+    },
   },
   relations: {
     payments: {

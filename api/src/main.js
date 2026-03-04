@@ -8,6 +8,7 @@ import { setupRoutes } from "./infra/http/routes/index.js";
 import { setupSwagger } from "./infra/http/swagger/setup.js";
 import { errorHandler } from "./infra/http/middlewares/error-handler.js";
 import "./infra/queue/user-strategy-consumer.js";
+import "./infra/jobs/cleanup-pending-users-job.js";
 
 const app = express();
 const server = http.createServer(app);

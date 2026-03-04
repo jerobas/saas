@@ -33,6 +33,7 @@ export class CreateUserUseCase {
       taxId,
       cellphone,
       passwordHash,
+      isPending: true,
     });
 
     await getRabbitMQ().send({
