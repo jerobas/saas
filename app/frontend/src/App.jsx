@@ -15,18 +15,22 @@ import EnterprisePage from "./pages/EnterprisePage";
 import AppLayout from "./components/AppLayout";
 import { GetUserStatus } from "../wailsjs/go/main/UserService";
 import { AppProvider } from "./context/AppContext";
+import LoginPage from "./pages/LoginPage";
+import NavigationPage from "./pages/NavigationPage";
 
 function App() {
   const [loading, setLoading] = useState(true);
   const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
-    GetUserStatus()
-      .then(setIsActive)
-      .catch((error) => {
-        console.error("Erro ao obter status do usuário:", error);
-      })
-      .finally(() => setLoading(false));
+    setIsActive(false);
+    setLoading(false);
+    // GetUserStatus()
+    //   .then(setIsActive)
+    //   .catch((error) => {
+    //     console.error("Erro ao obter status do usuário:", error);
+    //   })
+    //   .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <LoadingScreen />;
@@ -36,8 +40,9 @@ function App() {
       <Router>
         <Routes>
           {/* públicas */}
-          <Route path="/sign-in" element={<CadastroPage />} />
-          <Route path="/pix-payment" element={<PixPaymentPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/cadastro" element={<CadastroPage />} />
+          <Route path="/navigation" element={<NavigationPage />} />
 
           {/* privadas */}
           <Route

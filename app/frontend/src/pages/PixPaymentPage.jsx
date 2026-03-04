@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { QrCode, CopySimple } from "phosphor-react";
 import { checkLicenseStatus } from "../services/apiService";
 import { AppContext } from "../context/AppContext";
-import { ActivateLicense } from "../../wailsjs/go/main/UserService";
+// import { ActivateLicense } from "../../wailsjs/go/main/UserService";
 import { useNavigate } from "react-router-dom";
 
 function PixPaymentPage() {
@@ -18,7 +18,7 @@ function PixPaymentPage() {
         const { data } = await checkLicenseStatus(clientId, pixData.email);
 
         if (data.licenseActive) {
-          ActivateLicense(data.licenseToken);
+          // ActivateLicense(data.licenseToken);
           setLicenseActive(true);
           clearInterval(interval);
           navigate("/");

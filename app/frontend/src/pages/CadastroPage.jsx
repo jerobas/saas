@@ -376,6 +376,17 @@ function CadastroPage() {
           Ao se cadastrar, você concorda com nossos Termos de Serviço e Política
           de Privacidade
         </p>
+
+        <div className="text-center mt-6">
+          <motion.button
+            onClick={() => navigate("/login")}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="text-sm text-pink-600 font-medium underline hover:text-pink-700 focus:outline-none transition-all"
+          >
+            Já tem uma conta? <span className="font-bold">Faça login</span>
+          </motion.button>
+        </div>
       </motion.div>
     </div>
   );
