@@ -5,9 +5,12 @@ import { PaymentSchema } from "../../domain/payments/entities/payment.entity.js"
 const dataSourceConfig = {
   type: "postgres",
   url: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl:
+    process.env.DB_SSL === "true"
+      ? {
+          rejectUnauthorized: false,
+        }
+      : false,
 };
 
 export const AppDataSource = new DataSource({
