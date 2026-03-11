@@ -128,7 +128,6 @@ export class AbacatePayService {
         throw new AppError("Falha ao criar QR Code PIX", 500);
       }
 
-
       return {
         id: response.data.data.id,
         pixCode: response.data.data.brCode || "",
@@ -146,6 +145,125 @@ export class AbacatePayService {
       throw new AppError(
         "Erro ao criar QR Code PIX",
         error.response?.status || 500,
+      );
+    }
+  };
+
+  /**
+   * Cria uma cobranca por cartao no AbacatePay
+   */
+  createCardBilling = async ({
+    allowCoupons = false,
+    coupons = [],
+    customerId,
+    customer,
+    externalId,
+    metadata = {},
+  }) => {
+    try {
+      const frequency = "MULTIPLE_PAYMENTS";
+      const methods = ["CARD"];
+      const returnUrl = process.env.CARD_BILLING_RETURN_URL;
+      const completionUrl = process.env.CARD_BILLING_COMPLETION_URL;
+      const productPrice = Number(
+        process.env.ABACATEPAY_AMOUNT || process.env.LICENSE_PRICE || 50000,
+      );
+      const productQuantity = Number(
+        process.env.ABACATEPAY_PRODUCT_QUANTITY || 1,
+      );
+      const productExternalId =
+        process.env.ABACATEPAY_PRODUCT_ID || externalId || "license_product";
+      const productName =
+        process.env.ABACATEPAY_PRODUCT_NAME || "Licença de Software";
+      const productDescription =
+        process.env.ABACATEPAY_PRODUCT_DESCRIPTION || "Licença de Software";
+
+      const normalizedProducts = [
+        {
+          externalId: productExternalId,
+          name: productName,
+          description: productDescription,
+          quantity: productQuantity,
+          price: productPrice,
+        },
+      ];
+
+      const response = await this.client.post("/billing/create", {
+        frequency,
+        methods,
+        products: normalizedProducts,
+        returnUrl,
+        completionUrl,
+        allowCoupons,
+        coupons,
+        customerId,
+        customer,
+        externalId,
+        metadata,
+      });
+
+      if (
+        !response.data ||
+        response.data.success === false ||
+        !response.data.data
+      ) {
+        console.error(
+          "AbacatePay - Resposta da API ao criar billing de cartao:",
+          response.data,
+        );
+        throw new AppError("Falha ao criar cobranca de cartao", 500);
+      }
+
+      if (response.data.error) {
+        throw new AppError(response.data.error, 400);
+      }
+
+      const billingData = response.data.data;
+      const paymentId =
+        billingData.id || billingData.paymentId || billingData.billingId;
+      const paymentUrl =
+        billingData.url ||
+        billingData.paymentUrl ||
+        billingData.checkoutUrl ||
+        billingData.redirectUrl;
+
+      if (!paymentId || !paymentUrl) {
+        console.error(
+          "AbacatePay - Dados insuficientes no billing de cartao:",
+          billingData,
+        );
+        throw new AppError(
+          "Resposta invalida ao criar cobranca de cartao",
+          500,
+        );
+      }
+
+      return {
+        paymentId,
+        paymentUrl,
+        amount: billingData.amount || productPrice,
+        frequency: billingData.frequency || frequency,
+        methods: billingData.methods || methods,
+        products: normalizedProducts,
+        status: billingData.status || "PENDING",
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      const apiErrorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message;
+
+      console.error(
+        "AbacatePay - Erro ao criar billing de cartao:",
+        error.response?.data || apiErrorMessage,
+      );
+      throw new AppError(
+        apiErrorMessage || "Erro ao criar cobranca de cartao no AbacatePay",
+        error.response?.status || error.statusCode || 500,
       );
     }
   };

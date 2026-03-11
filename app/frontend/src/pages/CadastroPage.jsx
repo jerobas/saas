@@ -6,6 +6,8 @@ import {
   IdentificationCard,
   Phone,
   Lock,
+  CreditCard,
+  QrCode,
 } from "phosphor-react";
 import { createUser } from "../services/apiService";
 import { SaveUserData } from "../../wailsjs/go/main/UserService";
@@ -24,6 +26,7 @@ function CadastroPage() {
     taxId: "",
     cellphone: "",
     password: "",
+    paymentMethod: "PIX",
   });
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,6 +54,8 @@ function CadastroPage() {
       !/^\(\d{2}\) \d{5}-\d{4}$/.test(formData.cellphone)
     )
       newErrors.cellphone = "Número de celular inválido";
+    if (!["PIX", "CARD"].includes(formData.paymentMethod))
+      newErrors.paymentMethod = "Selecione uma forma de pagamento";
     return newErrors;
   };
 
@@ -123,8 +128,21 @@ function CadastroPage() {
       );
 
       sse.onmessage = (event) => {
-        setPixData({ data: JSON.parse(event.data), email: formData.email });
-        navigate("/pix-payment");
+        const parsedData = JSON.parse(event.data);
+
+        if (parsedData.status === "PIX_CREATED") {
+          setPixData({ data: parsedData, email: formData.email });
+          navigate("/pix");
+        }
+
+        if (parsedData.status === "CARD_BILLING_CREATED") {
+          const paymentUrl = parsedData.billing?.paymentUrl;
+          if (paymentUrl) {
+            window.location.href = paymentUrl;
+          }
+        }
+
+        sse.close();
         setIsSubmitting(false);
       };
 
@@ -135,6 +153,7 @@ function CadastroPage() {
       };
     } catch (error) {
       console.error("Erro ao enviar dados:", error);
+      setIsSubmitting(false);
     }
   };
 
@@ -247,6 +266,45 @@ function CadastroPage() {
               onSubmit={handleSubmit}
               className="bg-white rounded-3xl shadow-xl p-8 border border-slate-100 space-y-6"
             >
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Forma de pagamento
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({ ...formData, paymentMethod: "PIX" })
+                    }
+                    className={`flex items-center justify-center gap-2 py-3 border rounded-xl transition-all ${
+                      formData.paymentMethod === "PIX"
+                        ? "border-pink-600 bg-pink-50 text-pink-700"
+                        : "border-slate-200 text-slate-600 hover:border-pink-300"
+                    }`}
+                  >
+                    <QrCode size={18} /> Pix
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({ ...formData, paymentMethod: "CARD" })
+                    }
+                    className={`flex items-center justify-center gap-2 py-3 border rounded-xl transition-all ${
+                      formData.paymentMethod === "CARD"
+                        ? "border-pink-600 bg-pink-50 text-pink-700"
+                        : "border-slate-200 text-slate-600 hover:border-pink-300"
+                    }`}
+                  >
+                    <CreditCard size={18} /> Cartão
+                  </button>
+                </div>
+                {errors.paymentMethod && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.paymentMethod}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label
                   htmlFor="name"

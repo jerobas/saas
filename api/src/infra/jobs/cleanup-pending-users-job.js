@@ -1,5 +1,5 @@
 import { CleanupPendingUsersUseCase } from "../../domain/users/usecases/cleanup-pending-users-usecase.js";
-import { UserRepository } from "../../infrastructure/repositories/user-repository.js";
+import { UserRepository } from "../../domain/users/repositories/user.repository.js";
 import { AppDataSource } from "../database/data-source.js";
 
 const cleanupJob = async () => {

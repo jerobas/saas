@@ -1,4 +1,4 @@
-import { EntitySchema } from 'typeorm';
+import { EntitySchema } from "typeorm";
 
 export class Payment {
   constructor(data) {
@@ -7,76 +7,107 @@ export class Payment {
 }
 
 export const PaymentSchema = new EntitySchema({
-  name: 'Payment',
+  name: "Payment",
   target: Payment,
-  tableName: 'payments',
+  tableName: "payments",
   columns: {
     id: {
-      type: 'uuid',
+      type: "uuid",
       primary: true,
-      generated: 'uuid',
+      generated: "uuid",
     },
     userId: {
-      type: 'uuid',
+      type: "uuid",
       nullable: false,
     },
     abacatePayCustomerId: {
-      type: 'varchar',
+      type: "varchar",
       nullable: false,
       index: true,
-      comment: 'ID do cliente no AbacatePay',
+      comment: "ID do cliente no AbacatePay",
     },
     abacatePayPixId: {
-      type: 'varchar',
-      nullable: false,
+      type: "varchar",
+      nullable: true,
       index: true,
-      comment: 'ID da transação PIX no AbacatePay',
+      comment: "ID da transação PIX no AbacatePay",
+    },
+    abacatePayBillingId: {
+      type: "varchar",
+      nullable: true,
+      index: true,
+      comment: "ID do billing no AbacatePay para pagamento com cartao",
     },
     amount: {
-      type: 'bigint',
+      type: "bigint",
       nullable: false,
-      comment: 'Valor em centavos',
+      comment: "Valor em centavos",
+    },
+    paymentMethod: {
+      type: "varchar",
+      default: "PIX",
+      comment: "PIX ou CARD",
     },
     status: {
-      type: 'varchar',
-      default: 'PENDING',
-      comment: 'PENDING, PAID, CANCELLED, EXPIRED',
+      type: "varchar",
+      default: "PENDING",
+      comment: "PENDING, PAID, CANCELLED, EXPIRED",
     },
     pixCode: {
-      type: 'text',
+      type: "text",
       nullable: true,
-      comment: 'Código QR do PIX',
+      comment: "Código QR do PIX",
     },
     pixQrCode: {
-      type: 'text',
+      type: "text",
       nullable: true,
-      comment: 'Imagem do QR code em base64',
+      comment: "Imagem do QR code em base64",
+    },
+    paymentUrl: {
+      type: "text",
+      nullable: true,
+      comment: "URL de checkout para pagamentos com cartao",
+    },
+    billingFrequency: {
+      type: "varchar",
+      nullable: true,
+      comment: "Frequencia usada no billing do cartao (ex: MULTIPLE_PAYMENTS)",
+    },
+    billingMethods: {
+      type: "simple-json",
+      nullable: true,
+      comment: 'Metodos de pagamento usados no billing (ex: ["CARD"])',
+    },
+    billingProducts: {
+      type: "simple-json",
+      nullable: true,
+      comment: "Produtos enviados para criacao do billing no AbacatePay",
     },
     expiresAt: {
-      type: 'timestamp',
-      nullable: false,
-      comment: 'Data de expiração do PIX',
+      type: "timestamp",
+      nullable: true,
+      comment: "Data de expiração do pagamento (geralmente PIX)",
     },
     error: {
-      type: 'varchar',
+      type: "varchar",
       nullable: true,
-      comment: 'Erro retornado do AbacatePay se houver',
+      comment: "Erro retornado do AbacatePay se houver",
     },
     createdAt: {
-      type: 'timestamp',
+      type: "timestamp",
       createDate: true,
     },
     updatedAt: {
-      type: 'timestamp',
+      type: "timestamp",
       updateDate: true,
     },
   },
   relations: {
     user: {
-      type: 'many-to-one',
-      target: 'User',
+      type: "many-to-one",
+      target: "User",
       joinColumn: {
-        name: 'userId',
+        name: "userId",
       },
     },
   },

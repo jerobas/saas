@@ -43,6 +43,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
           <Route path="/navigation" element={<NavigationPage />} />
+          <Route path="/pix" element={<PixPaymentPage />} />
+
 
           {/* privadas */}
           <Route
