@@ -12,12 +12,20 @@ export class CreateUserController {
 
   async handle(req, res) {
     try {
-      const { email, name, taxId, cellphone, password } = req.body;
+      const { email, name, taxId, cellphone, password, paymentMethod } = req.body;
+
+      const normalizedPaymentMethod = (paymentMethod || 'PIX').toUpperCase();
 
       // Validar campos obrigatórios
       if (!email || !name || !taxId || !cellphone || !password) {
         return res.status(400).json({
           error: 'Email, name, taxId, cellphone e password são obrigatórios',
+        });
+      }
+
+      if (!['PIX', 'CARD'].includes(normalizedPaymentMethod)) {
+        return res.status(400).json({
+          error: 'paymentMethod inválido. Use PIX ou CARD',
         });
       }
 
@@ -35,6 +43,7 @@ export class CreateUserController {
         taxId,
         cellphone,
         password,
+        paymentMethod: normalizedPaymentMethod,
       });
 
       return res.status(201).json({

@@ -13,6 +13,8 @@ my-confectionery-saas/
 private.pem
 public.pem
 
+tunnel.sh
+
 # IDE
 .vscode/
 .idea/

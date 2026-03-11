@@ -119,6 +119,8 @@ function CadastroPage() {
     try {
       const { data } = await createUser(formData);
 
+      console.log("data:::", data)
+
       await SaveUserData(data.userId, formData.email);
 
       setIsSubmitting(true);

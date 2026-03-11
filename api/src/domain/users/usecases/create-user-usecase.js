@@ -14,10 +14,15 @@ export class CreateUserUseCase {
   }
 
   async execute(input) {
-    const { email, name, taxId, cellphone, password } = input;
+    const { email, name, taxId, cellphone, password, paymentMethod } = input;
+    const normalizedPaymentMethod = (paymentMethod || "PIX").toUpperCase();
 
     if (!password) {
       throw new Error("Senha é obrigatória");
+    }
+
+    if (!["PIX", "CARD"].includes(normalizedPaymentMethod)) {
+      throw new Error("paymentMethod inválido. Use PIX ou CARD");
     }
 
     const existingUser = await this.userRepository.findByEmail(email);
@@ -44,6 +49,7 @@ export class CreateUserUseCase {
         name,
         taxId,
         cellphone,
+        paymentMethod: normalizedPaymentMethod,
       },
     });
 
