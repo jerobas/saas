@@ -24,7 +24,7 @@ func (r *RecipeRepository) Create(rcp *model.RecipeInsertDTO) (int64, error) {
 	res, err := r.db.Conn.Exec(
 		query,
 		rcp.Name,
-		rcp.OutputItemId,
+		rcp.OutputItemID,
 		rcp.PreparationTimeMinutes,
 		rcp.Instructions,
 		rcp.StandardYieldQuantity
@@ -60,7 +60,7 @@ func (r *RecipeRepository) GetByID(id int64) (*model.Recipe, error) {
 	err := r.db.Conn.QueryRow(query, id).Scan(
 		&rcp.ID,
 		&rcp.Name,
-		&rcp.OutputItemId,
+		&rcp.OutputItemID,
 		&rcp.PreparationTimeMinutes,
 		&rcp.Instructions,
 		&rcp.StandardYieldQuantity,
@@ -103,7 +103,7 @@ func (r *RecipeRepository) GetAll() ([]*model.Recipe, error) {
 		if err := rows.Scan(
 			&rcp.ID,
 			&rcp.Name,
-			&rcp.OutputItemId,
+			&rcp.OutputItemID,
 			&rcp.PreparationTimeMinutes,
 			&rcp.Instructions,
 			&rcp.StandardYieldQuantity,
@@ -144,7 +144,7 @@ func (r *RecipeRepository) GetAllByOutputID(outputID int64) ([]*model.Recipe, er
 		if err := rows.Scan(
 			&rcp.ID,
 			&rcp.Name,
-			&rcp.OutputItemId,
+			&rcp.OutputItemID,
 			&rcp.PreparationTimeMinutes,
 			&rcp.Instructions,
 			&rcp.StandardYieldQuantity,

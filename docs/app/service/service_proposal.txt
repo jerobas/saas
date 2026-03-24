@@ -12,12 +12,12 @@ purchase service
         create event type purchase
         create purchase lines
         create inventory movements
-        ?maybe post event
+        YES <-> maybe post event
 
     get purchase by id
         get event
         get purchase lines by event id
-        ?maybe get inventory movements by event id
+        YES <-> maybe get inventory movements by event id
 
     get all purchases
         get all events (with type purchase)
@@ -25,7 +25,7 @@ purchase service
     get all purchases by counterparty
         get all events (with type purchase) by counterparty
     
-    ?maybe get all purchases by item id
+    get all purchases by item id
         get all purchase lines by item id
         get all events (with type purchase)
         filter events by purchase lines event ids
@@ -47,7 +47,7 @@ production service
 
     # will not create gets for now
 
-    # should conversion be here, in its own service, or inside inventory service
+    NO <-> should conversion be here, in its own service, or inside inventory service
 
     cancel (future)
         update event (status cancelled)
@@ -121,7 +121,7 @@ recipe service
     get all components by recipe id
         get all components by recipe id
 
-    ?maybe get all components
+    NO <-> maybe get all components
         get all components
 
     remove component

@@ -27,8 +27,8 @@ This analysis uses `docs/app/database/database.md` as the source of truth for th
 
 ## 1) Functional mistakes / feasibility gaps in the proposed services
 
-1. **`eventRepository.Delete` exists, but `events` cannot be deleted in DB.**
-   Any service flow that depends on deleting events will fail at runtime because `trg_events_no_delete` always raises an error.
+<!-- 1. **`eventRepository.Delete` exists, but `events` cannot be deleted in DB.** -->
+   <!-- Any service flow that depends on deleting events will fail at runtime because `trg_events_no_delete` always raises an error. -->
 
 2. **`recipe service -> delete recipe (future)` as hard delete is currently unsafe/impossible in many cases.**
    There is no soft-delete column in `recipes`, and hard delete can fail if components exist (FK). The proposal says "soft delete", but schema/repository do not support it yet.
@@ -36,8 +36,8 @@ This analysis uses `docs/app/database/database.md` as the source of truth for th
 3. **`item service -> delete item (future)` is incompatible with current schema.**
    Items are protected by trigger (`trg_items_no_delete`) and there is no soft-delete field.
 
-4. **All "get all X by counterparty" flows need an event-type filter in the repository call, but no such method exists yet.**
-   `EventRepository.GetAllByCounterpartyID` does not filter by `event_type`, so purchase/sale services must add filtering in service code or create dedicated repo methods.
+<!-- 4. **All "get all X by counterparty" flows need an event-type filter in the repository call, but no such method exists yet.** -->
+   <!-- `EventRepository.GetAllByCounterpartyID` does not filter by `event_type`, so purchase/sale services must add filtering in service code or create dedicated repo methods. -->
 
 5. **`produce`/`adjust`/`conversion` without explicit posting strategy can leave stock unchanged forever.**
    Stock is updated only on `DRAFT -> POSTED`; creating movements alone does not affect stock.
@@ -68,12 +68,12 @@ This analysis uses `docs/app/database/database.md` as the source of truth for th
 
 ## 3) Feature suggestions based on current architecture
 
-1. Add `EventRepository.GetAllByType(...)` and `GetAllByTypeAndCounterparty(...)` to eliminate in-memory filtering.
-2. Add `EventRepository.Post(eventID)` and `Cancel(eventID)` methods to make lifecycle transitions explicit and centralized.
-3. Add `GetByEventIDs(...)` helpers for purchase/sale line repositories to avoid N+1 joins in service code.
-4. Add an `Adjustment` read path (`get adjustment by id`) even if list endpoints are postponed; debugging adjustments usually needs full movement details.
-5. Add an "event details" aggregate query (event + commercial lines + movements) for purchase/sale/production auditing.
-6. Add explicit production input source support (e.g., optional origin movements) if traceability/expiry is relevant.
+<!-- 1. Add `EventRepository.GetAllByType(...)` and `GetAllByTypeAndCounterparty(...)` to eliminate in-memory filtering. -->
+<!-- 2. Add `EventRepository.Post(eventID)` and `Cancel(eventID)` methods to make lifecycle transitions explicit and centralized. -->
+3. Add an `Adjustment` read path (`get adjustment by id`) even if list endpoints are postponed; debugging adjustments usually needs full movement details.
+4. Add an "event details" aggregate query (event + commercial lines + movements) for purchase/sale/production auditing.
+
+5. Add explicit production input source support (e.g., optional origin movements) if traceability/expiry is relevant.
 
 ## 4) Structural suggestions
 
