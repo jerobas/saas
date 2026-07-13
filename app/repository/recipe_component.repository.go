@@ -6,10 +6,10 @@ import (
 )
 
 type RecipeComponentRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewRecipeComponentRepository(db *Database) *RecipeComponentRepository {
+func NewRecipeComponentRepository(db Executor) *RecipeComponentRepository {
 	return &RecipeComponentRepository{db: db}
 }
 
@@ -21,23 +21,23 @@ func (r *RecipeComponentRepository) Create(cpn *model.RecipeComponentInsertDTO) 
 			(?, ?, ?)
 	`
 
-	res, err := r.db.Conn.Exec(
+	res, err := r.db.Exec(
 		query,
 		cpn.RecipeID,
 		cpn.ItemID,
-		cpn.Quantity
+		cpn.Quantity,
 	)
 
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
-	return (id, nil)
+	return id, nil
 }
 
 func (r *RecipeComponentRepository) GetByID(id int64) (*model.RecipeComponent, error) {
@@ -53,12 +53,12 @@ func (r *RecipeComponentRepository) GetByID(id int64) (*model.RecipeComponent, e
 	`
 
 	cpn := &model.RecipeComponent{}
-	err := r.db.Conn.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id).Scan(
 		&cpn.ID,
 		&cpn.RecipeID,
 		&cpn.ItemID,
 		&cpn.Quantity,
-		&cpn.CreatedAt
+		&cpn.CreatedAt,
 	)
 
 	if err != nil {
@@ -83,7 +83,7 @@ func (r *RecipeComponentRepository) GetAll() ([]*model.RecipeComponent, error) {
 		ORDER BY recipe_id ASC
 	`
 
-	rows, err := r.db.Conn.Query(query)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (r *RecipeComponentRepository) GetAll() ([]*model.RecipeComponent, error) {
 			&cpn.RecipeID,
 			&cpn.ItemID,
 			&cpn.Quantity,
-			&cpn.CreatedAt
+			&cpn.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -120,7 +120,7 @@ func (r *RecipeComponentRepository) GetAllByRecipeID(recipeID int64) ([]*model.R
 		ORDER BY item_id ASC
 	`
 
-	rows, err := r.db.Conn.Query(query, recipeID)
+	rows, err := r.db.Query(query, recipeID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (r *RecipeComponentRepository) GetAllByRecipeID(recipeID int64) ([]*model.R
 			&cpn.RecipeID,
 			&cpn.ItemID,
 			&cpn.Quantity,
-			&cpn.CreatedAt
+			&cpn.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -157,7 +157,7 @@ func (r *RecipeComponentRepository) GetAllByItemID(itemID int64) ([]*model.Recip
 		ORDER BY recipe_id ASC
 	`
 
-	rows, err := r.db.Conn.Query(query, itemID)
+	rows, err := r.db.Query(query, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (r *RecipeComponentRepository) GetAllByItemID(itemID int64) ([]*model.Recip
 			&cpn.RecipeID,
 			&cpn.ItemID,
 			&cpn.Quantity,
-			&cpn.CreatedAt
+			&cpn.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -183,6 +183,11 @@ func (r *RecipeComponentRepository) GetAllByItemID(itemID int64) ([]*model.Recip
 
 func (r *RecipeComponentRepository) Delete(id int64) error {
 	query := `DELETE FROM recipe_components WHERE id = ?`
-	_, err := r.db.Conn.Exec(query, id)
+	_, err := r.db.Exec(query, id)
+	return err
+}
+
+func (r *RecipeComponentRepository) DeleteByRecipeID(recipeID int64) error {
+	_, err := r.db.Exec(`DELETE FROM recipe_components WHERE recipe_id = ?`, recipeID)
 	return err
 }

@@ -6,10 +6,10 @@ import (
 )
 
 type ItemConversionRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewItemConversionRepository(db *Database) *ItemConversionRepository {
+func NewItemConversionRepository(db Executor) *ItemConversionRepository {
 	return &ItemConversionRepository{db: db}
 }
 
@@ -21,23 +21,23 @@ func (r *ItemConversionRepository) Create(cnv *model.ItemConversionInsertDTO) (i
 			(?, ?, ?)
 	`
 
-	res, err := r.db.Conn.Exec(
+	res, err := r.db.Exec(
 		query,
 		cnv.FromItemID,
 		cnv.ToItemID,
-		cnv.Factor
+		cnv.Factor,
 	)
 
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
-	return (id, nil)
+	return id, nil
 }
 
 func (r *ItemConversionRepository) GetByID(id int64) (*model.ItemConversion, error) {
@@ -51,16 +51,16 @@ func (r *ItemConversionRepository) GetByID(id int64) (*model.ItemConversion, err
 		FROM item_conversions
 		WHERE id = ?
 	`
-	
+
 	cnv := &model.ItemConversion{}
-	err := r.db.Conn.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id).Scan(
 		&cnv.ID,
 		&cnv.FromItemID,
 		&cnv.ToItemID,
 		&cnv.Factor,
-		&cnv.CreatedAt
+		&cnv.CreatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
@@ -83,7 +83,7 @@ func (r *ItemConversionRepository) GetAll() ([]*model.ItemConversion, error) {
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (r *ItemConversionRepository) GetAll() ([]*model.ItemConversion, error) {
 			&cnv.FromItemID,
 			&cnv.ToItemID,
 			&cnv.Factor,
-			&cnv.CreatedAt
+			&cnv.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -119,7 +119,7 @@ func (r *ItemConversionRepository) GetAllByFromID(fromID int64) ([]*model.ItemCo
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, fromID)
+	rows, err := r.db.Query(query, fromID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (r *ItemConversionRepository) GetAllByFromID(fromID int64) ([]*model.ItemCo
 			&cnv.FromItemID,
 			&cnv.ToItemID,
 			&cnv.Factor,
-			&cnv.CreatedAt
+			&cnv.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -155,7 +155,7 @@ func (r *ItemConversionRepository) GetAllByToID(toID int64) ([]*model.ItemConver
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, toID)
+	rows, err := r.db.Query(query, toID)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (r *ItemConversionRepository) GetAllByToID(toID int64) ([]*model.ItemConver
 			&cnv.FromItemID,
 			&cnv.ToItemID,
 			&cnv.Factor,
-			&cnv.CreatedAt
+			&cnv.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -180,6 +180,6 @@ func (r *ItemConversionRepository) GetAllByToID(toID int64) ([]*model.ItemConver
 
 func (r *ItemConversionRepository) Delete(id int64) error {
 	query := `DELETE FROM item_conversions WHERE id = ?`
-	_, err := r.db.Conn.Exec(query, id)
+	_, err := r.db.Exec(query, id)
 	return err
 }

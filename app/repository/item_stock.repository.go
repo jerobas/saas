@@ -6,10 +6,10 @@ import (
 )
 
 type ItemStockRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewItemStockRepository(db *Database) *ItemStockRepository {
+func NewItemStockRepository(db Executor) *ItemStockRepository {
 	return &ItemStockRepository{db: db}
 }
 
@@ -23,15 +23,15 @@ func (r *ItemStockRepository) GetByID(itemID int64) (*model.ItemStock, error) {
 		FROM item_stock
 		WHERE item_id = ?
 	`
-	
+
 	sto := &model.ItemStock{}
-	err := r.db.Conn.QueryRow(query, itemID).Scan(
+	err := r.db.QueryRow(query, itemID).Scan(
 		&sto.ItemID,
 		&sto.Quantity,
 		&sto.AverageUnitCost,
-		&sto.UpdatedAt
+		&sto.UpdatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
@@ -53,7 +53,7 @@ func (r *ItemStockRepository) GetAll() ([]*model.ItemStock, error) {
 		ORDER BY updated_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (r *ItemStockRepository) GetAll() ([]*model.ItemStock, error) {
 			&sto.ItemID,
 			&sto.Quantity,
 			&sto.AverageUnitCost,
-			&sto.UpdatedAt
+			&sto.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

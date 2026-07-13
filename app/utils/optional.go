@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 )
 
 type Optional[T any] struct {
@@ -28,7 +29,7 @@ func (o *Optional[T]) UnmarshalJSON(b []byte) error {
 }
 
 func (o Optional[T]) MarshalJSON() ([]byte, error) {
-    return nil, fmt.Errorf("Optional is input-only; do not marshal")
+	return nil, fmt.Errorf("Optional is input-only; do not marshal")
 }
 
 func (o Optional[T]) IsSet() bool {
@@ -39,7 +40,7 @@ func (o Optional[T]) IsValid() bool {
 	return o.valid
 }
 
-func (o Optional[T]) GetValue() bool {
+func (o Optional[T]) GetValue() T {
 	return o.value
 }
 

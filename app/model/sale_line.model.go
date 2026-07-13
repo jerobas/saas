@@ -3,19 +3,19 @@ package model
 import "time"
 
 type SaleLine struct {
-	ID           int64     `json:"id"`
-	EventID      int64     `json:"event_id"`
-	ItemID       int64     `json:"item_id"`
-	Quantity     float64   `json:"quantity"`
-	UnitPrice    int64     `json:"unit_price"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID        int64     `json:"id"`
+	EventID   int64     `json:"event_id"`
+	ItemID    int64     `json:"item_id"`
+	Quantity  float64   `json:"quantity"`
+	UnitPrice int64     `json:"unit_price"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type SaleLineInsertDTO struct {
-	EventID      int64     `json:"event_id"`
-	ItemID       int64     `json:"item_id"`
-	Quantity     float64   `json:"quantity"`
-	UnitPrice    int64     `json:"unit_price"`
+	EventID   int64   `json:"event_id"`
+	ItemID    int64   `json:"item_id"`
+	Quantity  float64 `json:"quantity"`
+	UnitPrice int64   `json:"unit_price"`
 }
 
 // type SaleLineUpdateDTO struct {

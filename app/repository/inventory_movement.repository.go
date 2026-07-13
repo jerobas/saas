@@ -6,10 +6,10 @@ import (
 )
 
 type InventoryMovementRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewInventoryMovementRepository(db *Database) *InventoryMovementRepository {
+func NewInventoryMovementRepository(db Executor) *InventoryMovementRepository {
 	return &InventoryMovementRepository{db: db}
 }
 
@@ -21,7 +21,7 @@ func (r *InventoryMovementRepository) Create(mov *model.InventoryMovementInsertD
 			(?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	res, err := r.db.Conn.Exec(
+	res, err := r.db.Exec(
 		query,
 		mov.EventID,
 		mov.ItemID,
@@ -34,15 +34,15 @@ func (r *InventoryMovementRepository) Create(mov *model.InventoryMovementInsertD
 	)
 
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
-	return (id, nil)
+	return id, nil
 }
 
 func (r *InventoryMovementRepository) GetByID(id int64) (*model.InventoryMovement, error) {
@@ -63,7 +63,7 @@ func (r *InventoryMovementRepository) GetByID(id int64) (*model.InventoryMovemen
 	`
 
 	mov := &model.InventoryMovement{}
-	err := r.db.Conn.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id).Scan(
 		&mov.ID,
 		&mov.EventID,
 		&mov.ItemID,
@@ -103,7 +103,7 @@ func (r *InventoryMovementRepository) GetAll() ([]*model.InventoryMovement, erro
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (r *InventoryMovementRepository) GetAllByEventID(eventID int64) ([]*model.I
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, eventID)
+	rows, err := r.db.Query(query, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (r *InventoryMovementRepository) GetAllByItemID(itemID int64) ([]*model.Inv
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, itemID)
+	rows, err := r.db.Query(query, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -228,6 +228,6 @@ func (r *InventoryMovementRepository) GetAllByItemID(itemID int64) ([]*model.Inv
 
 func (r *InventoryMovementRepository) Delete(id int64) error {
 	query := `DELETE FROM inventory_movements WHERE id = ?`
-	_, err := r.db.Conn.Exec(query, id)
+	_, err := r.db.Exec(query, id)
 	return err
 }

@@ -6,10 +6,10 @@ import (
 )
 
 type EntityRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewEntityRepository(db *Database) *EntityRepository {
+func NewEntityRepository(db Executor) *EntityRepository {
 	return &EntityRepository{db: db}
 }
 
@@ -21,23 +21,23 @@ func (r *EntityRepository) Create(ett *model.EntityInsertDTO) (int64, error) {
 			(?, ?, ?)
 	`
 
-	res, err := r.db.Conn.Exec(
+	res, err := r.db.Exec(
 		query,
 		ett.Name,
 		ett.Phone,
 		ett.Email,
 	)
-	
+
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
-	return (id, nil)
+	return id, nil
 }
 
 func (r *EntityRepository) GetByID(id int64) (*model.Entity, error) {
@@ -51,16 +51,16 @@ func (r *EntityRepository) GetByID(id int64) (*model.Entity, error) {
 		FROM entities
 		WHERE id = ?
 	`
-	
+
 	ett := &model.Entity{}
-	err := r.db.Conn.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id).Scan(
 		&ett.ID,
 		&ett.Name,
 		&ett.Phone,
 		&ett.Email,
 		&ett.CreatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
@@ -83,7 +83,7 @@ func (r *EntityRepository) GetAll() ([]*model.Entity, error) {
 		ORDER BY name ASC
 	`
 
-	rows, err := r.db.Conn.Query(query)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +108,6 @@ func (r *EntityRepository) GetAll() ([]*model.Entity, error) {
 
 // func (r *EntityRepository) Delete(id int64) error {
 // 	query := `DELETE FROM entities WHERE id = ?`
-// 	_, err := r.db.Conn.Exec(query, id)
+// 	_, err := r.db.Exec(query, id)
 // 	return err
 // }

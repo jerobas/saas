@@ -2,17 +2,17 @@ package repository
 
 import (
 	"database/sql"
-	"github.com/jerobas/saas/model"
 	"github.com/jerobas/saas/database"
+	"github.com/jerobas/saas/model"
 )
 
 type Database = database.Database
 
 type SaleLineRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewSaleLineRepository(db *Database) *SaleLineRepository {
+func NewSaleLineRepository(db Executor) *SaleLineRepository {
 	return &SaleLineRepository{db: db}
 }
 
@@ -23,25 +23,25 @@ func (r *SaleLineRepository) Create(sll *model.SaleLineInsertDTO) (int64, error)
 		VALUES 
 			(?, ?, ?, ?)
 	`
-	
-	res, err := r.db.Conn.Exec(
+
+	res, err := r.db.Exec(
 		query,
 		sll.EventID,
 		sll.ItemID,
 		sll.Quantity,
-		sll.UnitPrice
+		sll.UnitPrice,
 	)
-	
+
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
-	return (id, nil)
+	return id, nil
 }
 
 func (r *SaleLineRepository) GetByID(id int64) (*model.SaleLine, error) {
@@ -56,17 +56,17 @@ func (r *SaleLineRepository) GetByID(id int64) (*model.SaleLine, error) {
 		FROM sale_lines
 		WHERE id = ?
 	`
-	
+
 	sll := &model.SaleLine{}
-	err := r.db.Conn.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id).Scan(
 		&sll.ID,
 		&sll.EventID,
 		&sll.ItemID,
 		&sll.Quantity,
 		&sll.UnitPrice,
-		&sll.CreatedAt
+		&sll.CreatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
@@ -89,8 +89,8 @@ func (r *SaleLineRepository) GetAll() ([]*model.SaleLine, error) {
 		FROM sale_lines
 		ORDER BY created_at DESC
 	`
-	
-	rows, err := r.db.Conn.Query(query)
+
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (r *SaleLineRepository) GetAll() ([]*model.SaleLine, error) {
 			&sll.ItemID,
 			&sll.Quantity,
 			&sll.UnitPrice,
-			&sll.CreatedAt
+			&sll.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -127,8 +127,8 @@ func (r *SaleLineRepository) GetAllByEventID(eventID int64) ([]*model.SaleLine, 
 		WHERE event_id = ?
 		ORDER BY created_at DESC
 	`
-	
-	rows, err := r.db.Conn.Query(query, eventID)
+
+	rows, err := r.db.Query(query, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (r *SaleLineRepository) GetAllByEventID(eventID int64) ([]*model.SaleLine, 
 			&sll.ItemID,
 			&sll.Quantity,
 			&sll.UnitPrice,
-			&sll.CreatedAt
+			&sll.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -165,8 +165,8 @@ func (r *SaleLineRepository) GetAllByItemID(itemID int64) ([]*model.SaleLine, er
 		WHERE item_id = ?
 		ORDER BY created_at DESC
 	`
-	
-	rows, err := r.db.Conn.Query(query, itemID)
+
+	rows, err := r.db.Query(query, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (r *SaleLineRepository) GetAllByItemID(itemID int64) ([]*model.SaleLine, er
 			&sll.ItemID,
 			&sll.Quantity,
 			&sll.UnitPrice,
-			&sll.CreatedAt
+			&sll.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -192,6 +192,6 @@ func (r *SaleLineRepository) GetAllByItemID(itemID int64) ([]*model.SaleLine, er
 
 func (r *SaleLineRepository) Delete(id int64) error {
 	query := `DELETE FROM sale_lines WHERE id = ?`
-	_, err := r.db.Conn.Exec(query, id)
+	_, err := r.db.Exec(query, id)
 	return err
 }

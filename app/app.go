@@ -60,6 +60,10 @@ func (u *UserService) GetUserStatus() (bool, error) {
 	return getUserStatus()
 }
 
+func (u *UserService) GetDevelopmentMode() bool {
+	return developmentMode()
+}
+
 // ActivateLicense valida a string da licença usando a chave pública ed25519
 func (u *UserService) ActivateLicense(licenseString string) (bool, error) {
 	block, _ := pem.Decode(publicKeyData)

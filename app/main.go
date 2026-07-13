@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/jerobas/saas/database"
@@ -31,8 +32,15 @@ var license LicenseData
 var db *database.Database
 
 func initDat() {
-	dir, _ := os.UserConfigDir()
-	appDir := filepath.Join(dir, "app")
+	if bindingGeneration {
+		var err error
+		db, err = database.NewDatabase(":memory:")
+		if err != nil {
+			log.Fatalf("failed to initialise binding-generation database: %v", err)
+		}
+		return
+	}
+	appDir := dataDirectory()
 
 	_ = os.MkdirAll(appDir, 0700)
 
@@ -46,6 +54,22 @@ func initDat() {
 		log.Fatalf("Erro ao inicializar banco de dados: %v", err)
 	}
 	log.Println("Banco de dados inicializado com sucesso")
+}
+
+func developmentMode() bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("SAAS_DEV_MODE")))
+	return value == "1" || value == "true" || value == "yes" || value == "on"
+}
+
+func dataDirectory() string {
+	if configured := strings.TrimSpace(os.Getenv("SAAS_DATA_DIR")); configured != "" {
+		return configured
+	}
+	dir, _ := os.UserConfigDir()
+	if developmentMode() {
+		return filepath.Join(dir, "saas-dev")
+	}
+	return filepath.Join(dir, "app")
 }
 
 func loadLicense() {
@@ -96,6 +120,9 @@ func updateUserData(id string, active bool, expirationDate string) error {
 }
 
 func getUserStatus() (bool, error) {
+	if developmentMode() {
+		return true, nil
+	}
 	if !license.Active {
 		return false, nil
 	}
@@ -121,8 +148,7 @@ func main() {
 	itemService := service.NewItemService(db)
 	batchService := service.NewBatchService(db)
 	recipeService := service.NewRecipeService(db)
-	productService := service.NewProductService(db)
-	saleService := service.NewSaleService(db)
+	purchaseService := service.NewPurchaseService(db)
 	databaseService := service.NewDatabaseService(db)
 	app.DatabaseService = databaseService
 
@@ -140,8 +166,7 @@ func main() {
 			itemService,
 			batchService,
 			recipeService,
-			productService,
-			saleService,
+			purchaseService,
 			databaseService,
 		},
 	})

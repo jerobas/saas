@@ -6,10 +6,10 @@ import (
 )
 
 type PurchaseLineRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewPurchaseLineRepository(db *Database) *PurchaseLineRepository {
+func NewPurchaseLineRepository(db Executor) *PurchaseLineRepository {
 	return &PurchaseLineRepository{db: db}
 }
 
@@ -20,25 +20,25 @@ func (r *PurchaseLineRepository) Create(pll *model.PurchaseLineInsertDTO) (int64
 		VALUES 
 			(?, ?, ?, ?)
 	`
-	
-	res, err := r.db.Conn.Exec(
+
+	res, err := r.db.Exec(
 		query,
 		pll.EventID,
 		pll.ItemID,
 		pll.Quantity,
-		pll.UnitCost
+		pll.UnitCost,
 	)
-	
+
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
-	return (id, nil)
+	return id, nil
 }
 
 func (r *PurchaseLineRepository) GetByID(id int64) (*model.PurchaseLine, error) {
@@ -53,17 +53,17 @@ func (r *PurchaseLineRepository) GetByID(id int64) (*model.PurchaseLine, error) 
 		FROM purchase_lines
 		WHERE id = ?
 	`
-	
+
 	pll := &model.PurchaseLine{}
-	err := r.db.Conn.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id).Scan(
 		&pll.ID,
 		&pll.EventID,
 		&pll.ItemID,
 		&pll.Quantity,
 		&pll.UnitCost,
-		&pll.CreatedAt
+		&pll.CreatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
@@ -86,8 +86,8 @@ func (r *PurchaseLineRepository) GetAll() ([]*model.PurchaseLine, error) {
 		FROM purchase_lines
 		ORDER BY created_at DESC
 	`
-	
-	rows, err := r.db.Conn.Query(query)
+
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (r *PurchaseLineRepository) GetAll() ([]*model.PurchaseLine, error) {
 			&pll.ItemID,
 			&pll.Quantity,
 			&pll.UnitCost,
-			&pll.CreatedAt
+			&pll.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -124,8 +124,8 @@ func (r *PurchaseLineRepository) GetAllByEventID(eventID int64) ([]*model.Purcha
 		WHERE event_id = ?
 		ORDER BY created_at DESC
 	`
-	
-	rows, err := r.db.Conn.Query(query, eventID)
+
+	rows, err := r.db.Query(query, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (r *PurchaseLineRepository) GetAllByEventID(eventID int64) ([]*model.Purcha
 			&pll.ItemID,
 			&pll.Quantity,
 			&pll.UnitCost,
-			&pll.CreatedAt
+			&pll.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -162,8 +162,8 @@ func (r *PurchaseLineRepository) GetAllByItemID(itemID int64) ([]*model.Purchase
 		WHERE item_id = ?
 		ORDER BY created_at DESC
 	`
-	
-	rows, err := r.db.Conn.Query(query, itemID)
+
+	rows, err := r.db.Query(query, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (r *PurchaseLineRepository) GetAllByItemID(itemID int64) ([]*model.Purchase
 			&pll.ItemID,
 			&pll.Quantity,
 			&pll.UnitCost,
-			&pll.CreatedAt
+			&pll.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -189,6 +189,6 @@ func (r *PurchaseLineRepository) GetAllByItemID(itemID int64) ([]*model.Purchase
 
 func (r *PurchaseLineRepository) Delete(id int64) error {
 	query := `DELETE FROM purchase_lines WHERE id = ?`
-	_, err := r.db.Conn.Exec(query, id)
+	_, err := r.db.Exec(query, id)
 	return err
 }

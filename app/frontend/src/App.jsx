@@ -23,14 +23,12 @@ function App() {
   const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
-    setIsActive(false);
-    setLoading(false);
-    // GetUserStatus()
-    //   .then(setIsActive)
-    //   .catch((error) => {
-    //     console.error("Erro ao obter status do usuário:", error);
-    //   })
-    //   .finally(() => setLoading(false));
+    GetUserStatus()
+      .then(setIsActive)
+      .catch((error) => {
+        console.error("Erro ao obter status do usuário:", error);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <LoadingScreen />;

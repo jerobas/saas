@@ -1,5 +1,32 @@
 # SaaS Project
 
+## Desenvolvimento local sem API
+
+O aplicativo desktop pode ser desenvolvido sem iniciar `api/`, RabbitMQ,
+PostgreSQL ou AbacatePay. O modo de desenvolvimento libera somente a aplicação
+desktop e usa um banco separado em `%APPDATA%\saas-dev`.
+
+No Windows PowerShell:
+
+```powershell
+.\scripts\setup-dev.ps1
+.\scripts\dev.ps1
+```
+
+`setup-dev.ps1` baixa os módulos Go, instala as dependências do frontend e
+instala o Wails CLI 2.13. `dev.ps1` define `SAAS_DEV_MODE=true` apenas para o
+processo local e executa `wails dev`.
+
+Para escolher outro diretório de dados:
+
+```powershell
+$env:SAAS_DATA_DIR = "C:\temp\saas-dev"
+.\scripts\dev.ps1
+```
+
+Sem `SAAS_DEV_MODE`, o fluxo normal de licença continua ativo e cadastro/
+pagamento continuam dependendo da API.
+
 ## Arquitetura do Projeto
 
 Este projeto é uma aplicação SaaS (Software as a Service) composta por um backend desenvolvido em Node.js e um frontend desenvolvido em React. A arquitetura é baseada em uma abordagem modular e utiliza RabbitMQ para gerenciamento de filas e comunicação assíncrona.

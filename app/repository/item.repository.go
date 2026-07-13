@@ -6,10 +6,10 @@ import (
 )
 
 type ItemRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewItemRepository(db *Database) *ItemRepository {
+func NewItemRepository(db Executor) *ItemRepository {
 	return &ItemRepository{db: db}
 }
 
@@ -21,7 +21,7 @@ func (r *ItemRepository) Create(itm *model.ItemInsertDTO) (int64, error) {
 			(?, ?, ?, ?, ?, ?)
 	`
 
-	res, err := r.db.Conn.Exec(
+	res, err := r.db.Exec(
 		query,
 		itm.Name,
 		itm.Unit,
@@ -30,17 +30,17 @@ func (r *ItemRepository) Create(itm *model.ItemInsertDTO) (int64, error) {
 		itm.Producible,
 		itm.DefaultSalePrice,
 	)
-	
+
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
-	return (id, nil)
+	return id, nil
 }
 
 func (r *ItemRepository) GetByID(id int64) (*model.Item, error) {
@@ -57,9 +57,9 @@ func (r *ItemRepository) GetByID(id int64) (*model.Item, error) {
 		FROM items
 		WHERE id = ?
 	`
-	
+
 	itm := &model.Item{}
-	err := r.db.Conn.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id).Scan(
 		&itm.ID,
 		&itm.Name,
 		&itm.Unit,
@@ -67,9 +67,9 @@ func (r *ItemRepository) GetByID(id int64) (*model.Item, error) {
 		&itm.Purchasable,
 		&itm.Producible,
 		&itm.DefaultSalePrice,
-		&itm.CreatedAt
+		&itm.CreatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
@@ -95,7 +95,7 @@ func (r *ItemRepository) GetAll() ([]*model.Item, error) {
 		ORDER BY name ASC
 	`
 
-	rows, err := r.db.Conn.Query(query)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (r *ItemRepository) GetAll() ([]*model.Item, error) {
 			&itm.Purchasable,
 			&itm.Producible,
 			&itm.DefaultSalePrice,
-			&itm.CreatedAt
+			&itm.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -123,6 +123,6 @@ func (r *ItemRepository) GetAll() ([]*model.Item, error) {
 
 // func (r *ItemRepository) Delete(id int64) error {
 // 	query := `DELETE FROM items WHERE id = ?`
-// 	_, err := r.db.Conn.Exec(query, id)
+// 	_, err := r.db.Exec(query, id)
 // 	return err
 // }

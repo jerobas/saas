@@ -6,10 +6,10 @@ import (
 )
 
 type EventRepository struct {
-	db *Database
+	db Executor
 }
 
-func NewEventRepository(db *Database) *EventRepository {
+func NewEventRepository(db Executor) *EventRepository {
 	return &EventRepository{db: db}
 }
 
@@ -21,25 +21,25 @@ func (r *EventRepository) Create(evt *model.EventInsertDTO) (int64, error) {
 			(?, ?, ?, ?, ?)
 	`
 
-	res, err := r.db.Conn.Exec(
+	res, err := r.db.Exec(
 		query,
 		evt.EventType,
 		evt.Status,
-		evt.CounterpartyEntityID, 
+		evt.CounterpartyEntityID,
 		evt.Notes,
 		evt.OccurredAt,
 	)
 
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return (-1, err)
+		return 0, err
 	}
 
-	return (id, nil)
+	return id, nil
 }
 
 func (r *EventRepository) GetByID(id int64) (*model.Event, error) {
@@ -57,11 +57,11 @@ func (r *EventRepository) GetByID(id int64) (*model.Event, error) {
 	`
 
 	evt := &model.Event{}
-	err := r.db.Conn.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id).Scan(
 		&evt.ID,
 		&evt.EventType,
 		&evt.Status,
-		&evt.CounterpartyEntityID, 
+		&evt.CounterpartyEntityID,
 		&evt.Notes,
 		&evt.OccurredAt,
 		&evt.CreatedAt,
@@ -91,7 +91,7 @@ func (r *EventRepository) GetAll() ([]*model.Event, error) {
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (r *EventRepository) GetAll() ([]*model.Event, error) {
 			&evt.ID,
 			&evt.EventType,
 			&evt.Status,
-			&evt.CounterpartyEntityID, 
+			&evt.CounterpartyEntityID,
 			&evt.Notes,
 			&evt.OccurredAt,
 			&evt.CreatedAt,
@@ -132,7 +132,7 @@ func (r *EventRepository) GetAllByEventType(eventType string) ([]*model.Event, e
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, eventType)
+	rows, err := r.db.Query(query, eventType)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (r *EventRepository) GetAllByEventType(eventType string) ([]*model.Event, e
 			&evt.ID,
 			&evt.EventType,
 			&evt.Status,
-			&evt.CounterpartyEntityID, 
+			&evt.CounterpartyEntityID,
 			&evt.Notes,
 			&evt.OccurredAt,
 			&evt.CreatedAt,
@@ -173,7 +173,7 @@ func (r *EventRepository) GetAllByCounterpartyID(counterpartyID int64) ([]*model
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, counterpartyID)
+	rows, err := r.db.Query(query, counterpartyID)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (r *EventRepository) GetAllByCounterpartyID(counterpartyID int64) ([]*model
 			&evt.ID,
 			&evt.EventType,
 			&evt.Status,
-			&evt.CounterpartyEntityID, 
+			&evt.CounterpartyEntityID,
 			&evt.Notes,
 			&evt.OccurredAt,
 			&evt.CreatedAt,
@@ -215,7 +215,7 @@ func (r *EventRepository) GetAllByEventTypeAndCounterpartyID(eventType string, c
 		ORDER BY occurred_at DESC
 	`
 
-	rows, err := r.db.Conn.Query(query, eventType, counterpartyID)
+	rows, err := r.db.Query(query, eventType, counterpartyID)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func (r *EventRepository) GetAllByEventTypeAndCounterpartyID(eventType string, c
 			&evt.ID,
 			&evt.EventType,
 			&evt.Status,
-			&evt.CounterpartyEntityID, 
+			&evt.CounterpartyEntityID,
 			&evt.Notes,
 			&evt.OccurredAt,
 			&evt.CreatedAt,
@@ -245,38 +245,28 @@ func (r *EventRepository) Post(eventID int64) error {
 	query := `
 		UPDATE events
 		SET status = 'POSTED'
-		WHERE event_id = ?
+		WHERE id = ?
 	`
 
-	res, err := r.db.Conn.Exec(query, eventID)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err := r.db.Exec(query, eventID)
+	return err
 }
 
 func (r *EventRepository) Cancel(eventID int64) error {
 	query := `
 		UPDATE events
 		SET status = 'CANCELLED'
-		WHERE event_id = ?
+		WHERE id = ?
 	`
 
-	res, err := r.db.Conn.Exec(query, eventID)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err := r.db.Exec(query, eventID)
+	return err
 }
 
 // events cant be deleted
 
 // func (r *EventRepository) Delete(id int64) error {
 // 	query := `DELETE FROM events WHERE id = ?`
-// 	_, err := r.db.Conn.Exec(query, id)
+// 	_, err := r.db.Exec(query, id)
 // 	return err
 // }

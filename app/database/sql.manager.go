@@ -10,12 +10,20 @@ func (d *Database) Export(destPath string) error {
 }
 
 func (d *Database) Import(srcPath string) error {
-	d.Conn.Close()
-
 	data, err := os.ReadFile(srcPath)
 	if err != nil {
 		return err
 	}
-
-	return os.WriteFile(d.path, data, 0644)
+	if err := d.Conn.Close(); err != nil {
+		return err
+	}
+	if err := os.WriteFile(d.path, data, 0600); err != nil {
+		return err
+	}
+	db, err := openConnection(d.path)
+	if err != nil {
+		return err
+	}
+	d.Conn = db
+	return d.createTables()
 }
