@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const api = axios.create({
     baseURL: 'https://api.vezono.com/saas/api', 
+    // baseURL: 'http://localhost:4000/api', 
+
     timeout: 10000, 
 });
 

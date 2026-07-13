@@ -49,7 +49,7 @@ const processPixCreationStrategy = async (payload) => {
 };
 
 const processUserCreationStrategy = async (payload) => {
-  const { userId, email, name, taxId, cellphone } = payload;
+  const { userId, email, name, taxId, cellphone, paymentMethod } = payload;
 
   console.log(`Processing user ${userId}`);
 
@@ -66,9 +66,11 @@ const processUserCreationStrategy = async (payload) => {
     abacatePayCustomerId: customer.id,
   });
 
-  // Enviar para a fila de criação de Pix
   await rabbit.send({
-    type: "CREATE_PIX_STRATEGY",
+    type:
+      paymentMethod === "CARD"
+        ? "CREATE_CARD_BILLING_STRATEGY"
+        : "CREATE_PIX_STRATEGY",
     payload: {
       userId,
       email,
@@ -80,12 +82,49 @@ const processUserCreationStrategy = async (payload) => {
   });
 };
 
+const processCardBillingStrategy = async (payload) => {
+  const { userId, email, name, taxId, cellphone, customerId } = payload;
+
+  const billing = await abacatePayService.createCardBilling({
+    customerId,
+    customer: { name, email, taxId, cellphone },
+    externalId: `billing_${userId}`,
+  });
+
+  const payment = await paymentRepository.create({
+    userId,
+    abacatePayCustomerId: customerId,
+    abacatePayBillingId: billing.paymentId,
+    amount: billing.amount,
+    status: "PENDING",
+    paymentMethod: "CARD",
+    paymentUrl: billing.paymentUrl,
+    billingFrequency: billing.frequency,
+    billingMethods: billing.methods,
+    billingProducts: billing.products,
+  });
+
+  // TO-DO: Nao sei se realmente precisa do SSE nesse caso, ja que o pagamento via cartao tem um fluxo diferente e o cliente sera redirecionado para a pagina de pagamento. Mas vou deixar aqui caso queira usar para atualizar o status do pagamento em tempo real na interface do usuario
+  notifySSE({
+    clientId: userId,
+    status: "CARD_BILLING_CREATED",
+    billing: {
+      billingId: billing.paymentId,
+      paymentUrl: billing.paymentUrl,
+      amount: billing.amount / 100,
+      createdAt: payment.createdAt,
+    },
+  });
+};
+
 (async () => {
   await rabbit.consume(async (payload) => {
     if (payload.type === "CREATE_USER_STRATEGY") {
       await processUserCreationStrategy(payload.payload);
     } else if (payload.type === "CREATE_PIX_STRATEGY") {
       await processPixCreationStrategy(payload.payload);
+    } else if (payload.type === "CREATE_CARD_BILLING_STRATEGY") {
+      await processCardBillingStrategy(payload.payload);
     }
   });
 })();

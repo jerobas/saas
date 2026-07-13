@@ -1,5 +1,5 @@
 import { createContext, useState, useRef, useEffect } from "react";
-import { EventsOn } from "../../wailsjs/runtime/runtime";
+// import { EventsOn } from "../../wailsjs/runtime/runtime";
 import notificationSound from "../assets/notification.mp3";
 
 export const AppContext = createContext();
@@ -16,11 +16,11 @@ export const AppProvider = ({ children }) => {
     audioRef.current.volume = 0.7;
   }, []);
 
-  useEffect(() => {
-    EventsOn("notification:new", (payload) => {
-      addNotification(payload);
-    });
-  }, []);
+  // useEffect(() => {
+  //   EventsOn("notification:new", (payload) => {
+  //     addNotification(payload);
+  //   });
+  // }, []);
 
   useEffect(() => {
     const unlockAudio = () => {

@@ -12,7 +12,7 @@ const swaggerSpec = {
   },
   servers: [
     {
-      url: 'http://localhost:3000',
+      url: 'http://localhost:4000',
       description: 'Development server',
     },
     {
@@ -271,7 +271,7 @@ const swaggerSpec = {
         },
       },
     },
-    '/auth/check-license': {
+    '/api/auth/check-license': {
       post: {
         tags: ['Authentication'],
         summary: 'Verificar se o usuário tem licença ativa',
