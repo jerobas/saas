@@ -1,133 +1,31 @@
-import { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import CadastroPage from "./pages/CadastroPage";
-import PixPaymentPage from "./pages/PixPaymentPage";
-import DashboardPage from "./pages/DashboardPage";
-import LoadingScreen from "./components/LoadingScreen";
-import PrivateRoute from "./components/PrivateRoute";
-import InventoryPage from "./pages/InventoryPage";
-import RecipesPage from "./pages/RecipesPage";
-import ProductsPage from "./pages/ProductsPage";
-import SalesPage from "./pages/SalesPage";
+import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-dom";
+import AppLayout from "./components/AppLayout";
+import { AppProvider } from "./context/AppContext";
 import BatchesPage from "./pages/BatchesPage";
+import DashboardPage from "./pages/DashboardPage";
 import DatabasePage from "./pages/DatabasePage";
 import EnterprisePage from "./pages/EnterprisePage";
-import AppLayout from "./components/AppLayout";
-import { GetUserStatus } from "../wailsjs/go/main/UserService";
-import { AppProvider } from "./context/AppContext";
-import LoginPage from "./pages/LoginPage";
-import NavigationPage from "./pages/NavigationPage";
+import InventoryPage from "./pages/InventoryPage";
+import ProductsPage from "./pages/ProductsPage";
+import RecipesPage from "./pages/RecipesPage";
+import SalesPage from "./pages/SalesPage";
+
+const desktopPage = (page) => <AppLayout>{page}</AppLayout>;
 
 function App() {
-  const [loading, setLoading] = useState(true);
-  const [isActive, setIsActive] = useState(false);
-
-  useEffect(() => {
-    GetUserStatus()
-      .then(setIsActive)
-      .catch((error) => {
-        console.error("Erro ao obter status do usuário:", error);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppProvider>
       <Router>
         <Routes>
-          {/* públicas */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/cadastro" element={<CadastroPage />} />
-          <Route path="/navigation" element={<NavigationPage />} />
-          <Route path="/pix" element={<PixPaymentPage />} />
-
-
-          {/* privadas */}
-          <Route
-            path="/"
-            element={
-              <PrivateRoute isActive={isActive}>
-                <AppLayout>
-                  <DashboardPage />
-                </AppLayout>
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/inventory"
-            element={
-              <PrivateRoute isActive={isActive}>
-                <AppLayout>
-                  <InventoryPage />
-                </AppLayout>
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/batches"
-            element={
-              <PrivateRoute isActive={isActive}>
-                <AppLayout>
-                  <BatchesPage />
-                </AppLayout>
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/recipes"
-            element={
-              <PrivateRoute isActive={isActive}>
-                <AppLayout>
-                  <RecipesPage />
-                </AppLayout>
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/products"
-            element={
-              <PrivateRoute isActive={isActive}>
-                <AppLayout>
-                  <ProductsPage />
-                </AppLayout>
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/sales"
-            element={
-              <PrivateRoute isActive={isActive}>
-                <AppLayout>
-                  <SalesPage />
-                </AppLayout>
-              </PrivateRoute>
-            }
-          />
-            <Route
-            path="/enterprise"
-            element={
-              <PrivateRoute isActive={isActive}>
-                <AppLayout>
-                  <EnterprisePage />
-                </AppLayout>
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/database"
-            element={
-              <PrivateRoute isActive={isActive}>
-                <AppLayout>
-                  <DatabasePage />
-                </AppLayout>
-              </PrivateRoute>
-            }
-          />
+          <Route path="/" element={desktopPage(<DashboardPage />)} />
+          <Route path="/inventory" element={desktopPage(<InventoryPage />)} />
+          <Route path="/batches" element={desktopPage(<BatchesPage />)} />
+          <Route path="/recipes" element={desktopPage(<RecipesPage />)} />
+          <Route path="/products" element={desktopPage(<ProductsPage />)} />
+          <Route path="/sales" element={desktopPage(<SalesPage />)} />
+          <Route path="/enterprise" element={desktopPage(<EnterprisePage />)} />
+          <Route path="/database" element={desktopPage(<DatabasePage />)} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AppProvider>

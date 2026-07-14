@@ -1,14 +1,15 @@
 package main
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
-func TestDevelopmentModeBypassesRemoteLicenseForLocalDevelopment(t *testing.T) {
-	t.Setenv("SAAS_DEV_MODE", "true")
-	active, err := getUserStatus()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !active {
-		t.Fatal("development mode should unlock the local desktop application")
+func TestDataDirectoryUsesConfiguredPath(t *testing.T) {
+	expected := filepath.Join(t.TempDir(), "desktop-data")
+	t.Setenv("SAAS_DATA_DIR", expected)
+
+	if actual := dataDirectory(); actual != expected {
+		t.Fatalf("dataDirectory() = %q, want %q", actual, expected)
 	}
 }

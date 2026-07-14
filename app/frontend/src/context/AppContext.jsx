@@ -5,7 +5,6 @@ import notificationSound from "../assets/notification.mp3";
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [pixData, setPixData] = useState(null);
   const [notifications, setNotifications] = useState([]);
 
   const audioRef = useRef(null);
@@ -78,8 +77,6 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider
       value={{
-        pixData,
-        setPixData,
         notifications,
         addNotification,
         markAllNotificationsRead,

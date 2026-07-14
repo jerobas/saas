@@ -7,7 +7,6 @@ if (-not (Test-Path $wails)) {
     throw "Wails is not installed. Run .\scripts\setup-dev.ps1 first."
 }
 
-$env:SAAS_DEV_MODE = "true"
 if (-not $env:SAAS_DATA_DIR) {
     $env:SAAS_DATA_DIR = Join-Path $env:APPDATA "saas-dev"
 }

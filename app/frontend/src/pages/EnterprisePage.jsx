@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CurrencyDollar, Percent, Target, CreditCard } from "phosphor-react";
-// import { ProfileService } from '../services/profileService';
 
 const EnterprisePage = () => {
   const [profile, setProfile] = useState({
@@ -23,8 +22,6 @@ const EnterprisePage = () => {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      // const data = await ProfileService.getProfile();
-      setProfile(data);
       setMessage({ type: "", text: "" });
     } catch (error) {
       console.error("Erro ao carregar perfil:", error);

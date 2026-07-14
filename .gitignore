@@ -12,7 +12,6 @@ my-confectionery-saas/
 # Cryptographic keys
 private.pem
 public.pem
-!app/license/public.pem
 
 tunnel.sh
 
