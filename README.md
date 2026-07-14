@@ -60,13 +60,16 @@ app/
   repository/     SQLite repositories
   service/        Application services exposed through Wails
   frontend/       React desktop interface
-docs/app/         Current design and implementation notes
+docs/             Architecture, domain contract, ADRs, and historical archive
 scripts/          Windows setup, development, and verification commands
 ```
 
 The architecture is being migrated bottom-up. Accepted schema invariants are
 implemented and tested first, followed by repositories, application use cases,
 Wails contracts, and frontend features.
+
+Start with the [documentation index](docs/README.md) for the accepted V2
+decisions, target data model, glossary, invariants, and use cases.
 
 ## Current development policy
 
