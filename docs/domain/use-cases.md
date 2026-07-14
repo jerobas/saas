@@ -7,7 +7,7 @@ calls one use case for one user action; it does not assemble repository steps.
 
 - Initialize local business settings on first run.
 - Read and update business name, locale, timezone, and planning defaults.
-- Select currency before the first monetary posting.
+- Select currency before the first stock posting.
 - List seeded measurement units.
 - Create, update, archive, and restore item-specific packaging definitions.
 
@@ -16,7 +16,9 @@ calls one use case for one user action; it does not assemble repository steps.
 - Create an item with base unit and capabilities.
 - Read an item and list items by capability, stock state, or archive state.
 - Update catalog metadata, optional default price, and reorder level.
-- Change base unit only while the item has no recipe or ledger references.
+- Change base unit only while the item has no active packaging, recipe-revision,
+  or ledger references; reconfigure incompatible archived packaging before
+  restoring it.
 - Archive and restore an item.
 
 “Ingredients” and “Products” remain UI views over these catalog queries.

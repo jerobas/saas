@@ -17,11 +17,12 @@ key/value strings. Initial defaults are locale `pt-BR`, currency `BRL`, and
 timezone `America/Sao_Paulo`, but first-run setup may change them before data is
 posted.
 
-Currency and its minor digits become immutable after the first monetary
-document. Multi-currency and exchange rates are excluded. Locale and timezone
-remain mutable display/report settings. Planning defaults may include hourly
-labor cost and default margin in integer basis points, but they do not
-automatically alter inventory value.
+Currency and its minor digits become immutable after the first stock document,
+because every inventory valuation is denominated in that currency even when a
+particular line has zero value. Multi-currency and exchange rates are excluded.
+Locale and timezone remain mutable display/report settings. Planning defaults
+may include hourly labor cost and default margin in integer basis points, but
+they do not automatically alter inventory value.
 
 Posted instants are stored as UTC Unix milliseconds and cross Wails as RFC3339.
 Business and expiry dates are stored as ISO `YYYY-MM-DD`. Report day boundaries

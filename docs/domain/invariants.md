@@ -11,7 +11,7 @@ real-SQLite integration and replay tests.
 |---|---|---|
 | SET-001 | Exactly one settings row exists. | SQLite |
 | SET-002 | The database has one ISO currency and one IANA business timezone. | SQLite + application |
-| SET-003 | Currency cannot change after the first monetary document posts. | Application transaction |
+| SET-003 | Currency cannot change after the first stock document posts. | SQLite |
 | SET-004 | UTC instants and date-only business values are stored separately. | SQLite types + application |
 | SET-005 | A document may use an earlier business date, but valuation always follows posting sequence. | Application transaction |
 
@@ -24,8 +24,9 @@ real-SQLite integration and replay tests.
 | CAT-003 | Capability combinations are valid; historical documents do not change when capabilities change. | Application + immutability |
 | CAT-004 | Default sale price is optional; when present it is nonnegative and the item is sellable. | SQLite |
 | CAT-005 | Item names are trimmed and case-insensitively unique; archived names remain reserved. | SQLite + application |
-| CAT-006 | Base unit cannot change after the item appears in a recipe revision or stock document. | Application transaction |
+| CAT-006 | Base unit cannot change while the item has active packaging or after it appears in a recipe revision or stock document. Archived incompatible packaging must be reconfigured before restoration. | SQLite |
 | CAT-007 | Archived catalog data is readable historically but unavailable for new posting. | Application transaction |
+| CAT-008 | Optional item SKUs use the documented normalized key and remain unique across active and archived items. | SQLite + application |
 | CPY-001 | An active counterparty has at least one supplier or customer role; names need not be unique. | Application + SQLite |
 | CPY-002 | Removing a role affects only future eligibility and never rewrites historical documents. | Application + immutability |
 | UNIT-001 | Quantities and conversion factors are never stored as floating point. | SQLite |
@@ -71,7 +72,7 @@ real-SQLite integration and replay tests.
 | INV-001 | Commercial money uses currency minor units; inventory value uses integer microcurrency units. | SQLite + typed values |
 | INV-002 | Balance quantity and inventory value are never negative. | SQLite + application |
 | INV-003 | Zero quantity implies zero inventory value. | SQLite |
-| INV-004 | Positive zero-value stock exists only through an explicitly reasoned free-stock workflow. | Application transaction |
+| INV-004 | Zero value enters inventory only through explicitly reasoned free stock; production and exact reversal may propagate that value without inventing cost. | Application transaction |
 | INV-005 | Outbound value is frozen at posting from pooled weighted-average quantity and value. | Application transaction |
 | INV-006 | Consuming all remaining quantity consumes all remaining inventory value exactly. | Application transaction |
 | INV-007 | Same-item outflow is costed in aggregate; deterministic remainder allocation makes line values sum exactly. | Application transaction |
@@ -91,7 +92,7 @@ real-SQLite integration and replay tests.
 | LOT-006 | Expiry is an inclusive date, not an instant. | SQLite representation |
 | LOT-007 | Expired lots remain in physical and financial stock until an adjustment removes them. | Query and adjustment policy |
 | LOT-008 | Expired lots cannot be allocated to a new sale or production run. | Application transaction |
-| LOT-009 | A manual override may select only a nonexpired available lot and is frozen at posting. | Application transaction |
+| LOT-009 | Sale and production overrides use only nonexpired available lots; a reasoned negative adjustment may deliberately consume expired stock. Every selection is frozen at posting. | Application transaction |
 | LOT-010 | Lot availability can be rebuilt exactly from lot sources and allocation effects. | Integration/replay tests |
 
 ## Reversals

@@ -13,6 +13,7 @@ dependency rules. Accepted ADRs are authoritative until replaced by a later ADR.
 | [0006](0006-catalog-counterparties-and-archive.md) | Accepted | Unified catalog, counterparties, and archival |
 | [0007](0007-recipe-revisions-and-production.md) | Accepted | Immutable recipe revisions and production value transfer |
 | [0008](0008-settings-time-and-data-lifecycle.md) | Accepted | Settings, time, identifiers, migrations, and restore |
+| [0009](0009-v2-sqlite-baseline-and-enforcement.md) | Accepted | V2 SQLite baseline, identity, and enforcement boundary |
 
 ## Lifecycle
 

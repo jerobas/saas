@@ -57,12 +57,10 @@ func main() {
 	defer db.Close()
 
 	app := NewApp()
-	itemService := service.NewItemService(db)
-	batchService := service.NewBatchService(db)
-	recipeService := service.NewRecipeService(db)
-	purchaseService := service.NewPurchaseService(db)
 	databaseService := service.NewDatabaseService(db)
 	app.DatabaseService = databaseService
+	// Legacy domain services target the discarded experimental schema. Bind
+	// each V2 replacement only after its lower-layer store and use cases exist.
 
 	err := wails.Run(&options.App{
 		Title:  "app",
@@ -74,10 +72,6 @@ func main() {
 		OnStartup: app.startup,
 		Bind: []interface{}{
 			app,
-			itemService,
-			batchService,
-			recipeService,
-			purchaseService,
 			databaseService,
 		},
 	})

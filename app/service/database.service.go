@@ -47,21 +47,5 @@ func (s *DatabaseService) Import() error {
 	if s.ctx == nil {
 		return errors.New("context not set")
 	}
-
-	srcPath, err := runtime.OpenFileDialog(s.ctx, runtime.OpenDialogOptions{
-		Title: "Selecionar backup",
-		Filters: []runtime.FileFilter{{
-			DisplayName: "SQLite",
-			Pattern:     "*.db",
-		}},
-	})
-
-	if err != nil {
-		return err
-	}
-	if srcPath == "" {
-		return errors.New("import cancelled")
-	}
-
-	return s.db.Import(srcPath)
+	return s.db.Import("")
 }

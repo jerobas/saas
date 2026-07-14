@@ -9,9 +9,9 @@ The sources below are authoritative, in this order:
 
 1. Accepted product decisions in [`decisions/`](decisions/README.md).
 2. Domain invariants in [`domain/invariants.md`](domain/invariants.md).
-3. The target data model in
+3. The V2 data model in
    [`architecture/data-model.md`](architecture/data-model.md).
-4. Embedded SQLite migrations once the target model is implemented.
+4. Embedded, checksummed SQLite migrations.
 5. Generated queries, repositories, application use cases, Wails handlers, and
    frontend features, in that order.
 
@@ -23,8 +23,8 @@ new migration and then every dependent layer.
 
 - [`architecture/overview.md`](architecture/overview.md): product boundary,
   dependency direction, and runtime architecture.
-- [`architecture/data-model.md`](architecture/data-model.md): proposed V2 ERD
-  and table responsibilities.
+- [`architecture/data-model.md`](architecture/data-model.md): V2 baseline ERD,
+  storage representations, and enforcement boundary.
 - [`domain/glossary.md`](domain/glossary.md): canonical vocabulary.
 - [`domain/invariants.md`](domain/invariants.md): testable business rules.
 - [`domain/inventory-ledger.md`](domain/inventory-ledger.md): posting, costing,
@@ -33,12 +33,16 @@ new migration and then every dependent layer.
 - [`decisions/`](decisions/README.md): accepted architectural decisions.
 - [`development/toolchain.md`](development/toolchain.md): pinned language,
   framework, and tool versions plus setup instructions.
+- [`development/database.md`](development/database.md): SQLite identity,
+  migrations, local data, backup, and restore policy.
 - [`development/testing.md`](development/testing.md): local checks, security
   audits, browser smoke tests, and CI expectations.
 
-The data model is a Phase 1 contract, not a description of the current seven
-experimental migrations. Those migrations will be replaced during the database
-phase after the toolchain upgrade.
+Phase 3 replaces the seven experimental migrations with the strict,
+checksummed V2 baseline. That migration is now the executable persistence
+contract. Legacy models, repositories, services, and pages remain outside the
+accepted chain until they are rebuilt against it in bottom-up order; their
+continued presence in the source tree does not override the baseline.
 
 ## Historical material
 

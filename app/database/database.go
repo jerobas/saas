@@ -2,21 +2,15 @@ package database
 
 import (
 	"database/sql"
-	"embed"
 	"fmt"
-	"io/fs"
-	"log"
-	"slices"
+	"strings"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
 
-//go:embed schemas/*.sql
-var schemaFS embed.FS
-
 type Database struct {
 	Conn *sql.DB
-	path string
 }
 
 func NewDatabase(dbPath string) (*Database, error) {
@@ -24,8 +18,16 @@ func NewDatabase(dbPath string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	database := &Database{Conn: db, path: dbPath}
-	if err := database.createTables(); err != nil {
+	database := &Database{Conn: db}
+	if err := migrateDatabase(db, schemaFS, "schemas"); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := configureRuntimeConnection(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := validateDatabase(db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -40,10 +42,13 @@ func openConnection(dbPath string) (*sql.DB, error) {
 	// SQLite PRAGMAs are connection-scoped. A single connection is sufficient
 	// for this local desktop app and keeps these settings deterministic.
 	db.SetMaxOpenConns(1)
+	// These connection-local settings do not alter an unidentified database.
+	// File-persistent settings are applied only after migration identity has
+	// been accepted, so an old or foreign database is rejected in place.
 	for _, statement := range []string{
 		"PRAGMA foreign_keys = ON",
 		"PRAGMA busy_timeout = 5000",
-		"PRAGMA journal_mode = WAL",
+		"PRAGMA trusted_schema = OFF",
 	} {
 		if _, err := db.Exec(statement); err != nil {
 			_ = db.Close()
@@ -57,53 +62,28 @@ func openConnection(dbPath string) (*sql.DB, error) {
 	return db, nil
 }
 
-func (d *Database) createTables() error {
-	schema, err := schemaFS.ReadDir("schemas")
-	if err != nil {
-		return fmt.Errorf("read schemas: %w", err)
+func configureRuntimeConnection(db *sql.DB) error {
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var journalMode string
+		err := db.QueryRow("PRAGMA journal_mode = WAL").Scan(&journalMode)
+		if err == nil {
+			if !strings.EqualFold(journalMode, "wal") && journalMode != "memory" {
+				return fmt.Errorf("configure sqlite runtime: journal_mode=%s", journalMode)
+			}
+			break
+		}
+		message := strings.ToLower(err.Error())
+		if time.Now().After(deadline) ||
+			(!strings.Contains(message, "busy") && !strings.Contains(message, "locked")) {
+			return fmt.Errorf("configure sqlite runtime: %w", err)
+		}
+		time.Sleep(25 * time.Millisecond)
 	}
-	slices.SortFunc(schema, func(a, b fs.DirEntry) int {
-		if a.Name() < b.Name() {
-			return -1
-		}
-		if a.Name() > b.Name() {
-			return 1
-		}
-		return 0
-	})
-
-	tx, err := d.Conn.Begin()
-	if err != nil {
-		return err
+	if _, err := db.Exec("PRAGMA synchronous = NORMAL"); err != nil {
+		return fmt.Errorf("configure sqlite runtime: %w", err)
 	}
-	defer tx.Rollback()
-	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
-		name TEXT PRIMARY KEY,
-		applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-	)`); err != nil {
-		return fmt.Errorf("create schema_migrations: %w", err)
-	}
-	for _, file := range schema {
-		var applied int
-		if err := tx.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE name = ?`, file.Name()).Scan(&applied); err != nil {
-			return err
-		}
-		if applied > 0 {
-			continue
-		}
-		content, err := schemaFS.ReadFile("schemas/" + file.Name())
-		if err != nil {
-			return fmt.Errorf("read schema %s: %w", file.Name(), err)
-		}
-		if _, err := tx.Exec(string(content)); err != nil {
-			log.Printf("failed applying schema %s: %v", file.Name(), err)
-			return err
-		}
-		if _, err := tx.Exec(`INSERT INTO schema_migrations (name) VALUES (?)`, file.Name()); err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
+	return nil
 }
 
 func (d *Database) Close() error {

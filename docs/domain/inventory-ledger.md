@@ -82,7 +82,9 @@ Eligible lots are ordered by:
 
 The allocation walks that order until the complete outbound quantity is
 covered. An optional manual selection can change the physical order but never
-the financial valuation and cannot use expired or insufficient lots.
+the financial valuation and cannot use insufficient lots. Sale and production
+cannot select expired lots; a reasoned negative adjustment may do so to remove
+expired physical stock.
 
 `expires_on` is usable through that business date. Eligibility is checked
 against the application's current local business date at posting, not against a

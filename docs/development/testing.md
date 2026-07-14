@@ -37,6 +37,14 @@ go tool staticcheck $packages
 go test -race -shuffle=on -count=1 $packages
 ```
 
+During migration and schema work, the focused database loop is:
+
+```powershell
+Push-Location app
+go test -shuffle=on -count=1 ./database
+Pop-Location
+```
+
 The package filter keeps npm dependencies that happen to contain Go examples
 outside the desktop module's quality scope while preserving Wails' required
 `go:embed` relationship with `frontend/dist`.
@@ -55,8 +63,14 @@ severity or above.
 
 - Domain algorithms use table, property, and fuzz tests close to their Go
   packages.
-- SQLite migrations, stores, and application commands use real temporary
-  SQLite databases rather than SQL mocks.
+- SQLite migrations, stores, and application commands use real temporary file
+  databases rather than SQL mocks. Migration tests cover fresh initialization,
+  reopen, exact history and checksum validation, unsupported/legacy rejection,
+  and rollback after a failing migration.
+- Schema tests exercise representative strict-type, foreign-key, uniqueness,
+  immutable-history, reversal, lot-allocation, and projection constraints. Go
+  transaction tests later add aggregate completeness, valuation, FEFO, and
+  replay guarantees that cannot be proven by one row constraint.
 - React components and the typed desktop bridge use Vitest and Testing Library.
 - Playwright covers a small number of critical browser-rendered workflows.
 - Desktop builds remain the final integration proof for Wails bindings and
@@ -73,10 +87,15 @@ Only after both pass does it build Windows and macOS desktop artifacts. GitHub
 Actions are pinned to immutable commit hashes, with the corresponding release
 tag documented beside each pin.
 
-## Transitional binding warning
+## Phase 3 transition
 
-The current experimental service model can make Wails print `Not found:
-time.Time` and list `sql.Null*` types while generating bindings. The desktop
-build still succeeds. These persistence-shaped contracts are not accepted V2
-interfaces and will disappear when the bottom-up migration reaches the Wails
-presentation boundary. New handlers must not copy that legacy pattern.
+The experimental models, repositories, and services target tables that the V2
+baseline deliberately removed. They are retained only as migration context and
+must not be rebound to Wails or treated as passing feature coverage. Phase 4
+replaces them with aggregate stores tested against temporary V2 databases;
+later phases add application commands and presentation DTOs.
+
+Restore/import is also intentionally disabled in Phase 3. Tests must prove that
+a restore request cannot replace the live file. Re-enabling it requires staged
+identity, schema, checksum, integrity, foreign-key, and replay validation plus
+a safety backup, atomic replacement, and process restart.

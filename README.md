@@ -68,9 +68,9 @@ Pop-Location
 ```text
 app/
   database/       SQLite bootstrap and migrations
-  model/          Current persistence models
-  repository/     SQLite repositories
-  service/        Application services exposed through Wails
+  model/          Legacy persistence models pending replacement
+  repository/     Legacy repositories pending V2 aggregate stores
+  service/        Desktop services; legacy domain services are unbound
   frontend/       React desktop interface
 docs/             Architecture, domain contract, ADRs, and historical archive
 scripts/          Windows setup, development, and verification commands

@@ -26,8 +26,10 @@ Default physical allocation is FEFO:
 3. inbound posting sequence;
 4. lot ID.
 
-A user may explicitly select a different nonexpired lot. The selection is
-frozen in the posted allocation.
+A user may explicitly select a different nonexpired lot for sale or production.
+The selection is frozen in the posted allocation. A reasoned `EXPIRY`, `WASTE`,
+or other negative adjustment may deliberately select expired stock so it can
+be removed from physical inventory.
 
 Expiry is an inclusive ISO business date. An expired lot remains in physical
 quantity and inventory value until a reasoned waste/expiry adjustment removes
