@@ -1,5 +1,4 @@
 import { createContext, useState, useRef, useEffect } from "react";
-// import { EventsOn } from "../../wailsjs/runtime/runtime";
 import notificationSound from "../assets/notification.mp3";
 
 export const AppContext = createContext();

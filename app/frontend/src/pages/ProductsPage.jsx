@@ -1,21 +1,41 @@
-/* eslint-disable no-unused-vars */
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Trash } from 'phosphor-react';
+import { useState } from "react";
+import { motion } from "motion/react";
+import { Plus, Trash } from "@phosphor-icons/react";
 
 const ProductsPage = () => {
   const products = [
-    { id: 1, name: 'Bolo de Chocolate', description: 'Delicioso bolo de chocolate', basePrice: '20.00', markup: '50', isActive: true },
-    { id: 2, name: 'Torta de Limão', description: 'Torta com recheio de limão', basePrice: '15.00', markup: '40', isActive: true },
-    { id: 3, name: 'Pão de Mel', description: 'Pão de mel caseiro', basePrice: '5.00', markup: '30', isActive: false },
+    {
+      id: 1,
+      name: "Bolo de Chocolate",
+      description: "Delicioso bolo de chocolate",
+      basePrice: "20.00",
+      markup: "50",
+      isActive: true,
+    },
+    {
+      id: 2,
+      name: "Torta de Limão",
+      description: "Torta com recheio de limão",
+      basePrice: "15.00",
+      markup: "40",
+      isActive: true,
+    },
+    {
+      id: 3,
+      name: "Pão de Mel",
+      description: "Pão de mel caseiro",
+      basePrice: "5.00",
+      markup: "30",
+      isActive: false,
+    },
   ];
 
   const addProduct = (product) => {
-    console.log('Adding product:', product);
+    console.log("Adding product:", product);
   };
 
   const deleteProduct = (id) => {
-    console.log('Deleting product with id:', id);
+    console.log("Deleting product with id:", id);
   };
 
   const loading = false;
@@ -25,10 +45,10 @@ const ProductsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [newProduct, setNewProduct] = useState({
-    name: '',
-    description: '',
-    basePrice: '',
-    markup: '',
+    name: "",
+    description: "",
+    basePrice: "",
+    markup: "",
     isActive: true,
   });
 
@@ -38,19 +58,19 @@ const ProductsPage = () => {
    * @returns {string} Valor formatado ex: R$ 1.234,56
    */
   const formatCurrency = (value) => {
-    if (!value) return '';
-    
+    if (!value) return "";
+
     // Remove caracteres não numéricos
-    const numericValue = value.replace(/\D/g, '');
-    
-    if (!numericValue) return '';
-    
+    const numericValue = value.replace(/\D/g, "");
+
+    if (!numericValue) return "";
+
     // Converte para número e formata
     const numberValue = parseInt(numericValue, 10) / 100;
-    
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
+
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
     }).format(numberValue);
   };
 
@@ -60,7 +80,7 @@ const ProductsPage = () => {
    * @returns {string} Valor limpo
    */
   const unformatCurrency = (value) => {
-    return value.replace(/\D/g, '');
+    return value.replace(/\D/g, "");
   };
 
   /**
@@ -72,31 +92,31 @@ const ProductsPage = () => {
   const calculateFinalPrice = (basePrice, markup) => {
     const base = parseFloat(basePrice) || 0;
     const markupValue = parseFloat(markup) || 0;
-    return base + (base * (markupValue / 100));
+    return base + base * (markupValue / 100);
   };
 
   const handleAddProduct = async () => {
     if (isSubmitting) return;
-    
+
     if (newProduct.name && newProduct.basePrice) {
       setIsSubmitting(true);
-      
+
       const cleanPrice = unformatCurrency(newProduct.basePrice);
       const priceValue = parseFloat(cleanPrice) / 100 || parseFloat(newProduct.basePrice);
-      
+
       const success = await addProduct({
         name: newProduct.name,
         description: newProduct.description || null,
         basePrice: priceValue,
         markup: parseFloat(newProduct.markup) || 0,
-        isActive: newProduct.isActive
+        isActive: newProduct.isActive,
       });
 
       if (success) {
-        setNewProduct({ name: '', description: '', basePrice: '', markup: '', isActive: true });
+        setNewProduct({ name: "", description: "", basePrice: "", markup: "", isActive: true });
         setOpenDialog(false);
       }
-      
+
       setIsSubmitting(false);
     }
   };
@@ -114,10 +134,14 @@ const ProductsPage = () => {
   };
 
   const totalProductValue = products.reduce((acc, product) => {
-    return acc + parseFloat(product.basePrice) + (parseFloat(product.basePrice) * (parseFloat(product.markup) / 100));
+    return (
+      acc +
+      parseFloat(product.basePrice) +
+      parseFloat(product.basePrice) * (parseFloat(product.markup) / 100)
+    );
   }, 0);
 
-  const activeProducts = products.filter(p => p.isActive).length;
+  const activeProducts = products.filter((p) => p.isActive).length;
 
   return (
     <>
@@ -135,12 +159,12 @@ const ProductsPage = () => {
           >
             <motion.div
               animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
               className="w-12 h-12 border-4 border-pink-200 border-t-pink-600 rounded-full"
             />
             <div className="text-center">
               <h3 className="text-lg font-semibold text-slate-900">
-                {isSubmitting ? 'Salvando produto...' : 'Carregando produtos...'}
+                {isSubmitting ? "Salvando produto..." : "Carregando produtos..."}
               </h3>
               <p className="text-sm text-slate-600 mt-1">Por favor aguarde</p>
             </div>
@@ -164,9 +188,7 @@ const ProductsPage = () => {
               <Trash size={24} className="text-red-600" />
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">
-              Deletar Produto?
-            </h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">Deletar Produto?</h2>
 
             <p className="text-slate-600 text-center mb-6">
               Tem certeza que deseja remover este produto? Esta ação não pode ser desfeita.
@@ -189,13 +211,13 @@ const ProductsPage = () => {
                   <>
                     <motion.div
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                     />
                     Deletando...
                   </>
                 ) : (
-                  'Sim, Deletar'
+                  "Sim, Deletar"
                 )}
               </button>
             </div>
@@ -257,10 +279,18 @@ const ProductsPage = () => {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Nome</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Preço Base</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Markup (%)</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Preço Final</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Status</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Preço Base
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Markup (%)
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Preço Final
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Status
+                  </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Ação</th>
                 </tr>
               </thead>
@@ -269,7 +299,9 @@ const ProductsPage = () => {
                   const finalPrice = calculateFinalPrice(product.basePrice, product.markup);
                   return (
                     <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-6 py-4 text-sm text-slate-900 font-medium">{product.name}</td>
+                      <td className="px-6 py-4 text-sm text-slate-900 font-medium">
+                        {product.name}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         R$ {parseFloat(product.basePrice).toFixed(2)}
                       </td>
@@ -280,12 +312,14 @@ const ProductsPage = () => {
                         R$ {finalPrice.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          product.isActive 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {product.isActive ? 'Ativo' : 'Inativo'}
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            product.isActive
+                              ? "bg-green-100 text-green-700"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {product.isActive ? "Ativo" : "Inativo"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
@@ -293,7 +327,9 @@ const ProductsPage = () => {
                           onClick={() => handleDeleteProduct(product.id)}
                           className="text-red-600 hover:text-red-700 disabled:text-slate-300 disabled:cursor-not-allowed transition-colors"
                           disabled={loading || isSubmitting}
-                          title={loading || isSubmitting ? 'Operação em progresso' : 'Deletar produto'}
+                          title={
+                            loading || isSubmitting ? "Operação em progresso" : "Deletar produto"
+                          }
                         >
                           <Trash size={18} />
                         </button>
@@ -306,7 +342,6 @@ const ProductsPage = () => {
           </div>
         </motion.div>
 
-
         {/* Add Product Dialog */}
         {openDialog && (
           <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-md">
@@ -316,7 +351,7 @@ const ProductsPage = () => {
               className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl"
             >
               <h2 className="text-2xl font-bold text-slate-900 mb-6">Adicionar Produto</h2>
-              
+
               {error && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -326,10 +361,12 @@ const ProductsPage = () => {
                   <span>{error}</span>
                 </motion.div>
               )}
-              
+
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Nome do Produto</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Nome do Produto
+                  </label>
                   <input
                     type="text"
                     value={newProduct.name}
@@ -354,13 +391,15 @@ const ProductsPage = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Preço Base (R$)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Preço Base (R$)
+                    </label>
                     <input
                       type="text"
                       value={formatCurrency(newProduct.basePrice)}
                       onChange={(e) => {
                         const inputValue = e.target.value;
-                        const numericOnly = inputValue.replace(/\D/g, '');
+                        const numericOnly = inputValue.replace(/\D/g, "");
                         setNewProduct({ ...newProduct, basePrice: numericOnly });
                       }}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
@@ -370,7 +409,9 @@ const ProductsPage = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Markup (%)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Markup (%)
+                    </label>
                     <input
                       type="number"
                       step="0.1"
@@ -387,9 +428,10 @@ const ProductsPage = () => {
                   <div className="bg-blue-50 rounded-lg p-3">
                     <p className="text-xs text-blue-600 mb-1">Preço Final Estimado:</p>
                     <p className="text-xl font-bold text-blue-700">
-                      R$ {calculateFinalPrice(
+                      R${" "}
+                      {calculateFinalPrice(
                         parseInt(unformatCurrency(newProduct.basePrice)) / 100 || 0,
-                        newProduct.markup
+                        newProduct.markup,
                       ).toFixed(2)}
                     </p>
                   </div>
@@ -417,20 +459,22 @@ const ProductsPage = () => {
                 </button>
                 <button
                   onClick={handleAddProduct}
-                  disabled={isSubmitting || loading || !newProduct.name.trim() || !newProduct.basePrice}
+                  disabled={
+                    isSubmitting || loading || !newProduct.name.trim() || !newProduct.basePrice
+                  }
                   className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isSubmitting || loading ? (
                     <>
                       <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                       />
                       Salvando...
                     </>
                   ) : (
-                    'Adicionar'
+                    "Adicionar"
                   )}
                 </button>
               </div>

@@ -31,6 +31,10 @@ new migration and then every dependent layer.
   lot allocation, and replay rules.
 - [`domain/use-cases.md`](domain/use-cases.md): supported and deferred workflows.
 - [`decisions/`](decisions/README.md): accepted architectural decisions.
+- [`development/toolchain.md`](development/toolchain.md): pinned language,
+  framework, and tool versions plus setup instructions.
+- [`development/testing.md`](development/testing.md): local checks, security
+  audits, browser smoke tests, and CI expectations.
 
 The data model is a Phase 1 contract, not a description of the current seven
 experimental migrations. Those migrations will be replaced during the database

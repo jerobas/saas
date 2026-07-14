@@ -1,88 +1,87 @@
-/* eslint-disable no-unused-vars */
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Trash, MagnifyingGlass, ShoppingCart } from 'phosphor-react';
+import { useState } from "react";
+import { motion } from "motion/react";
+import { Plus, Trash, MagnifyingGlass, ShoppingCart } from "@phosphor-icons/react";
 
 const SalesPage = () => {
   // Dados mockados de produtos
   const mockProducts = [
     {
-      id: '1',
-      name: 'Bolo de Chocolate Belga',
-      description: 'Bolo de chocolate belga com cobertura de ganache',
-      basePrice: 45.00,
+      id: "1",
+      name: "Bolo de Chocolate Belga",
+      description: "Bolo de chocolate belga com cobertura de ganache",
+      basePrice: 45.0,
       markup: 35,
       isActive: true,
     },
     {
-      id: '2',
-      name: 'Bolo Red Velvet',
-      description: 'Clássico bolo red velvet com cream cheese',
-      basePrice: 50.00,
+      id: "2",
+      name: "Bolo Red Velvet",
+      description: "Clássico bolo red velvet com cream cheese",
+      basePrice: 50.0,
       markup: 30,
       isActive: true,
     },
     {
-      id: '3',
-      name: 'Pavê de Morango',
-      description: 'Pavê refrescante com morangos frescos',
-      basePrice: 38.00,
+      id: "3",
+      name: "Pavê de Morango",
+      description: "Pavê refrescante com morangos frescos",
+      basePrice: 38.0,
       markup: 40,
       isActive: true,
     },
     {
-      id: '4',
-      name: 'Torta de Chocolate com Framboesa',
-      description: 'Torta sofisticada com framboesa fresca',
-      basePrice: 65.00,
+      id: "4",
+      name: "Torta de Chocolate com Framboesa",
+      description: "Torta sofisticada com framboesa fresca",
+      basePrice: 65.0,
       markup: 25,
       isActive: true,
     },
     {
-      id: '5',
-      name: 'Broinhas de Chuva',
-      description: 'Dúzia de broinhas de chuva crocantes (12 un)',
-      basePrice: 18.00,
+      id: "5",
+      name: "Broinhas de Chuva",
+      description: "Dúzia de broinhas de chuva crocantes (12 un)",
+      basePrice: 18.0,
       markup: 50,
       isActive: true,
     },
     {
-      id: '6',
-      name: 'Brigadeiro Tradicional',
-      description: 'Pote com 500g de brigadeiro caseiro',
-      basePrice: 22.00,
+      id: "6",
+      name: "Brigadeiro Tradicional",
+      description: "Pote com 500g de brigadeiro caseiro",
+      basePrice: 22.0,
       markup: 55,
       isActive: true,
     },
     {
-      id: '7',
-      name: 'Cupcakes de Vanilla',
-      description: 'Caixa com 6 cupcakes de vanilla com cobertura',
-      basePrice: 35.00,
+      id: "7",
+      name: "Cupcakes de Vanilla",
+      description: "Caixa com 6 cupcakes de vanilla com cobertura",
+      basePrice: 35.0,
       markup: 45,
       isActive: true,
     },
     {
-      id: '8',
-      name: 'Docinhos para Festas',
-      description: 'Seleção com 30 docinhos variados',
-      basePrice: 55.00,
+      id: "8",
+      name: "Docinhos para Festas",
+      description: "Seleção com 30 docinhos variados",
+      basePrice: 55.0,
       markup: 35,
       isActive: true,
     },
     {
-      id: '9',
-      name: 'Bolo de Cenoura com Cobertura',
-      description: 'Clássico bolo de cenoura com cobertura de chocolate',
-      basePrice: 40.00,
+      id: "9",
+      name: "Bolo de Cenoura com Cobertura",
+      description: "Clássico bolo de cenoura com cobertura de chocolate",
+      basePrice: 40.0,
       markup: 38,
       isActive: true,
     },
     {
-      id: '10',
-      name: 'Pudim de Leite Condensado',
-      description: 'Pudim caseiro com calda de caramelo',
-      basePrice: 25.00,
+      id: "10",
+      name: "Pudim de Leite Condensado",
+      description: "Pudim caseiro com calda de caramelo",
+      basePrice: 25.0,
       markup: 48,
       isActive: true,
     },
@@ -90,32 +89,17 @@ const SalesPage = () => {
 
   const products = mockProducts; // Usando apenas os dados mockados
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [cartItems, setCartItems] = useState([]);
-  const [saleQuantity, setSaleQuantity] = useState('');
+  const [saleQuantity, setSaleQuantity] = useState("");
   const [selectedProductId, setSelectedProductId] = useState(null);
 
   /**
    * Filtra produtos pela busca
    */
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    product.isActive
+  const filteredProducts = products.filter(
+    (product) => product.name.toLowerCase().includes(searchTerm.toLowerCase()) && product.isActive,
   );
-
-  /**
-   * Formata valor em moeda (BRL)
-   */
-  const formatCurrency = (value) => {
-    if (!value) return '';
-    const numericValue = value.toString().replace(/\D/g, '');
-    if (!numericValue) return '';
-    const numberValue = parseInt(numericValue, 10) / 100;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(numberValue);
-  };
 
   /**
    * Calcula o preço final do produto
@@ -123,7 +107,7 @@ const SalesPage = () => {
   const calculateFinalPrice = (basePrice, markup) => {
     const base = parseFloat(basePrice) || 0;
     const markupValue = parseFloat(markup) || 0;
-    return base + (base * (markupValue / 100));
+    return base + base * (markupValue / 100);
   };
 
   /**
@@ -131,7 +115,7 @@ const SalesPage = () => {
    */
   const addToCart = (product) => {
     if (!saleQuantity || parseFloat(saleQuantity) <= 0) {
-      alert('Digite uma quantidade válida');
+      alert("Digite uma quantidade válida");
       return;
     }
 
@@ -139,29 +123,32 @@ const SalesPage = () => {
     const quantity = parseFloat(saleQuantity);
 
     // Verificar se já existe no carrinho
-    const existingItem = cartItems.find(item => item.id === product.id);
+    const existingItem = cartItems.find((item) => item.id === product.id);
 
     if (existingItem) {
       // Atualizar quantidade
-      setCartItems(cartItems.map(item =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item
-      ));
+      setCartItems(
+        cartItems.map((item) =>
+          item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item,
+        ),
+      );
     } else {
       // Adicionar novo item
-      setCartItems([...cartItems, {
-        id: product.id,
-        name: product.name,
-        basePrice: product.basePrice,
-        markup: product.markup,
-        finalPrice: finalPrice,
-        quantity: quantity
-      }]);
+      setCartItems([
+        ...cartItems,
+        {
+          id: product.id,
+          name: product.name,
+          basePrice: product.basePrice,
+          markup: product.markup,
+          finalPrice: finalPrice,
+          quantity: quantity,
+        },
+      ]);
     }
 
     // Limpar campos
-    setSaleQuantity('');
+    setSaleQuantity("");
     setSelectedProductId(null);
   };
 
@@ -169,7 +156,7 @@ const SalesPage = () => {
    * Remove item do carrinho
    */
   const removeFromCart = (productId) => {
-    setCartItems(cartItems.filter(item => item.id !== productId));
+    setCartItems(cartItems.filter((item) => item.id !== productId));
   };
 
   /**
@@ -180,18 +167,18 @@ const SalesPage = () => {
       removeFromCart(productId);
       return;
     }
-    setCartItems(cartItems.map(item =>
-      item.id === productId
-        ? { ...item, quantity: parseFloat(newQuantity) }
-        : item
-    ));
+    setCartItems(
+      cartItems.map((item) =>
+        item.id === productId ? { ...item, quantity: parseFloat(newQuantity) } : item,
+      ),
+    );
   };
 
   /**
    * Calcula total da venda
    */
   const calculoTotal = cartItems.reduce((total, item) => {
-    return total + (item.finalPrice * item.quantity);
+    return total + item.finalPrice * item.quantity;
   }, 0);
 
   /**
@@ -199,11 +186,10 @@ const SalesPage = () => {
    */
   const finalizeSale = () => {
     if (cartItems.length === 0) {
-      alert('Adicione produtos ao carrinho');
+      alert("Adicione produtos ao carrinho");
       return;
     }
 
-     
     const venda_id = Math.random().toString(36).substr(2, 9).toUpperCase();
 
     // Log detalhado da venda
@@ -211,16 +197,16 @@ const SalesPage = () => {
       id: `VENDA-${venda_id}`,
       items: cartItems,
       total: calculoTotal,
-      timestamp: new Date().toLocaleString('pt-BR'),
-      itemsCount: cartItems.reduce((acc, item) => acc + item.quantity, 0)
+      timestamp: new Date().toLocaleString("pt-BR"),
+      itemsCount: cartItems.reduce((acc, item) => acc + item.quantity, 0),
     };
 
-    console.log('🛒 Venda Finalizada:', saleData);
+    console.log("🛒 Venda Finalizada:", saleData);
 
     // Mensagem detalhada
-    const itemsList = cartItems.map(item => `• ${item.name} (${item.quantity} un)`).join('\n');
+    const itemsList = cartItems.map((item) => `• ${item.name} (${item.quantity} un)`).join("\n");
     const message = `✅ Venda Realizada com Sucesso!\n\n${itemsList}\n\nTotal: R$ ${calculoTotal.toFixed(2)}\nID: ${saleData.id}`;
-    
+
     alert(message);
     setCartItems([]);
   };
@@ -278,10 +264,7 @@ const SalesPage = () => {
               </label>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
-                  <MagnifyingGlass
-                    size={20}
-                    className="absolute left-3 top-3 text-slate-400"
-                  />
+                  <MagnifyingGlass size={20} className="absolute left-3 top-3 text-slate-400" />
                   <input
                     type="text"
                     value={searchTerm}
@@ -319,15 +302,13 @@ const SalesPage = () => {
                         key={product.id}
                         layout
                         className={`p-6 cursor-pointer transition-all ${
-                          isSelected ? 'bg-pink-50 border-l-4 border-pink-600' : 'hover:bg-slate-50'
+                          isSelected ? "bg-pink-50 border-l-4 border-pink-600" : "hover:bg-slate-50"
                         }`}
                         onClick={() => setSelectedProductId(isSelected ? null : product.id)}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-slate-900">
-                              {product.name}
-                            </h3>
+                            <h3 className="text-lg font-semibold text-slate-900">{product.name}</h3>
                             {product.description && (
                               <p className="text-sm text-slate-600 mt-1">{product.description}</p>
                             )}
@@ -346,7 +327,7 @@ const SalesPage = () => {
                         {isSelected && (
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
+                            animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
                             className="mt-4 pt-4 border-t border-pink-200"
                           >
@@ -387,7 +368,7 @@ const SalesPage = () => {
                 ) : (
                   <div className="p-12 text-center">
                     <p className="text-slate-500">
-                      {searchTerm ? 'Nenhum produto encontrado' : 'Nenhum produto disponível'}
+                      {searchTerm ? "Nenhum produto encontrado" : "Nenhum produto disponível"}
                     </p>
                   </div>
                 )}
@@ -413,16 +394,10 @@ const SalesPage = () => {
             <div className="divide-y divide-slate-200 max-h-96 overflow-y-auto">
               {cartItems.length > 0 ? (
                 cartItems.map((item) => (
-                  <motion.div
-                    key={item.id}
-                    layout
-                    className="p-4 hover:bg-slate-50"
-                  >
+                  <motion.div key={item.id} layout className="p-4 hover:bg-slate-50">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 text-sm">
-                          {item.name}
-                        </h4>
+                        <h4 className="font-semibold text-slate-900 text-sm">{item.name}</h4>
                         <p className="text-xs text-slate-600 mt-1">
                           R$ {item.finalPrice.toFixed(2)} x {item.quantity}
                         </p>

@@ -1,12 +1,9 @@
-/* eslint-disable no-unused-vars */
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Trash, Warning } from 'phosphor-react';
-import { CreateItem, GetAllItems, DeleteItem } from '../../wailsjs/go/service/ItemService';
-import { GetBatchesByItem } from '../../wailsjs/go/service/BatchService';
+import { useCallback, useEffect, useState } from "react";
+import { motion } from "motion/react";
+import { Plus, Trash, Warning } from "@phosphor-icons/react";
+import { CreateItem, DeleteItem, GetAllItems, GetBatchesByItem } from "../gateways/desktopBridge";
 
 const InventoryPage = () => {
-  const [ingredients, setIngredients] = useState([]);
   const [ingredientsWithStock, setIngredientsWithStock] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -14,31 +11,27 @@ const InventoryPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [newItem, setNewItem] = useState({
-    name: '',
-    unit: 'kg',
-    minStock: '0',
+    name: "",
+    unit: "kg",
+    minStock: "0",
   });
 
-  useEffect(() => {
-    loadIngredients();
-  }, []);
-
-  const loadIngredients = async () => {
+  const loadIngredients = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const items = await GetAllItems();
-      setIngredients(items || []);
 
       // Buscar estoque de cada item
       const itemsWithStock = await Promise.all(
         (items || []).map(async (item) => {
           const batches = await GetBatchesByItem(item.id);
           const totalStock = batches.reduce((acc, batch) => acc + batch.quantity_remaining, 0);
-          const avgPrice = batches.length > 0
-            ? batches.reduce((acc, batch) => acc + batch.unit_price, 0) / batches.length
-            : 0;
-          
+          const avgPrice =
+            batches.length > 0
+              ? batches.reduce((acc, batch) => acc + batch.unit_price, 0) / batches.length
+              : 0;
+
           return {
             ...item,
             currentStock: totalStock,
@@ -46,37 +39,37 @@ const InventoryPage = () => {
             totalValue: totalStock * avgPrice,
             isLowStock: totalStock <= item.min_stock_alert,
           };
-        })
+        }),
       );
 
       setIngredientsWithStock(itemsWithStock);
     } catch (err) {
-      console.error('Erro ao carregar ingredientes:', err);
-      setError('Erro ao carregar ingredientes. Tente novamente.');
+      console.error("Erro ao carregar ingredientes:", err);
+      setError("Erro ao carregar ingredientes. Tente novamente.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadIngredients();
+  }, [loadIngredients]);
 
   const addIngredient = async (ingredient) => {
     try {
       setError(null);
 
-      const item = await CreateItem(
-        ingredient.name,
-        ingredient.unit,
-        ingredient.minStock
-      );
+      const item = await CreateItem(ingredient.name, ingredient.unit, ingredient.minStock);
 
       if (!item) {
-        throw new Error('Falha ao criar item');
+        throw new Error("Falha ao criar item");
       }
 
       await loadIngredients();
       return true;
     } catch (err) {
-      console.error('Erro ao adicionar ingrediente:', err);
-      setError(err.message || 'Erro ao adicionar ingrediente. Tente novamente.');
+      console.error("Erro ao adicionar ingrediente:", err);
+      setError(err.message || "Erro ao adicionar ingrediente. Tente novamente.");
       return false;
     }
   };
@@ -88,8 +81,8 @@ const InventoryPage = () => {
       await loadIngredients();
       return true;
     } catch (err) {
-      console.error('Erro ao deletar ingrediente:', err);
-      setError('Erro ao deletar ingrediente. Tente novamente.');
+      console.error("Erro ao deletar ingrediente:", err);
+      setError("Erro ao deletar ingrediente. Tente novamente.");
       return false;
     }
   };
@@ -107,7 +100,7 @@ const InventoryPage = () => {
       });
 
       if (success) {
-        setNewItem({ name: '', unit: 'kg', minStock: '0' });
+        setNewItem({ name: "", unit: "kg", minStock: "0" });
         setOpenDialog(false);
       }
 
@@ -146,12 +139,12 @@ const InventoryPage = () => {
           >
             <motion.div
               animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
               className="w-12 h-12 border-4 border-pink-200 border-t-pink-600 rounded-full"
             />
             <div className="text-center">
               <h3 className="text-lg font-semibold text-slate-900">
-                {isSubmitting ? 'Salvando ingrediente...' : 'Carregando estoque...'}
+                {isSubmitting ? "Salvando ingrediente..." : "Carregando estoque..."}
               </h3>
               <p className="text-sm text-slate-600 mt-1">Por favor aguarde</p>
             </div>
@@ -180,7 +173,8 @@ const InventoryPage = () => {
             </h2>
 
             <p className="text-slate-600 text-center mb-6">
-              Tem certeza que deseja remover este ingrediente do estoque? Esta ação não pode ser desfeita.
+              Tem certeza que deseja remover este ingrediente do estoque? Esta ação não pode ser
+              desfeita.
             </p>
 
             <div className="flex gap-4">
@@ -200,13 +194,13 @@ const InventoryPage = () => {
                   <>
                     <motion.div
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                     />
                     Deletando...
                   </>
                 ) : (
-                  'Sim, Deletar'
+                  "Sim, Deletar"
                 )}
               </button>
             </div>
@@ -265,20 +259,22 @@ const InventoryPage = () => {
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
             <h3 className="text-slate-600 text-sm font-medium">Valor Total em Estoque</h3>
             <p className="text-3xl font-bold text-green-600 mt-2">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
+              {new Intl.NumberFormat("pt-BR", {
+                style: "currency",
+                currency: "BRL",
               }).format(totalInventoryValue)}
             </p>
           </div>
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
             <h3 className="text-slate-600 text-sm font-medium">Custo Médio</h3>
             <p className="text-3xl font-bold text-blue-600 mt-2">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
+              {new Intl.NumberFormat("pt-BR", {
+                style: "currency",
+                currency: "BRL",
               }).format(
-                ingredientsWithStock.length > 0 ? totalInventoryValue / ingredientsWithStock.length : 0
+                ingredientsWithStock.length > 0
+                  ? totalInventoryValue / ingredientsWithStock.length
+                  : 0,
               )}
             </p>
           </div>
@@ -302,11 +298,21 @@ const InventoryPage = () => {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Nome</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Estoque Atual</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Preço Médio</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Valor Total</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Estoque Mínimo</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Status</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Estoque Atual
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Preço Médio
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Valor Total
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Estoque Mínimo
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Status
+                  </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Ação</th>
                 </tr>
               </thead>
@@ -322,7 +328,7 @@ const InventoryPage = () => {
                     <tr
                       key={item.id}
                       className={`border-b border-slate-100 hover:bg-slate-50 ${
-                        item.isLowStock ? 'bg-orange-50' : ''
+                        item.isLowStock ? "bg-orange-50" : ""
                       }`}
                     >
                       <td className="px-6 py-4 text-sm text-slate-900 font-medium">{item.name}</td>
@@ -330,15 +336,15 @@ const InventoryPage = () => {
                         {item.currentStock.toFixed(3)} {item.unit}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
+                        {new Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
                         }).format(item.avgPrice)}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
+                        {new Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
                         }).format(item.totalValue)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
@@ -441,7 +447,7 @@ const InventoryPage = () => {
 
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    💡 <strong>Dica:</strong> Após criar o ingrediente, vá para a página de{' '}
+                    💡 <strong>Dica:</strong> Após criar o ingrediente, vá para a página de{" "}
                     <strong>Lotes</strong> para adicionar o estoque inicial.
                   </p>
                 </div>
@@ -467,13 +473,13 @@ const InventoryPage = () => {
                     <>
                       <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                       />
                       Salvando...
                     </>
                   ) : (
-                    'Adicionar'
+                    "Adicionar"
                   )}
                 </button>
               </div>

@@ -1,19 +1,25 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$goBin = Join-Path (go env GOPATH) "bin"
-$wails = Join-Path $goBin "wails.exe"
-if (-not (Test-Path $wails)) {
-    throw "Wails is not installed. Run .\scripts\setup-dev.ps1 first."
-}
+. (Join-Path $PSScriptRoot "toolchain.ps1")
 
 if (-not $env:SAAS_DATA_DIR) {
     $env:SAAS_DATA_DIR = Join-Path $env:APPDATA "saas-dev"
 }
 
-Push-Location (Join-Path $repoRoot "app")
+$previousGoToolchain = $env:GOTOOLCHAIN
+$env:GOTOOLCHAIN = "go1.26.5"
+
 try {
-    & $wails dev
+    Assert-DevelopmentToolchain
+
+    Push-Location (Join-Path $repoRoot "app")
+    try {
+        go tool wails dev
+        if ($LASTEXITCODE -ne 0) { throw "Wails development mode failed." }
+    } finally {
+        Pop-Location
+    }
 } finally {
-    Pop-Location
+    $env:GOTOOLCHAIN = $previousGoToolchain
 }

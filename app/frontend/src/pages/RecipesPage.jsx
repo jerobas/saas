@@ -1,14 +1,13 @@
-/* eslint-disable no-unused-vars */
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Plus, Trash, Pencil, Package } from "phosphor-react";
-import { GetAllItems } from "../../wailsjs/go/service/ItemService";
+import { useCallback, useEffect, useState } from "react";
+import { motion } from "motion/react";
+import { Package, Pencil, Plus, Trash } from "@phosphor-icons/react";
 import {
   CreateRecipe,
-  GetAllRecipes,
-  UpdateRecipe,
   DeleteRecipe,
-} from "../../wailsjs/go/service/RecipeService";
+  GetAllRecipes,
+  GetAllItems,
+  UpdateRecipe,
+} from "../gateways/desktopBridge";
 
 const RecipesPage = () => {
   const [items, setItems] = useState([]);
@@ -23,18 +22,11 @@ const RecipesPage = () => {
   const [selectedItem, setSelectedItem] = useState("");
   const [itemQuantity, setItemQuantity] = useState("");
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [itemsData, recipesData] = await Promise.all([
-        GetAllItems(),
-        GetAllRecipes(),
-      ]);
+      const [itemsData, recipesData] = await Promise.all([GetAllItems(), GetAllRecipes()]);
       setItems(itemsData || []);
       setRecipes(recipesData || []);
     } catch (err) {
@@ -43,17 +35,11 @@ const RecipesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const calculateRecipeCost = (ingredients) => {
-    return ingredients.reduce((total, ing) => {
-      const item = items.find((i) => i.id === ing.item_id);
-      if (!item) return total;
-      // Aqui você pode buscar o preço médio dos batches se quiser
-      // Por enquanto vamos usar 0 como placeholder
-      return total + ing.quantity * 0;
-    }, 0);
-  };
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const getItemById = (itemId) => {
     return items.find((i) => i.id === itemId);
@@ -163,9 +149,7 @@ const RecipesPage = () => {
             />
             <div className="text-center">
               <h3 className="text-lg font-semibold text-slate-900">
-                {isSubmitting
-                  ? "Salvando receita..."
-                  : "Carregando receitas..."}
+                {isSubmitting ? "Salvando receita..." : "Carregando receitas..."}
               </h3>
               <p className="text-sm text-slate-600 mt-1">Por favor aguarde</p>
             </div>
@@ -189,13 +173,10 @@ const RecipesPage = () => {
               <Trash size={24} className="text-red-600" />
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">
-              Deletar Receita?
-            </h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">Deletar Receita?</h2>
 
             <p className="text-slate-600 text-center mb-6">
-              Tem certeza que deseja remover esta receita? Esta ação não pode
-              ser desfeita.
+              Tem certeza que deseja remover esta receita? Esta ação não pode ser desfeita.
             </p>
 
             <div className="flex gap-4">
@@ -239,9 +220,7 @@ const RecipesPage = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Receitas</h1>
-              <p className="text-slate-600 mt-2">
-                Crie receitas combinando ingredientes
-              </p>
+              <p className="text-slate-600 mt-2">Crie receitas combinando ingredientes</p>
             </div>
             <button
               onClick={() => {
@@ -287,12 +266,8 @@ const RecipesPage = () => {
           <div className="flex items-center gap-3">
             <Package size={24} className="text-pink-600" />
             <div>
-              <h3 className="text-slate-600 text-sm font-medium">
-                Total de Receitas
-              </h3>
-              <p className="text-3xl font-bold text-slate-900 mt-1">
-                {recipes.length}
-              </p>
+              <h3 className="text-slate-600 text-sm font-medium">Total de Receitas</h3>
+              <p className="text-3xl font-bold text-slate-900 mt-1">{recipes.length}</p>
             </div>
           </div>
         </motion.div>
@@ -320,9 +295,7 @@ const RecipesPage = () => {
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">
-                      {recipe.name}
-                    </h2>
+                    <h2 className="text-2xl font-bold text-slate-900">{recipe.name}</h2>
                     <p className="text-slate-600 mt-1">
                       {recipe.ingredients?.length || 0} ingrediente(s)
                     </p>
@@ -369,8 +342,7 @@ const RecipesPage = () => {
                                 {item ? item.name : "Item não encontrado"}
                               </td>
                               <td className="px-4 py-3 text-sm text-slate-600">
-                                {parseFloat(ing.quantity).toFixed(3)}{" "}
-                                {item ? item.unit : ""}
+                                {parseFloat(ing.quantity).toFixed(3)} {item ? item.unit : ""}
                               </td>
                             </tr>
                           );
@@ -412,9 +384,7 @@ const RecipesPage = () => {
                   <input
                     type="text"
                     value={newRecipe.name}
-                    onChange={(e) =>
-                      setNewRecipe({ ...newRecipe, name: e.target.value })
-                    }
+                    onChange={(e) => setNewRecipe({ ...newRecipe, name: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
                     placeholder="Ex: Bolo de Chocolate"
                     disabled={isSubmitting}
@@ -422,9 +392,7 @@ const RecipesPage = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3">
-                    Ingredientes
-                  </h3>
+                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Ingredientes</h3>
                   <div className="space-y-3">
                     <div className="flex gap-2">
                       <select
@@ -458,9 +426,7 @@ const RecipesPage = () => {
                       )}
                       <button
                         onClick={handleAddIngredient}
-                        disabled={
-                          !selectedItem || !itemQuantity || isSubmitting
-                        }
+                        disabled={!selectedItem || !itemQuantity || isSubmitting}
                         className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed"
                       >
                         <Plus size={20} />
@@ -482,8 +448,7 @@ const RecipesPage = () => {
                                     {item?.name || "Desconhecido"}
                                   </span>
                                   {": "}
-                                  {parseFloat(ing.quantity).toFixed(3)}{" "}
-                                  {item?.unit || ""}
+                                  {parseFloat(ing.quantity).toFixed(3)} {item?.unit || ""}
                                 </span>
                                 <button
                                   onClick={() => handleRemoveIngredient(idx)}
@@ -522,9 +487,7 @@ const RecipesPage = () => {
                 <button
                   onClick={handleSaveRecipe}
                   disabled={
-                    isSubmitting ||
-                    !newRecipe.name.trim() ||
-                    newRecipe.ingredients.length === 0
+                    isSubmitting || !newRecipe.name.trim() || newRecipe.ingredients.length === 0
                   }
                   className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >

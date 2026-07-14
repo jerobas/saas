@@ -7,8 +7,8 @@ machine.
 
 ## Prerequisites
 
-- Go in the version declared by `app/go.mod`
-- Node.js 24 and npm
+- Go 1.26 or newer as a bootstrap for the pinned Go 1.26.5 toolchain
+- Node.js 24.17.0 and npm 11.13.0
 - WebView2 on Windows
 
 The setup command downloads development dependencies once. After setup, the
@@ -47,9 +47,21 @@ $env:SAAS_DATA_DIR = "C:\temp\sweeters-data"
 .\scripts\check-desktop.ps1
 ```
 
-This command checks formatting, vets and tests the Go code, regenerates the
-Wails bindings, builds the frontend, and compiles a desktop executable without
-downloading dependencies or requiring remote runtime services.
+This command checks formatting, vets and tests the Go code, builds the frontend
+with Vite, runs ESLint, TypeScript, Vitest, Staticcheck, and the Go race detector
+when supported locally, then compiles a desktop executable without downloading
+dependencies or requiring remote runtime services. CI always enforces the race
+detector on Linux.
+
+The browser smoke test and online dependency audit are separate because they
+need a downloaded browser or current vulnerability data:
+
+```powershell
+Push-Location app\frontend
+npm run test:e2e
+Pop-Location
+.\scripts\audit-desktop.ps1
+```
 
 ## Project layout
 
@@ -70,6 +82,9 @@ Wails contracts, and frontend features.
 
 Start with the [documentation index](docs/README.md) for the accepted V2
 decisions, target data model, glossary, invariants, and use cases.
+The [toolchain guide](docs/development/toolchain.md) contains exact versions and
+upgrade instructions; the [testing guide](docs/development/testing.md) explains
+the local and CI quality gates.
 
 ## Current development policy
 
@@ -77,5 +92,7 @@ decisions, target data model, glossary, invariants, and use cases.
 - Posted inventory history is immutable.
 - Repository and service behavior must be tested against real temporary SQLite
   databases.
+- React components call the typed desktop bridge instead of generated Wails
+  modules.
 - A feature is complete only when its tests and documentation are updated.
 - Generated Wails files and build output are not committed.

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { CurrencyDollar, Percent, Target, CreditCard } from "phosphor-react";
+import { useCallback, useEffect, useState } from "react";
+import { motion } from "motion/react";
+import { CreditCard, CurrencyDollar, Percent, Target } from "@phosphor-icons/react";
 
 const EnterprisePage = () => {
   const [profile, setProfile] = useState({
@@ -15,11 +15,7 @@ const EnterprisePage = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
       setMessage({ type: "", text: "" });
@@ -36,7 +32,11 @@ const EnterprisePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
 
   const formatBRL = (value) => {
     if (value === "" || value === null) return "";
@@ -56,11 +56,7 @@ const EnterprisePage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const monetaryFields = [
-      "hourly_cost",
-      "expected_monthly_profit",
-      "fixed_monthly_expenses",
-    ];
+    const monetaryFields = ["hourly_cost", "expected_monthly_profit", "fixed_monthly_expenses"];
 
     let finalValue;
     if (monetaryFields.includes(name)) {
@@ -93,7 +89,6 @@ const EnterprisePage = () => {
       //   fixed_monthly_expenses: profile.fixed_monthly_expenses,
       // });
 
-      setProfile(updated);
       setMessage({ type: "success", text: "Perfil atualizado com sucesso!" });
 
       setTimeout(() => {
@@ -138,9 +133,7 @@ const EnterprisePage = () => {
           >
             <CurrencyDollar size={32} weight="bold" className="text-white" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Configurações da Empresa
-          </h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Configurações da Empresa</h1>
           <p className="text-slate-600">
             Gerencie suas configurações de custos e projeções financeiras
           </p>
@@ -174,9 +167,7 @@ const EnterprisePage = () => {
               <div className="p-3 bg-pink-100 rounded-lg">
                 <Percent size={24} className="text-pink-600" weight="bold" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">
-                Custos e Margens
-              </h2>
+              <h2 className="text-xl font-bold text-slate-900">Custos e Margens</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -187,9 +178,7 @@ const EnterprisePage = () => {
                 >
                   Custo Horário (R$)
                 </label>
-                <p className="text-xs text-slate-500 mb-3">
-                  Qual é seu custo horário de trabalho?
-                </p>
+                <p className="text-xs text-slate-500 mb-3">Qual é seu custo horário de trabalho?</p>
                 <div className="relative">
                   <CurrencyDollar
                     size={20}
@@ -203,7 +192,7 @@ const EnterprisePage = () => {
                     onChange={handleChange}
                     min="0"
                     placeholder="Ex: 50,00"
-                    disabled={message.type === 'error'}
+                    disabled={message.type === "error"}
                     className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
@@ -233,7 +222,7 @@ const EnterprisePage = () => {
                     step="0.01"
                     min="0"
                     placeholder="Ex: 30"
-                    disabled={message.type === 'error'}
+                    disabled={message.type === "error"}
                     className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
@@ -247,9 +236,7 @@ const EnterprisePage = () => {
               <div className="p-3 bg-purple-100 rounded-lg">
                 <Target size={24} className="text-purple-600" weight="bold" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">
-                Projeções Financeiras
-              </h2>
+              <h2 className="text-xl font-bold text-slate-900">Projeções Financeiras</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -276,7 +263,7 @@ const EnterprisePage = () => {
                     onChange={handleChange}
                     min="0"
                     placeholder="Ex: 5.000,00"
-                    disabled={message.type === 'error'}
+                    disabled={message.type === "error"}
                     className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
@@ -305,7 +292,7 @@ const EnterprisePage = () => {
                     onChange={handleChange}
                     min="0"
                     placeholder="Ex: 2.000,00"
-                    disabled={message.type === 'error'}
+                    disabled={message.type === "error"}
                     className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
@@ -317,7 +304,7 @@ const EnterprisePage = () => {
           <div className="flex gap-4">
             <button
               type="submit"
-              disabled={saving || message.type === 'error'}
+              disabled={saving || message.type === "error"}
               className="flex-1 bg-pink-600 text-white py-3 rounded-xl font-semibold hover:bg-pink-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Salvando..." : "Salvar Configurações"}
@@ -340,8 +327,7 @@ const EnterprisePage = () => {
               transition={{ delay: 0.3 }}
               className="text-center text-sm text-slate-500 pt-4 border-t border-slate-200"
             >
-              Última atualização:{" "}
-              {new Date(profile.updated_at).toLocaleString("pt-BR")}
+              Última atualização: {new Date(profile.updated_at).toLocaleString("pt-BR")}
             </motion.div>
           )}
         </motion.form>

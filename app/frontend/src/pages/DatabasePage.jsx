@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Export, Import } from "../../wailsjs/go/service/DatabaseService";
+import { ExportDatabase, ImportDatabase } from "../gateways/desktopBridge";
 
 const DatabasePage = () => {
   const [status, setStatus] = useState("");
@@ -9,7 +9,7 @@ const DatabasePage = () => {
     try {
       setLoading(true);
       setStatus("Exportando...");
-      await Export();
+      await ExportDatabase();
       setStatus("Exportacao concluida.");
     } catch (error) {
       console.error(error);
@@ -24,7 +24,7 @@ const DatabasePage = () => {
     try {
       setLoading(true);
       setStatus("Importando...");
-      await Import();
+      await ImportDatabase();
       setStatus("Importacao concluida.");
     } catch (error) {
       console.error(error);

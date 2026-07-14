@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Trash, Package } from 'phosphor-react';
-import { GetAllItems } from '../../wailsjs/go/service/ItemService';
-import { CreateBatch, GetBatchesByItem, DeleteBatch } from '../../wailsjs/go/service/BatchService';
+import { useCallback, useEffect, useState } from "react";
+import { motion } from "motion/react";
+import { Plus, Trash, Package } from "@phosphor-icons/react";
+import { CreateBatch, DeleteBatch, GetAllItems, GetBatchesByItem } from "../gateways/desktopBridge";
 
 const BatchesPage = () => {
   const [batches, setBatches] = useState([]);
@@ -12,41 +11,28 @@ const BatchesPage = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [selectedItemFilter, setSelectedItemFilter] = useState('all');
+  const [selectedItemFilter, setSelectedItemFilter] = useState("all");
   const [newBatch, setNewBatch] = useState({
-    itemId: '',
-    quantity: '',
-    totalPrice: '',
+    itemId: "",
+    quantity: "",
+    totalPrice: "",
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (selectedItemFilter !== 'all') {
-      loadBatchesByItem(selectedItemFilter);
-    } else {
-      loadAllBatches();
-    }
-  }, [selectedItemFilter]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const itemsData = await GetAllItems();
       setItems(itemsData || []);
-      await loadAllBatches();
     } catch (err) {
-      console.error('Erro ao carregar dados:', err);
-      setError('Erro ao carregar dados. Tente novamente.');
+      console.error("Erro ao carregar dados:", err);
+      setError("Erro ao carregar dados. Tente novamente.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadAllBatches = async () => {
+  const loadAllBatches = useCallback(async () => {
     try {
       const allBatches = [];
       for (const item of items) {
@@ -57,36 +43,48 @@ const BatchesPage = () => {
       }
       setBatches(allBatches);
     } catch (err) {
-      console.error('Erro ao carregar lotes:', err);
+      console.error("Erro ao carregar lotes:", err);
     }
-  };
+  }, [items]);
 
-  const loadBatchesByItem = async (itemId) => {
+  const loadBatchesByItem = useCallback(async (itemId) => {
     try {
       setLoading(true);
       const itemBatches = await GetBatchesByItem(itemId);
       setBatches(itemBatches || []);
     } catch (err) {
-      console.error('Erro ao carregar lotes:', err);
-      setError('Erro ao carregar lotes. Tente novamente.');
+      console.error("Erro ao carregar lotes:", err);
+      setError("Erro ao carregar lotes. Tente novamente.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (selectedItemFilter !== "all") {
+      void loadBatchesByItem(selectedItemFilter);
+    } else {
+      void loadAllBatches();
+    }
+  }, [loadAllBatches, loadBatchesByItem, selectedItemFilter]);
 
   const formatCurrency = (value) => {
-    if (!value) return '';
-    const numericValue = value.replace(/\D/g, '');
-    if (!numericValue) return '';
+    if (!value) return "";
+    const numericValue = value.replace(/\D/g, "");
+    if (!numericValue) return "";
     const numberValue = parseInt(numericValue, 10) / 100;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
     }).format(numberValue);
   };
 
   const unformatCurrency = (value) => {
-    const cleaned = value.replace(/\D/g, '');
+    const cleaned = value.replace(/\D/g, "");
     return parseFloat(cleaned) / 100;
   };
 
@@ -103,17 +101,17 @@ const BatchesPage = () => {
 
         await CreateBatch(newBatch.itemId, quantity, totalPrice);
 
-        setNewBatch({ itemId: '', quantity: '', totalPrice: '' });
+        setNewBatch({ itemId: "", quantity: "", totalPrice: "" });
         setOpenDialog(false);
-        
-        if (selectedItemFilter !== 'all') {
+
+        if (selectedItemFilter !== "all") {
           await loadBatchesByItem(selectedItemFilter);
         } else {
           await loadData();
         }
       } catch (err) {
-        console.error('Erro ao adicionar lote:', err);
-        setError('Erro ao adicionar lote. Tente novamente.');
+        console.error("Erro ao adicionar lote:", err);
+        setError("Erro ao adicionar lote. Tente novamente.");
       } finally {
         setIsSubmitting(false);
       }
@@ -131,31 +129,31 @@ const BatchesPage = () => {
         setError(null);
         await DeleteBatch(deleteConfirmId);
         setDeleteConfirmId(null);
-        
-        if (selectedItemFilter !== 'all') {
+
+        if (selectedItemFilter !== "all") {
           await loadBatchesByItem(selectedItemFilter);
         } else {
           await loadData();
         }
       } catch (err) {
-        console.error('Erro ao deletar lote:', err);
-        setError('Erro ao deletar lote. Tente novamente.');
+        console.error("Erro ao deletar lote:", err);
+        setError("Erro ao deletar lote. Tente novamente.");
       }
     }
   };
 
   const getItemName = (itemId) => {
     const item = items.find((i) => i.id === itemId);
-    return item ? item.name : 'Desconhecido';
+    return item ? item.name : "Desconhecido";
   };
 
   const getItemUnit = (itemId) => {
     const item = items.find((i) => i.id === itemId);
-    return item ? item.unit : '';
+    return item ? item.unit : "";
   };
 
   const totalBatchesValue = batches.reduce((acc, batch) => {
-    return acc + (batch.unit_price * batch.quantity_remaining);
+    return acc + batch.unit_price * batch.quantity_remaining;
   }, 0);
 
   const totalQuantity = batches.reduce((acc, batch) => {
@@ -178,12 +176,12 @@ const BatchesPage = () => {
           >
             <motion.div
               animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
               className="w-12 h-12 border-4 border-pink-200 border-t-pink-600 rounded-full"
             />
             <div className="text-center">
               <h3 className="text-lg font-semibold text-slate-900">
-                {isSubmitting ? 'Salvando lote...' : 'Carregando lotes...'}
+                {isSubmitting ? "Salvando lote..." : "Carregando lotes..."}
               </h3>
               <p className="text-sm text-slate-600 mt-1">Por favor aguarde</p>
             </div>
@@ -207,9 +205,7 @@ const BatchesPage = () => {
               <Trash size={24} className="text-red-600" />
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">
-              Deletar Lote?
-            </h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">Deletar Lote?</h2>
 
             <p className="text-slate-600 text-center mb-6">
               Tem certeza que deseja remover este lote? Esta ação não pode ser desfeita.
@@ -232,13 +228,13 @@ const BatchesPage = () => {
                   <>
                     <motion.div
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                     />
                     Deletando...
                   </>
                 ) : (
-                  'Sim, Deletar'
+                  "Sim, Deletar"
                 )}
               </button>
             </div>
@@ -324,17 +320,15 @@ const BatchesPage = () => {
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
             <h3 className="text-slate-600 text-sm font-medium">Valor Total</h3>
             <p className="text-3xl font-bold text-green-600 mt-2">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
+              {new Intl.NumberFormat("pt-BR", {
+                style: "currency",
+                currency: "BRL",
               }).format(totalBatchesValue)}
             </p>
           </div>
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
             <h3 className="text-slate-600 text-sm font-medium">Quantidade Total Restante</h3>
-            <p className="text-3xl font-bold text-blue-600 mt-2">
-              {totalQuantity.toFixed(3)}
-            </p>
+            <p className="text-3xl font-bold text-blue-600 mt-2">{totalQuantity.toFixed(3)}</p>
           </div>
         </motion.div>
 
@@ -348,12 +342,24 @@ const BatchesPage = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Ingrediente</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Qtd. Total</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Qtd. Restante</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Preço Total</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Preço Unitário</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Data Compra</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Ingrediente
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Qtd. Total
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Qtd. Restante
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Preço Total
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Preço Unitário
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                    Data Compra
+                  </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Ação</th>
                 </tr>
               </thead>
@@ -362,7 +368,7 @@ const BatchesPage = () => {
                   <tr>
                     <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
                       {items.length === 0
-                        ? 'Cadastre ingredientes primeiro para criar lotes.'
+                        ? "Cadastre ingredientes primeiro para criar lotes."
                         : 'Nenhum lote cadastrado. Clique em "Novo Lote" para começar.'}
                     </td>
                   </tr>
@@ -376,25 +382,26 @@ const BatchesPage = () => {
                         {parseFloat(batch.quantity_total).toFixed(3)} {getItemUnit(batch.item_id)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {parseFloat(batch.quantity_remaining).toFixed(3)} {getItemUnit(batch.item_id)}
+                        {parseFloat(batch.quantity_remaining).toFixed(3)}{" "}
+                        {getItemUnit(batch.item_id)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-900 font-semibold">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
+                        {new Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
                         }).format(batch.purchase_price_total)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
+                        {new Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
                         }).format(batch.unit_price)}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {new Date(batch.purchased_at).toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
+                        {new Date(batch.purchased_at).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
                         })}
                       </td>
                       <td className="px-6 py-4 text-sm">
@@ -479,7 +486,7 @@ const BatchesPage = () => {
                     value={formatCurrency(newBatch.totalPrice)}
                     onChange={(e) => {
                       const inputValue = e.target.value;
-                      const numericOnly = inputValue.replace(/\D/g, '');
+                      const numericOnly = inputValue.replace(/\D/g, "");
                       setNewBatch({ ...newBatch, totalPrice: numericOnly });
                     }}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
@@ -491,12 +498,14 @@ const BatchesPage = () => {
                 {newBatch.quantity && newBatch.totalPrice && (
                   <div className="p-4 bg-slate-50 rounded-lg">
                     <p className="text-sm text-slate-600">
-                      Preço unitário:{' '}
+                      Preço unitário:{" "}
                       <span className="font-semibold text-slate-900">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }).format(unformatCurrency(newBatch.totalPrice) / parseFloat(newBatch.quantity))}
+                        {new Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(
+                          unformatCurrency(newBatch.totalPrice) / parseFloat(newBatch.quantity),
+                        )}
                       </span>
                     </p>
                   </div>
@@ -529,13 +538,13 @@ const BatchesPage = () => {
                     <>
                       <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                       />
                       Salvando...
                     </>
                   ) : (
-                    'Adicionar'
+                    "Adicionar"
                   )}
                 </button>
               </div>

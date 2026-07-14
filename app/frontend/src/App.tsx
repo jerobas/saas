@@ -1,21 +1,27 @@
-import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, type ReactNode } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import AppLayout from "./components/AppLayout";
 import { AppProvider } from "./context/AppContext";
-import BatchesPage from "./pages/BatchesPage";
-import DashboardPage from "./pages/DashboardPage";
-import DatabasePage from "./pages/DatabasePage";
-import EnterprisePage from "./pages/EnterprisePage";
-import InventoryPage from "./pages/InventoryPage";
-import ProductsPage from "./pages/ProductsPage";
-import RecipesPage from "./pages/RecipesPage";
-import SalesPage from "./pages/SalesPage";
 
-const desktopPage = (page) => <AppLayout>{page}</AppLayout>;
+const BatchesPage = lazy(() => import("./pages/BatchesPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const DatabasePage = lazy(() => import("./pages/DatabasePage"));
+const EnterprisePage = lazy(() => import("./pages/EnterprisePage"));
+const InventoryPage = lazy(() => import("./pages/InventoryPage"));
+const ProductsPage = lazy(() => import("./pages/ProductsPage"));
+const RecipesPage = lazy(() => import("./pages/RecipesPage"));
+const SalesPage = lazy(() => import("./pages/SalesPage"));
+
+const desktopPage = (page: ReactNode) => (
+  <AppLayout>
+    <Suspense fallback={<p className="p-6 text-slate-600">Carregando...</p>}>{page}</Suspense>
+  </AppLayout>
+);
 
 function App() {
   return (
     <AppProvider>
-      <Router>
+      <BrowserRouter>
         <Routes>
           <Route path="/" element={desktopPage(<DashboardPage />)} />
           <Route path="/inventory" element={desktopPage(<InventoryPage />)} />
@@ -27,7 +33,7 @@ function App() {
           <Route path="/database" element={desktopPage(<DatabasePage />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Router>
+      </BrowserRouter>
     </AppProvider>
   );
 }
