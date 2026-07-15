@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/jerobas/saas/database"
+	"github.com/jerobas/saas/internal/application"
+	"github.com/jerobas/saas/internal/infrastructure/sqlite"
+	presentationwails "github.com/jerobas/saas/internal/presentation/wails"
 	"github.com/jerobas/saas/service"
 
 	"github.com/wailsapp/wails/v2"
@@ -59,8 +62,10 @@ func main() {
 	app := NewApp()
 	databaseService := service.NewDatabaseService(db)
 	app.DatabaseService = databaseService
-	// V2 domain stores are deliberately not Wails handlers. Bind task-oriented
-	// presentation services only after their application use cases exist.
+
+	sqliteStore := sqlite.NewStore(db)
+	settingsService := application.NewSettingsService(application.NewSQLiteSettingsStore(sqliteStore))
+	settingsHandler := presentationwails.NewSettingsHandler(settingsService)
 
 	err := wails.Run(&options.App{
 		Title:  "app",
@@ -73,6 +78,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 			databaseService,
+			settingsHandler,
 		},
 	})
 
