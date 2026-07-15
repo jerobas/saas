@@ -66,6 +66,13 @@ func main() {
 	sqliteStore := sqlite.NewStore(db)
 	settingsService := application.NewSettingsService(application.NewSQLiteSettingsStore(sqliteStore))
 	settingsHandler := presentationwails.NewSettingsHandler(settingsService)
+	referenceDataService := application.NewReferenceDataService(application.NewSQLiteReferenceDataStore(sqliteStore))
+	referenceDataHandler := presentationwails.NewReferenceDataHandler(referenceDataService)
+	counterpartyService := application.NewCounterpartyService(
+		application.NewSQLiteCounterpartyStore(sqliteStore),
+		application.SystemClock{},
+	)
+	counterpartyHandler := presentationwails.NewCounterpartyHandler(counterpartyService)
 
 	err := wails.Run(&options.App{
 		Title:  "app",
@@ -79,6 +86,8 @@ func main() {
 			app,
 			databaseService,
 			settingsHandler,
+			referenceDataHandler,
+			counterpartyHandler,
 		},
 	})
 
