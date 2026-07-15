@@ -72,10 +72,6 @@ func (h *SettingsHandler) UpdateSettings(ctx context.Context, req dto.SettingsUp
 	if err != nil {
 		return dto.SettingsResponse{}, fmt.Errorf("expected updated at: %w", err)
 	}
-	updatedAt, err := domain.UTCInstantFromUnixMilli(req.UpdatedAtMs)
-	if err != nil {
-		return dto.SettingsResponse{}, fmt.Errorf("updated at: %w", err)
-	}
 
 	updatedSettings, err := h.service.UpdateSettings(ctx, application.SettingsUpdateInput{
 		BusinessName:       businessName,
@@ -85,7 +81,6 @@ func (h *SettingsHandler) UpdateSettings(ctx context.Context, req dto.SettingsUp
 		HourlyLaborCost:    hourlyLaborCost,
 		DefaultGrossMargin: defaultGrossMargin,
 		ExpectedUpdatedAt:  expectedUpdatedAt,
-		UpdatedAt:          updatedAt,
 	})
 	if err != nil {
 		return dto.SettingsResponse{}, fmt.Errorf("update settings: %w", err)

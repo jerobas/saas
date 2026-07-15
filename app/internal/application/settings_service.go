@@ -10,18 +10,27 @@ import (
 
 type SettingsStore interface {
 	GetSettings(ctx context.Context) (settings.Settings, error)
-	UpdateSettings(ctx context.Context, input SettingsUpdateInput) (settings.Settings, error)
+	UpdateSettings(ctx context.Context, input settingsUpdateStoreInput) (settings.Settings, error)
 }
 
 type SettingsService struct {
 	store SettingsStore
+	clock Clock
 }
 
-func NewSettingsService(store SettingsStore) *SettingsService {
+type settingsUpdateStoreInput struct {
+	SettingsUpdateInput
+	UpdatedAt domain.UTCInstant
+}
+
+func NewSettingsService(store SettingsStore, clock Clock) *SettingsService {
 	if store == nil {
 		panic("settings service requires a store")
 	}
-	return &SettingsService{store: store}
+	if clock == nil {
+		panic("settings service requires a clock")
+	}
+	return &SettingsService{store: store, clock: clock}
 }
 
 func (s *SettingsService) GetSettings(ctx context.Context) (settings.Settings, error) {
@@ -29,21 +38,19 @@ func (s *SettingsService) GetSettings(ctx context.Context) (settings.Settings, e
 }
 
 func (s *SettingsService) UpdateSettings(ctx context.Context, input SettingsUpdateInput) (settings.Settings, error) {
-	if input.UpdatedAt.IsZero() {
-		return settings.Settings{}, domain.Invalid("updated_at", domain.ViolationRequired, "SET-004")
+	updatedAt, err := nextMutationInstant(s.clock, input.ExpectedUpdatedAt)
+	if err != nil {
+		return settings.Settings{}, fmt.Errorf("read clock: %w", err)
 	}
-	updated, err := s.store.UpdateSettings(ctx, SettingsUpdateInput{
-		BusinessName:       input.BusinessName,
-		Locale:             input.Locale,
-		Timezone:           input.Timezone,
-		Currency:           input.Currency,
-		HourlyLaborCost:    input.HourlyLaborCost,
-		DefaultGrossMargin: input.DefaultGrossMargin,
-		ExpectedUpdatedAt:  input.ExpectedUpdatedAt,
-		UpdatedAt:          input.UpdatedAt,
+	updated, err := s.store.UpdateSettings(ctx, settingsUpdateStoreInput{
+		SettingsUpdateInput: input,
+		UpdatedAt:           updatedAt,
 	})
 	if err != nil {
 		return settings.Settings{}, fmt.Errorf("update settings: %w", err)
+	}
+	if !updated.UpdatedAt().Equal(updatedAt) {
+		return settings.Settings{}, domain.ErrInvariant
 	}
 	return updated, nil
 }

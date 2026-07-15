@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jerobas/saas/internal/domain"
 	counterpartydomain "github.com/jerobas/saas/internal/domain/counterparty"
@@ -148,7 +147,7 @@ func (s *CounterpartyService) CreateCounterparty(ctx context.Context, input Coun
 }
 
 func (s *CounterpartyService) UpdateCounterparty(ctx context.Context, input CounterpartyUpdateInput) (counterpartydomain.Counterparty, error) {
-	now, err := s.nextMutationInstant(input.ExpectedUpdatedAt)
+	now, err := nextMutationInstant(s.clock, input.ExpectedUpdatedAt)
 	if err != nil {
 		return counterpartydomain.Counterparty{}, fmt.Errorf("read clock: %w", err)
 	}
@@ -166,7 +165,7 @@ func (s *CounterpartyService) UpdateCounterparty(ctx context.Context, input Coun
 }
 
 func (s *CounterpartyService) ArchiveCounterparty(ctx context.Context, input CounterpartyArchiveInput) (counterpartydomain.Counterparty, error) {
-	now, err := s.nextMutationInstant(input.ExpectedUpdatedAt)
+	now, err := nextMutationInstant(s.clock, input.ExpectedUpdatedAt)
 	if err != nil {
 		return counterpartydomain.Counterparty{}, fmt.Errorf("read clock: %w", err)
 	}
@@ -185,7 +184,7 @@ func (s *CounterpartyService) ArchiveCounterparty(ctx context.Context, input Cou
 }
 
 func (s *CounterpartyService) RestoreCounterparty(ctx context.Context, input CounterpartyRestoreInput) (counterpartydomain.Counterparty, error) {
-	now, err := s.nextMutationInstant(input.ExpectedUpdatedAt)
+	now, err := nextMutationInstant(s.clock, input.ExpectedUpdatedAt)
 	if err != nil {
 		return counterpartydomain.Counterparty{}, fmt.Errorf("read clock: %w", err)
 	}
@@ -200,15 +199,4 @@ func (s *CounterpartyService) RestoreCounterparty(ctx context.Context, input Cou
 		return counterpartydomain.Counterparty{}, domain.ErrInvariant
 	}
 	return restored, nil
-}
-
-func (s *CounterpartyService) nextMutationInstant(expected domain.UTCInstant) (domain.UTCInstant, error) {
-	now, err := s.clock.Now()
-	if err != nil {
-		return domain.UTCInstant{}, err
-	}
-	if !expected.IsZero() && now.Compare(expected) <= 0 {
-		return domain.NewUTCInstant(expected.Time().Add(time.Millisecond))
-	}
-	return now, nil
 }

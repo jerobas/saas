@@ -26,7 +26,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsAndCounterparties(t *testing.T) {
 	clock := &surfaceClock{now: must(domain.UTCInstantFromUnixMilli(2_000))}
 	ctx := context.Background()
 
-	settingsHandler := NewSettingsHandler(application.NewSettingsService(application.NewSQLiteSettingsStore(store)))
+	settingsHandler := NewSettingsHandler(application.NewSettingsService(application.NewSQLiteSettingsStore(store), clock))
 	referenceDataHandler := NewReferenceDataHandler(application.NewReferenceDataService(application.NewSQLiteReferenceDataStore(store)))
 	counterpartyHandler := NewCounterpartyHandler(application.NewCounterpartyService(
 		application.NewSQLiteCounterpartyStore(store),
@@ -48,13 +48,15 @@ func TestPhase5BackendSurfaceForSettingsUnitsAndCounterparties(t *testing.T) {
 		HourlyLaborCost:     &hourlyLaborCost,
 		DefaultGrossMargin:  &defaultGrossMargin,
 		ExpectedUpdatedAtMs: settingsValue.UpdatedAtMs,
-		UpdatedAtMs:         settingsValue.UpdatedAtMs + 1_000,
 	})
 	if err != nil {
 		t.Fatalf("update settings: %v", err)
 	}
 	if updatedSettings.HourlyLaborCost == nil || *updatedSettings.HourlyLaborCost != hourlyLaborCost {
 		t.Fatalf("hourly labor cost = %#v", updatedSettings.HourlyLaborCost)
+	}
+	if updatedSettings.UpdatedAtMs != clock.now.UnixMilli() {
+		t.Fatalf("settings updated at = %d, want %d", updatedSettings.UpdatedAtMs, clock.now.UnixMilli())
 	}
 
 	units, err := referenceDataHandler.ListMeasurementUnits(ctx)

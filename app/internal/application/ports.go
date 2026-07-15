@@ -12,5 +12,4 @@ type SettingsUpdateInput struct {
 	HourlyLaborCost    domain.Option[domain.MinorAmount]
 	DefaultGrossMargin domain.Option[domain.BasisPoints]
 	ExpectedUpdatedAt  domain.UTCInstant
-	UpdatedAt          domain.UTCInstant
 }

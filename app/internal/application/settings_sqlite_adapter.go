@@ -22,7 +22,7 @@ func (s *sqliteSettingsStore) GetSettings(ctx context.Context) (settings.Setting
 	return s.store.GetSettings(ctx)
 }
 
-func (s *sqliteSettingsStore) UpdateSettings(ctx context.Context, input SettingsUpdateInput) (settings.Settings, error) {
+func (s *sqliteSettingsStore) UpdateSettings(ctx context.Context, input settingsUpdateStoreInput) (settings.Settings, error) {
 	return s.store.UpdateSettings(ctx, sqlite.UpdateSettingsInput{
 		BusinessName:       input.BusinessName,
 		Locale:             input.Locale,

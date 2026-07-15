@@ -64,7 +64,7 @@ func main() {
 	app.DatabaseService = databaseService
 
 	sqliteStore := sqlite.NewStore(db)
-	settingsService := application.NewSettingsService(application.NewSQLiteSettingsStore(sqliteStore))
+	settingsService := application.NewSettingsService(application.NewSQLiteSettingsStore(sqliteStore), application.SystemClock{})
 	settingsHandler := presentationwails.NewSettingsHandler(settingsService)
 	referenceDataService := application.NewReferenceDataService(application.NewSQLiteReferenceDataStore(sqliteStore))
 	referenceDataHandler := presentationwails.NewReferenceDataHandler(referenceDataService)
