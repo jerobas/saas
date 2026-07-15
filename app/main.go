@@ -68,6 +68,11 @@ func main() {
 	settingsHandler := presentationwails.NewSettingsHandler(settingsService)
 	referenceDataService := application.NewReferenceDataService(application.NewSQLiteReferenceDataStore(sqliteStore))
 	referenceDataHandler := presentationwails.NewReferenceDataHandler(referenceDataService)
+	catalogService := application.NewCatalogService(
+		application.NewSQLiteCatalogStore(sqliteStore),
+		application.SystemClock{},
+	)
+	catalogHandler := presentationwails.NewCatalogHandler(catalogService)
 	counterpartyService := application.NewCounterpartyService(
 		application.NewSQLiteCounterpartyStore(sqliteStore),
 		application.SystemClock{},
@@ -87,6 +92,7 @@ func main() {
 			databaseService,
 			settingsHandler,
 			referenceDataHandler,
+			catalogHandler,
 			counterpartyHandler,
 		},
 	})

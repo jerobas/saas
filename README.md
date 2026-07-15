@@ -6,10 +6,10 @@ Vite, and Tailwind CSS. Application data is stored locally on the user's
 machine.
 
 > **Current capability:** Phase 5 has started. The V2 schema, domain model,
-> aggregate SQLite stores, and the first application/Wails contracts for
-> settings, measurement units, and counterparties are in place. The visible
-> legacy feature pages have not been replaced with V2 workflows yet and are not
-> currently usable.
+> aggregate SQLite stores, and application/Wails contracts for settings,
+> measurement units, catalog items, item packagings, and counterparties are in
+> place. The visible legacy feature pages have not been replaced with V2
+> workflows yet and are not currently usable.
 
 The `api/` directory is parked legacy code. It is outside the desktop runtime,
 development setup, verification gates, and CI, and this repository does not
