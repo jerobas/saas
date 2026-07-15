@@ -50,6 +50,12 @@ try {
 
     Push-Location $appDir
     try {
+        go tool sqlc compile
+        if ($LASTEXITCODE -ne 0) { throw "sqlc query validation failed." }
+
+        go tool sqlc diff
+        if ($LASTEXITCODE -ne 0) { throw "Generated sqlc code is stale. Run 'go tool sqlc generate'." }
+
         go mod tidy -diff
         if ($LASTEXITCODE -ne 0) { throw "go.mod or go.sum is not tidy." }
 

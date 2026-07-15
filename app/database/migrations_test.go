@@ -94,6 +94,159 @@ func TestMigrateDatabaseInitializesIdentityVersionAndHistory(t *testing.T) {
 	}
 }
 
+func TestRecipeOutputGuardForwardMigration(t *testing.T) {
+	db := openMigrationTestDatabase(t)
+	if err := migrateDatabase(db, embeddedBaselineOnlyFS(t), "schemas"); err != nil {
+		t.Fatalf("apply embedded baseline: %v", err)
+	}
+	result, err := db.Exec(`
+		INSERT INTO items (
+			name, normalized_name, base_unit_code,
+			is_purchasable, is_producible, is_sellable,
+			created_at_ms, updated_at_ms
+		) VALUES ('Output', 'output', 'g', 1, 1, 0, 1, 1)
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = db.Exec(`
+		INSERT INTO recipes (
+			name, normalized_name, output_item_id, created_at_ms, updated_at_ms
+		) VALUES ('Migrated recipe', 'migrated recipe', ?, 1, 1)
+	`, outputID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipeID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO recipe_revisions (
+			recipe_id, revision_number, standard_yield_quantity_atomic,
+			instructions, preparation_time_minutes, created_at_ms
+		) VALUES (?, 1, 1000, '', 0, 1)
+	`, recipeID); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := migrateDatabase(db, schemaFS, "schemas"); err != nil {
+		t.Fatalf("apply forward migrations: %v", err)
+	}
+	version, err := readPragmaInt(db, "user_version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version != 2 {
+		t.Fatalf("user_version = %d, want 2", version)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("migration count = %d, want 2", count)
+	}
+	expectExecError(t, db, `UPDATE items SET is_producible = 0, updated_at_ms = 2 WHERE id = ?`, outputID)
+	expectExecError(t, db, `UPDATE items SET archived_at_ms = 2, updated_at_ms = 2 WHERE id = ?`, outputID)
+}
+
+func TestRecipeChainMigrationRejectsExistingGapAtomically(t *testing.T) {
+	db := openMigrationTestDatabase(t)
+	if err := migrateDatabase(db, embeddedBaselineOnlyFS(t), "schemas"); err != nil {
+		t.Fatalf("apply embedded baseline: %v", err)
+	}
+	result, err := db.Exec(`
+		INSERT INTO items (
+			name, normalized_name, base_unit_code,
+			is_purchasable, is_producible, is_sellable,
+			created_at_ms, updated_at_ms
+		) VALUES ('Gap output', 'gap output', 'g', 0, 1, 0, 1, 1)
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err = db.Exec(`
+		INSERT INTO recipes (
+			name, normalized_name, output_item_id, created_at_ms, updated_at_ms
+		) VALUES ('Gap recipe', 'gap recipe', ?, 1, 1)
+	`, outputID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipeID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO recipe_revisions (
+			recipe_id, revision_number, standard_yield_quantity_atomic,
+			instructions, preparation_time_minutes, created_at_ms
+		) VALUES (?, 2, 1000, '', 0, 1)
+	`, recipeID); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := migrateDatabase(db, schemaFS, "schemas"); err == nil {
+		t.Fatal("migration accepted an existing discontinuous recipe chain")
+	}
+	version, err := readPragmaInt(db, "user_version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version != 1 {
+		t.Fatalf("user_version after failed migration = %d, want 1", version)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("migration count after failed migration = %d, want 1", count)
+	}
+	if databaseObjectExists(t, db, "trigger", "recipe_revisions_require_next_number") {
+		t.Fatal("failed migration left its recipe sequencing trigger installed")
+	}
+}
+
+func TestArchiveVersionMigrationRejectsExistingMismatchAtomically(t *testing.T) {
+	db := openMigrationTestDatabase(t)
+	if err := migrateDatabase(db, embeddedBaselineOnlyFS(t), "schemas"); err != nil {
+		t.Fatalf("apply embedded baseline: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO items (
+			name, normalized_name, base_unit_code,
+			is_purchasable, is_producible, is_sellable,
+			created_at_ms, updated_at_ms, archived_at_ms
+		) VALUES ('Old archive', 'old archive', 'g', 0, 0, 0, 1, 1, 2)
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := migrateDatabase(db, schemaFS, "schemas"); err == nil {
+		t.Fatal("migration accepted an archive timestamp newer than the optimistic version")
+	}
+	version, err := readPragmaInt(db, "user_version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version != 1 {
+		t.Fatalf("user_version after failed migration = %d, want 1", version)
+	}
+	if databaseObjectExists(t, db, "trigger", "items_archive_version_update") {
+		t.Fatal("failed migration left its archive-version trigger installed")
+	}
+}
+
 func TestMigrateDatabaseIsIdempotent(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "reopen.db")
 	db := openMigrationTestDatabaseAt(t, dbPath)
@@ -406,6 +559,17 @@ func migrationTestFS(files map[string]string) fstest.MapFS {
 		source["migrations/"+name] = &fstest.MapFile{Data: []byte(content), Mode: 0o444}
 	}
 	return source
+}
+
+func embeddedBaselineOnlyFS(t *testing.T) fstest.MapFS {
+	t.Helper()
+	content, err := schemaFS.ReadFile("schemas/0001_v2_baseline.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return fstest.MapFS{
+		"schemas/0001_v2_baseline.sql": &fstest.MapFile{Data: content, Mode: 0o444},
+	}
 }
 
 func oneMigrationFS() fstest.MapFS {

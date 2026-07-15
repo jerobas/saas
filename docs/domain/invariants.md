@@ -27,7 +27,7 @@ real-SQLite integration and replay tests.
 | CAT-006 | Base unit cannot change while the item has active packaging or after it appears in a recipe revision or stock document. Archived incompatible packaging must be reconfigured before restoration. | SQLite |
 | CAT-007 | Archived catalog data is readable historically but unavailable for new posting. | Application transaction |
 | CAT-008 | Optional item SKUs use the documented normalized key and remain unique across active and archived items. | SQLite + application |
-| CPY-001 | An active counterparty has at least one supplier or customer role; names need not be unique. | Application + SQLite |
+| CPY-001 | An active counterparty has at least one supplier or customer role; names need not be unique. | Store aggregate boundary; document-role use also checked by SQLite |
 | CPY-002 | Removing a role affects only future eligibility and never rewrites historical documents. | Application + immutability |
 | UNIT-001 | Quantities and conversion factors are never stored as floating point. | SQLite |
 | UNIT-002 | Canonical atomic quantity is milligrams, microlitres, or thousandths of a count item. | ADR + typed application values |
@@ -111,11 +111,11 @@ real-SQLite integration and replay tests.
 
 | ID | Rule | Primary enforcement |
 |---|---|---|
-| REC-001 | A recipe has one fixed active producible output item. Changing output means a new recipe. | Application + SQLite FK |
-| REC-002 | A recipe revision is immutable, positively numbered, and contains at least one unique component. | SQLite + application |
+| REC-001 | A recipe has one fixed active producible output item. Changing output means a new recipe, and the output cannot be archived or disabled while the recipe is active. | SQLite + application |
+| REC-002 | A recipe revision is immutable, contiguously numbered from one, and contains at least one unique component. | SQLite + application |
 | REC-003 | Standard yield and every component quantity are positive exact canonical quantities. | SQLite |
 | REC-004 | A revision cannot directly consume its own output item. | SQLite + application |
-| REC-005 | Publishing an edit creates revision N+1 atomically; historical revisions are never repointed or edited. | Application transaction |
+| REC-005 | Publishing an edit creates revision N+1 and advances the recipe optimistic version atomically; historical revisions are never repointed or edited, and reads reject a corrupt revision chain. | Store transaction + SQLite sequencing/immutability |
 | PRO-001 | Production references exactly one recipe revision and has one or more `OUT` inputs plus exactly one `IN` output. | SQLite + application |
 | PRO-002 | The output item matches the recipe and inputs cannot contain that output item in V2. | Application transaction |
 | PRO-003 | Posted actual consumption and actual yield, not the recipe estimate, are stock truth. | Ledger design |
@@ -126,6 +126,6 @@ real-SQLite integration and replay tests.
 
 | ID | Rule | Primary enforcement |
 |---|---|---|
-| ARC-001 | Items, counterparties, recipes, and user-created packaging are archived, not hard-deleted. | Store boundary + FK policy |
+| ARC-001 | Items, counterparties, recipes, and user-created packaging are archived, not hard-deleted; an archive timestamp equals the optimistic `updated_at` version advanced by that action. | SQLite + domain/store boundary |
 | ARC-002 | Unarchive reruns uniqueness and validity checks. | Application transaction |
 | ARC-003 | Seeded measurement units and all immutable historical records cannot be archived or deleted. | SQLite + store boundary |

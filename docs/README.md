@@ -12,8 +12,8 @@ The sources below are authoritative, in this order:
 3. The V2 data model in
    [`architecture/data-model.md`](architecture/data-model.md).
 4. Embedded, checksummed SQLite migrations.
-5. Generated queries, repositories, application use cases, Wails handlers, and
-   frontend features, in that order.
+5. Generated queries, aggregate stores, application use cases, Wails handlers,
+   and frontend features, in that order.
 
 An implemented higher layer must conform to every implemented lower layer. If a
 product decision changes, its ADR and invariants change first, followed by a
@@ -35,14 +35,17 @@ new migration and then every dependent layer.
   framework, and tool versions plus setup instructions.
 - [`development/database.md`](development/database.md): SQLite identity,
   migrations, local data, backup, and restore policy.
+- [`development/stores.md`](development/stores.md): strong domain values,
+  generated queries, aggregate transactions, and adapter rules.
 - [`development/testing.md`](development/testing.md): local checks, security
   audits, browser smoke tests, and CI expectations.
 
-Phase 3 replaces the seven experimental migrations with the strict,
-checksummed V2 baseline. That migration is now the executable persistence
-contract. Legacy models, repositories, services, and pages remain outside the
-accepted chain until they are rebuilt against it in bottom-up order; their
-continued presence in the source tree does not override the baseline.
+Phase 3 replaced the seven experimental migrations with the strict, checksummed
+V2 baseline. Phase 4 removes the incompatible Go persistence layer and adds
+strong domain snapshots, generated queries, and aggregate stores above that
+contract. Application commands, V2 Wails handlers, and feature pages remain
+later bottom-up layers and cannot override the implemented schema or domain
+rules.
 
 ## Historical material
 

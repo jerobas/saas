@@ -1,14 +1,17 @@
 # V2 SQLite data model
 
-This is the Phase 3 schema contract implemented by
-`app/database/schemas/0001_v2_baseline.sql`. It is the executable lower-layer
-authority for stores and application work. Changing a relationship,
-representation, or invariant requires an ADR and a new forward migration
-before a dependent layer changes.
+This is the Phase 3 schema contract implemented by the ordered migrations in
+`app/database/schemas`. `0001_v2_baseline.sql` establishes the model and
+`0002_recipe_output_and_archive_versions.sql` hardens recipe and archive
+integrity. Together they are the executable lower-layer authority for stores
+and application work. Changing a relationship, representation, or invariant
+requires an ADR and a new forward migration before a dependent layer changes.
 
 The baseline intentionally has no compatibility surface for the seven
-experimental migrations. Existing models, repositories, services, and pages
-that still describe those tables are legacy code, not an alternate V2 model.
+experimental migrations. Their incompatible Go models, repositories, and
+domain services were removed in Phase 4 rather than adapted into an alternate
+V2 model. Pages still awaiting V2 application use cases are not evidence that
+the old model remains supported.
 
 ```mermaid
 erDiagram
@@ -56,6 +59,11 @@ reuse their owner's integer key. Storage names expose their representation:
 - `_at_ms` is a UTC Unix millisecond instant;
 - `_on` is an ISO `YYYY-MM-DD` business or expiry date.
 
+For mutable master data, `updated_at_ms` is the optimistic version. Archiving
+is a versioned mutation, so a non-null `archived_at_ms` must equal
+`updated_at_ms`; restoration clears the archive timestamp and advances the
+version again.
+
 SQLite `REAL` has no business use in the baseline. Rational conversions store
 positive numerator and denominator integers directly to atomic quantity.
 
@@ -97,7 +105,8 @@ trim, NFC normalization, full Unicode case folding, and final NFC
 normalization. SQLite enforces that key across active and archived items; the
 Go catalog store owns producing it because SQLite `NOCASE` is ASCII-only. An
 optional SKU uses the same normalization and remains unique even when its item
-is archived.
+is archived. An item that is the output of an active recipe must remain active
+and producible. Archive the dependent recipe before removing either property.
 
 ### `item_packagings`
 
@@ -121,13 +130,15 @@ unique.
 
 Mutable identity containing name, fixed output item, timestamps, and
 `archived_at`. The current revision is the highest revision number rather than
-a separately mutable pointer.
+a separately mutable pointer. Restoring a recipe rechecks that its output item
+is active and producible.
 
 ### `recipe_revisions`
 
 Immutable numbered revision containing standard yield, instructions,
 preparation time, optional estimated direct cost in microcurrency, and creation
-time.
+time. SQLite accepts only the next contiguous number, beginning at one; reads
+also validate the complete `1..N` chain before exposing or extending it.
 
 ### `recipe_revision_components`
 
@@ -214,7 +225,8 @@ mutable independent value.
 The baseline rejects structurally invalid rows even outside the application.
 SQLite owns strict types, checks, foreign keys, uniqueness, allowed row shapes,
 immutable history, linked reversal/allocation structure, and nonnegative
-projection limits.
+projection limits. It also preserves active recipe-output eligibility,
+contiguous recipe revision numbering, and archive/version equality.
 
 Validity that depends on a complete command or an ordering algorithm belongs to
 one explicit Go transaction. That includes document and revision completeness,

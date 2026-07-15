@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExportDatabase, ImportDatabase } from "../gateways/desktopBridge";
+import { ExportDatabase } from "../gateways/desktopBridge";
 
 const DatabasePage = () => {
   const [status, setStatus] = useState("");
@@ -20,27 +20,13 @@ const DatabasePage = () => {
     }
   };
 
-  const handleImport = async () => {
-    try {
-      setLoading(true);
-      setStatus("Importando...");
-      await ImportDatabase();
-      setStatus("Importacao concluida.");
-    } catch (error) {
-      console.error(error);
-      const message = `${error?.message || ""}`.toLowerCase();
-      setStatus(message.includes("cancel") ? "Operacao cancelada." : "Erro ao importar.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Backup da base</h1>
         <p className="text-slate-500">
-          Exporte ou importe a base usando os dialogs nativos do sistema.
+          Exporte a base usando o dialog nativo do sistema. A restauracao permanece desativada ate
+          que a validacao segura do arquivo esteja implementada.
         </p>
       </div>
 
@@ -63,15 +49,15 @@ const DatabasePage = () => {
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Importar</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Restaure a base a partir de um arquivo exportado.
+            A restauracao exige validacao, backup de seguranca, troca atomica e reinicio do
+            aplicativo; esse fluxo ainda nao esta disponivel.
           </p>
 
           <button
-            onClick={handleImport}
-            disabled={loading}
-            className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+            disabled
+            className="mt-4 cursor-not-allowed rounded-lg bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-600"
           >
-            Importar
+            Indisponivel
           </button>
         </div>
       </div>

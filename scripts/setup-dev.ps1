@@ -25,6 +25,9 @@ try {
         go tool actionlint -version
         if ($LASTEXITCODE -ne 0) { throw "Could not prepare the pinned actionlint CLI." }
 
+        go tool sqlc version
+        if ($LASTEXITCODE -ne 0) { throw "Could not prepare the pinned sqlc CLI." }
+
         go tool govulncheck -version
         if ($LASTEXITCODE -ne 0) { throw "Could not prepare the pinned govulncheck CLI." }
     } finally {

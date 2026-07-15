@@ -12,6 +12,7 @@ tools are module-managed in `go.mod`. No global Wails installation is used.
 | Go toolchain | 1.26.5 | Exact local-script and CI compiler |
 | Wails | 2.13.0 | Latest stable V2; V3 remains prerelease |
 | modernc SQLite driver | 1.53.0 | Pure-Go SQLite driver |
+| sqlc | 1.31.1 | Module-managed SQLite query generator |
 | Node.js | 24.17.0 | Active LTS baseline from `.node-version` |
 | npm | 11.13.0 | Lockfile and CI package manager |
 | React | 19.2.7 | `react` and `react-dom` must match exactly |
@@ -46,7 +47,7 @@ From the repository root, run:
 ```
 
 Setup downloads Go and npm dependencies, prepares the module-managed Wails,
-Staticcheck, actionlint, and govulncheck tools, and installs Playwright's
+sqlc, Staticcheck, actionlint, and govulncheck tools, and installs Playwright's
 Chromium binary. After that, normal development and the main desktop
 verification can run from local caches.
 

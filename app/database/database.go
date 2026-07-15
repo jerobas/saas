@@ -1,8 +1,11 @@
 package database
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -10,15 +13,29 @@ import (
 )
 
 type Database struct {
-	Conn *sql.DB
+	conn *sql.DB
+}
+
+// OpenOptions configures connection behavior that needs to differ in bounded
+// integration tests. Production callers should start with DefaultOpenOptions.
+type OpenOptions struct {
+	BusyTimeout time.Duration
+}
+
+func DefaultOpenOptions() OpenOptions {
+	return OpenOptions{BusyTimeout: 5 * time.Second}
 }
 
 func NewDatabase(dbPath string) (*Database, error) {
-	db, err := openConnection(dbPath)
+	return NewDatabaseWithOptions(dbPath, DefaultOpenOptions())
+}
+
+func NewDatabaseWithOptions(dbPath string, options OpenOptions) (*Database, error) {
+	db, err := openConnection(dbPath, options)
 	if err != nil {
 		return nil, err
 	}
-	database := &Database{Conn: db}
+	database := &Database{conn: db}
 	if err := migrateDatabase(db, schemaFS, "schemas"); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -34,32 +51,49 @@ func NewDatabase(dbPath string) (*Database, error) {
 	return database, nil
 }
 
-func openConnection(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+func openConnection(dbPath string, options OpenOptions) (*sql.DB, error) {
+	dsn, err := sqliteConnectionDSN(dbPath, options)
 	if err != nil {
 		return nil, err
 	}
-	// SQLite PRAGMAs are connection-scoped. A single connection is sufficient
-	// for this local desktop app and keeps these settings deterministic.
-	db.SetMaxOpenConns(1)
-	// These connection-local settings do not alter an unidentified database.
-	// File-persistent settings are applied only after migration identity has
-	// been accepted, so an old or foreign database is rejected in place.
-	for _, statement := range []string{
-		"PRAGMA foreign_keys = ON",
-		"PRAGMA busy_timeout = 5000",
-		"PRAGMA trusted_schema = OFF",
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("configure sqlite: %w", err)
-		}
-	}
-	if err := db.Ping(); err != nil {
-		_ = db.Close()
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
 		return nil, err
 	}
+	// One connection is sufficient for the local desktop app. The DSN still
+	// configures every physical connection because database/sql may discard and
+	// replace this connection after an interruption or driver error.
+	db.SetMaxOpenConns(1)
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("open sqlite connection: %w", err)
+	}
 	return db, nil
+}
+
+func sqliteConnectionDSN(dbPath string, options OpenOptions) (string, error) {
+	if options.BusyTimeout < 0 {
+		return "", errors.New("database busy timeout cannot be negative")
+	}
+	busyTimeoutMS := options.BusyTimeout.Milliseconds()
+	if options.BusyTimeout > 0 && busyTimeoutMS == 0 {
+		busyTimeoutMS = 1
+	}
+
+	query := url.Values{}
+	for _, pragma := range []string{
+		fmt.Sprintf("busy_timeout=%d", busyTimeoutMS),
+		"foreign_keys=ON",
+		"synchronous=NORMAL",
+		"trusted_schema=OFF",
+	} {
+		query.Add("_pragma", pragma)
+	}
+	separator := "?"
+	if strings.Contains(dbPath, "?") {
+		separator = "&"
+	}
+	return dbPath + separator + query.Encode(), nil
 }
 
 func configureRuntimeConnection(db *sql.DB) error {
@@ -80,16 +114,28 @@ func configureRuntimeConnection(db *sql.DB) error {
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	if _, err := db.Exec("PRAGMA synchronous = NORMAL"); err != nil {
-		return fmt.Errorf("configure sqlite runtime: %w", err)
-	}
 	return nil
 }
 
 func (d *Database) Close() error {
-	return d.Conn.Close()
+	return d.conn.Close()
 }
 
-func (d *Database) GetConnection() *sql.DB {
-	return d.Conn
+// ExecContext, PrepareContext, QueryContext, and QueryRowContext intentionally
+// make Database satisfy sqlc's DBTX contract without exposing the underlying
+// connection pool.
+func (d *Database) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return d.conn.ExecContext(ctx, query, args...)
+}
+
+func (d *Database) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
+	return d.conn.PrepareContext(ctx, query)
+}
+
+func (d *Database) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return d.conn.QueryContext(ctx, query, args...)
+}
+
+func (d *Database) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return d.conn.QueryRowContext(ctx, query, args...)
 }

@@ -59,8 +59,8 @@ func main() {
 	app := NewApp()
 	databaseService := service.NewDatabaseService(db)
 	app.DatabaseService = databaseService
-	// Legacy domain services target the discarded experimental schema. Bind
-	// each V2 replacement only after its lower-layer store and use cases exist.
+	// V2 domain stores are deliberately not Wails handlers. Bind task-oriented
+	// presentation services only after their application use cases exist.
 
 	err := wails.Run(&options.App{
 		Title:  "app",

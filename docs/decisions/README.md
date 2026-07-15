@@ -14,6 +14,8 @@ dependency rules. Accepted ADRs are authoritative until replaced by a later ADR.
 | [0007](0007-recipe-revisions-and-production.md) | Accepted | Immutable recipe revisions and production value transfer |
 | [0008](0008-settings-time-and-data-lifecycle.md) | Accepted | Settings, time, identifiers, migrations, and restore |
 | [0009](0009-v2-sqlite-baseline-and-enforcement.md) | Accepted | V2 SQLite baseline, identity, and enforcement boundary |
+| [0010](0010-strong-domain-and-aggregate-sqlite-stores.md) | Accepted | Strong domain values and aggregate SQLite stores |
+| [0011](0011-recipe-output-and-archive-version-integrity.md) | Accepted | Recipe output, revision-chain, and archive-version integrity |
 
 ## Lifecycle
 
@@ -22,5 +24,5 @@ dependency rules. Accepted ADRs are authoritative until replaced by a later ADR.
 - `Superseded`: retained for history and linked to its replacement.
 - `Rejected`: considered but not selected.
 
-An ADR change is made before its schema migration, tests, repository changes,
-application behavior, Wails contract, or UI.
+An ADR change is made before its schema migration, tests, aggregate-store
+changes, application behavior, Wails contract, or UI.

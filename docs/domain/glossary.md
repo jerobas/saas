@@ -25,6 +25,12 @@ movement.
 Hidden from normal selection for new work but retained for historical reads.
 Archiving is not deletion.
 
+**Normalized identity key**
+The private uniqueness/search form of a user-visible catalog or recipe name:
+trim surrounding Unicode whitespace, normalize to NFC, apply full Unicode case
+folding, then normalize to NFC again. It is stored beside the display value;
+SQLite `NOCASE` is not equivalent.
+
 **Counterparty**
 A person or organization participating as a supplier, customer, or both.
 
@@ -43,6 +49,12 @@ units such as centavos. It is authoritative; unit price is derived for display.
 The financial value carried by stock, stored in microcurrency units so small
 ingredient consumption can retain sub-cent value. For BRL, one real is
 1,000,000 valuation units and one centavo is 10,000 valuation units.
+
+**Currency snapshot**
+An ISO currency code together with the minor-digit scale persisted when a
+commercial value or setting was accepted. New selections use the current
+currency registry; historical snapshots are read as stored rather than
+silently reinterpreted later.
 
 **Weighted-average valuation**
 The financial policy that values an outbound quantity as its proportion of the
@@ -136,3 +148,8 @@ The date the user associates with a document for reporting.
 
 **Posted at**
 The UTC instant at which the application committed a document.
+
+**Optimistic version**
+The `updated_at` instant a caller last read for mutable master data. A write
+must provide that expected value and advances it; a mismatch is a stale edit,
+not permission to overwrite the newer row.

@@ -42,27 +42,29 @@ database transaction containing the document, ledger lines, lots, lot
 allocations, and balance projections. It either commits completely or leaves no
 record.
 
-## Target source layout
+## Source layout and next layers
 
 ```text
 app/
-  cmd/desktop/
+  database/                    # lifecycle, migration, BEGIN IMMEDIATE
   internal/
     domain/
       catalog/
+      counterparty/
       inventory/
-      recipes/
-    application/
+      recipe/
+      settings/
+    infrastructure/sqlite/
+      queries/                 # named SQL source
+      sqlcgen/                 # committed generated code
+      *_store.go               # domain mapping and aggregate operations
+    application/               # Phase 5 commands and queries
       commands/
       queries/
-    infrastructure/sqlite/
-      migrations/
-      queries/
-      stores/
-      backup/
-    presentation/wails/
+    presentation/wails/        # later task-oriented desktop handlers
+  service/                     # current OS/database lifecycle handlers
   frontend/src/
-    desktop/
+    gateways/
     features/
       settings/
       catalog/
@@ -75,7 +77,10 @@ app/
       backup/
 ```
 
-The exact package split may evolve, but dependencies may only point downward.
+The comments marked Phase 5 or later are planned boundaries, not empty
+compatibility packages. The exact split may evolve, but dependencies may only
+point downward. In particular, domain packages import neither SQLite nor Wails,
+and generated query rows do not leave the SQLite adapter.
 
 ## Layer responsibilities
 
@@ -88,7 +93,8 @@ checksummed, ordered, and immutable.
 ### Generated queries and stores
 
 Own SQL and persistence mapping. Stores are aggregate-oriented rather than one
-generic CRUD repository per table. No persistence type is exposed to Wails.
+generic CRUD repository per table. Named queries are generated reproducibly by
+the pinned sqlc tool. No persistence type is exposed to Wails.
 
 ### Domain and application
 
@@ -121,6 +127,8 @@ second source of historical truth.
 - Business commands return stable typed errors suitable for user-facing
   messages.
 - SQLite constraint errors are mapped at the infrastructure boundary.
+- Mutable master data uses an expected `updated_at` snapshot; stale writes are
+  rejected instead of silently overwriting a newer edit.
 - Stock posting uses a serialized write transaction so two commands cannot
   consume the same final stock.
 - Every posting command carries a unique idempotency key. Retrying the same

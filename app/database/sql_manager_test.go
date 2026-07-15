@@ -13,7 +13,7 @@ func TestDatabaseExportIncludesLatestCommittedWALData(t *testing.T) {
 	db := newBackupTestDatabase(t, dbPath)
 
 	var journalMode string
-	if err := db.Conn.QueryRow(`PRAGMA journal_mode`).Scan(&journalMode); err != nil {
+	if err := db.conn.QueryRow(`PRAGMA journal_mode`).Scan(&journalMode); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.EqualFold(journalMode, "wal") {
@@ -21,7 +21,7 @@ func TestDatabaseExportIncludesLatestCommittedWALData(t *testing.T) {
 	}
 
 	const latestBusinessName = "Latest committed business name"
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		UPDATE app_settings
 		SET business_name = ?, updated_at_ms = updated_at_ms + 1
 		WHERE id = 1
@@ -46,7 +46,7 @@ func TestDatabaseExportIncludesLatestCommittedWALData(t *testing.T) {
 
 	reopened := newBackupTestDatabase(t, backupPath)
 	var backedUpBusinessName string
-	if err := reopened.Conn.QueryRow(`
+	if err := reopened.conn.QueryRow(`
 		SELECT business_name FROM app_settings WHERE id = 1
 	`).Scan(&backedUpBusinessName); err != nil {
 		t.Fatal(err)
@@ -80,10 +80,10 @@ func TestDatabaseExportRemovesTemporaryFileAfterValidationFailure(t *testing.T) 
 	directory := t.TempDir()
 	db := newBackupTestDatabase(t, filepath.Join(directory, "active.db"))
 
-	if _, err := db.Conn.Exec(`DROP TRIGGER schema_migrations_no_update`); err != nil {
+	if _, err := db.conn.Exec(`DROP TRIGGER schema_migrations_no_update`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		UPDATE schema_migrations SET checksum = ? WHERE version = 1
 	`, strings.Repeat("0", 64)); err != nil {
 		t.Fatal(err)
@@ -109,10 +109,10 @@ func TestDatabaseExportRemovesTemporaryFileAfterValidationFailure(t *testing.T) 
 func TestDatabaseImportRequiresRestartAndLeavesConnectionOpen(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "active.db")
 	db := newBackupTestDatabase(t, dbPath)
-	originalConnection := db.Conn
+	originalConnection := db.conn
 
 	const beforeImport = "Live before import"
-	if _, err := db.Conn.Exec(`UPDATE app_settings SET business_name = ? WHERE id = 1`, beforeImport); err != nil {
+	if _, err := db.conn.Exec(`UPDATE app_settings SET business_name = ? WHERE id = 1`, beforeImport); err != nil {
 		t.Fatal(err)
 	}
 
@@ -121,11 +121,11 @@ func TestDatabaseImportRequiresRestartAndLeavesConnectionOpen(t *testing.T) {
 		if !errors.Is(err, ErrRestoreRequiresRestart) {
 			t.Fatalf("Import(%q) error = %v, want ErrRestoreRequiresRestart", source, err)
 		}
-		if db.Conn != originalConnection {
+		if db.conn != originalConnection {
 			t.Fatalf("Import(%q) replaced the live connection", source)
 		}
 		var businessName string
-		if err := db.Conn.QueryRow(`SELECT business_name FROM app_settings WHERE id = 1`).Scan(&businessName); err != nil {
+		if err := db.conn.QueryRow(`SELECT business_name FROM app_settings WHERE id = 1`).Scan(&businessName); err != nil {
 			t.Fatalf("query live database after Import(%q): %v", source, err)
 		}
 		if businessName != beforeImport {
@@ -134,11 +134,11 @@ func TestDatabaseImportRequiresRestartAndLeavesConnectionOpen(t *testing.T) {
 	}
 
 	const afterImport = "Live and writable after import"
-	if _, err := db.Conn.Exec(`UPDATE app_settings SET business_name = ? WHERE id = 1`, afterImport); err != nil {
+	if _, err := db.conn.Exec(`UPDATE app_settings SET business_name = ? WHERE id = 1`, afterImport); err != nil {
 		t.Fatalf("write live database after Import: %v", err)
 	}
 	var businessName string
-	if err := db.Conn.QueryRow(`SELECT business_name FROM app_settings WHERE id = 1`).Scan(&businessName); err != nil {
+	if err := db.conn.QueryRow(`SELECT business_name FROM app_settings WHERE id = 1`).Scan(&businessName); err != nil {
 		t.Fatal(err)
 	}
 	if businessName != afterImport {

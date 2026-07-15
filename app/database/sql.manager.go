@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -38,7 +39,7 @@ func (d *Database) Export(destPath string) error {
 	}
 	defer os.Remove(temporaryPath)
 
-	if _, err := d.Conn.Exec("VACUUM INTO ?", temporaryPath); err != nil {
+	if _, err := d.ExecContext(context.Background(), "VACUUM INTO ?", temporaryPath); err != nil {
 		return fmt.Errorf("export database: %w", err)
 	}
 	if err := validateDatabaseFile(temporaryPath); err != nil {

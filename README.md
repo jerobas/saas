@@ -5,6 +5,15 @@ inventory, production, sales, and backups. It uses Wails, Go, SQLite, React,
 Vite, and Tailwind CSS. Application data is stored locally on the user's
 machine.
 
+> **Current capability:** Phase 4 implements the V2 schema, domain model, and
+> aggregate SQLite stores. V2 application commands, Wails feature handlers, and
+> usable feature pages are later layers. The visible legacy feature pages do not
+> have compatible handlers and are not currently usable.
+
+The `api/` directory is parked legacy code. It is outside the desktop runtime,
+development setup, verification gates, and CI, and this repository does not
+deploy it.
+
 ## Prerequisites
 
 - Go 1.26 or newer as a bootstrap for the pinned Go 1.26.5 toolchain
@@ -47,11 +56,11 @@ $env:SAAS_DATA_DIR = "C:\temp\sweeters-data"
 .\scripts\check-desktop.ps1
 ```
 
-This command checks formatting, vets and tests the Go code, builds the frontend
-with Vite, runs ESLint, TypeScript, Vitest, Staticcheck, and the Go race detector
-when supported locally, then compiles a desktop executable without downloading
-dependencies or requiring remote runtime services. CI always enforces the race
-detector on Linux.
+This command checks formatting, validates named SQL and committed generated
+queries, vets and tests the Go code, builds the frontend with Vite, runs ESLint,
+TypeScript, Vitest, Staticcheck, and the Go race detector when supported locally,
+then compiles a desktop executable without downloading dependencies or requiring
+remote runtime services. CI always enforces the race detector on Linux.
 
 The browser smoke test and online dependency audit are separate because they
 need a downloaded browser or current vulnerability data:
@@ -67,18 +76,21 @@ Pop-Location
 
 ```text
 app/
-  database/       SQLite bootstrap and migrations
-  model/          Legacy persistence models pending replacement
-  repository/     Legacy repositories pending V2 aggregate stores
-  service/        Desktop services; legacy domain services are unbound
+  database/       SQLite lifecycle, migrations, and write coordinator
+  internal/
+    domain/       Strong values and aggregate snapshots
+    infrastructure/sqlite/
+                  Named SQL, generated queries, and aggregate stores
+  service/        Operating-system/database lifecycle Wails services
   frontend/       React desktop interface
+api/              Parked legacy code; excluded from the desktop application
 docs/             Architecture, domain contract, ADRs, and historical archive
 scripts/          Windows setup, development, and verification commands
 ```
 
-The architecture is being migrated bottom-up. Accepted schema invariants are
-implemented and tested first, followed by repositories, application use cases,
-Wails contracts, and frontend features.
+The architecture is being migrated bottom-up. The accepted schema, strong
+domain model, and aggregate persistence boundary are implemented and tested
+before application use cases, Wails contracts, and frontend features.
 
 Start with the [documentation index](docs/README.md) for the accepted V2
 decisions, target data model, glossary, invariants, and use cases.
@@ -92,6 +104,7 @@ the local and CI quality gates.
 - Posted inventory history is immutable.
 - Repository and service behavior must be tested against real temporary SQLite
   databases.
+- Generated SQLite queries are committed and must match their named SQL source.
 - React components call the typed desktop bridge instead of generated Wails
   modules.
 - A feature is complete only when its tests and documentation are updated.

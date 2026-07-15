@@ -74,5 +74,3 @@ export const UpdateRecipe = (
 ) => invoke<void>("RecipeService", "UpdateRecipe", id, name, ingredients);
 
 export const ExportDatabase = () => invoke<void>("DatabaseService", "Export");
-
-export const ImportDatabase = () => invoke<void>("DatabaseService", "Import");

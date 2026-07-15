@@ -1,7 +1,7 @@
 # V2 use cases
 
 Use cases are task-oriented application commands and queries. The frontend
-calls one use case for one user action; it does not assemble repository steps.
+calls one use case for one user action; it does not assemble store operations.
 
 ## Settings and units
 

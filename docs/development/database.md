@@ -6,8 +6,9 @@ store, service, Wails handler, or page is valid only after it conforms to this
 contract.
 
 See [ADR 0009](../decisions/0009-v2-sqlite-baseline-and-enforcement.md) for the
-baseline decision and [the data model](../architecture/data-model.md) for table
-responsibilities.
+baseline decision, [ADR 0011](../decisions/0011-recipe-output-and-archive-version-integrity.md)
+for the first hardening migration, and [the data model](../architecture/data-model.md)
+for table responsibilities.
 
 ## Local files
 
@@ -34,19 +35,35 @@ On open, the database package:
 
 1. loads embedded files whose names exactly match contiguous
    `NNNN_name.sql` versions;
-2. accepts either a truly empty SQLite database or one with the recognized
+2. opens SQLite with connection-local foreign-key enforcement, bounded busy
+   waiting, untrusted-schema protection, and `NORMAL` synchronization encoded
+   in the modernc DSN;
+3. accepts either a truly empty SQLite database or one with the recognized
    Sweeters identity and migration table;
-3. validates `application_id`, the exact migration-table DDL, `user_version`,
+4. validates `application_id`, the exact migration-table DDL, `user_version`,
    and the complete recorded migration prefix, including each filename and
    SHA-256 checksum;
-4. applies missing migrations in order with an immediate transaction;
-5. enables foreign keys and the normal desktop connection pragmas; and
-6. runs SQLite quick integrity and foreign-key checks before returning the
+5. applies missing migrations in order with an immediate transaction;
+6. enables persistent WAL mode only after database identity and migrations
+   have been accepted; and
+7. runs SQLite quick integrity and foreign-key checks before returning the
    connection.
 
+The pool remains limited to one physical connection, but correctness does not
+depend on that first connection living forever. The DSN reapplies
+`foreign_keys = ON`, the configured `busy_timeout`, `trusted_schema = OFF`, and
+`synchronous = NORMAL` whenever `database/sql` replaces it. WAL mode remains a
+file-persistent startup step so opening an unidentified or unsupported file
+does not change its journal mode.
+
 The identity is `application_id = 1398228308` (`0x53574554`, `SWET`). The
-baseline is `user_version = 1`. Migration metadata stores `version`, `name`,
-`checksum`, and `applied_at_unix_ms` in a `STRICT` table.
+baseline is migration version 1 and the current schema is `user_version = 2`.
+Migration metadata stores `version`, `name`, `checksum`, and
+`applied_at_unix_ms` in a `STRICT` table.
+
+Migration 2 validates existing recipe chains, active recipe outputs, and
+archive/version timestamps before recording its version. It fails atomically
+rather than guessing how to repair an invalid version-one file.
 
 Startup fails closed when a file belongs to another application, contains
 unrecognized legacy objects, has missing/reordered/renamed migration history,
@@ -67,7 +84,7 @@ change follows this sequence:
 
 1. accept or update the ADR and domain invariant;
 2. add the next contiguous migration, for example
-   `0002_add_supplier_reference.sql`;
+   `0003_add_supplier_reference.sql`;
 3. use strict integer/text/blob representations, explicit checks, and foreign
    keys consistent with the accepted model;
 4. update real-SQLite migration and schema tests;
@@ -90,14 +107,15 @@ From the repository root:
 
 ```powershell
 Push-Location app
-go test -shuffle=on -count=1 ./database
+go test -shuffle=on -count=1 ./database ./internal/infrastructure/sqlite
 Pop-Location
 ```
 
 Tests create real temporary SQLite files. A schema change is incomplete until
 tests cover fresh application, reopen, transactional failure, history and
-checksum rejection, strict storage, foreign keys, and its new constraints. Use
-the full `scripts/check-desktop.ps1` gate before committing.
+checksum rejection, strict storage, foreign keys, its new constraints, and
+affected aggregate mappings. Use the full `scripts/check-desktop.ps1` gate
+before committing.
 
 ## Export, reset, and restore
 

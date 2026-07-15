@@ -11,7 +11,7 @@ func TestCatalogSchemaEnforcesExactTypesLifecycleAndUnitRules(t *testing.T) {
 	db := openSchemaTestDatabase(t)
 
 	var units, baseUnits int
-	if err := db.Conn.QueryRow(`
+	if err := db.conn.QueryRow(`
 		SELECT COUNT(*), SUM(is_item_base) FROM measurement_units
 	`).Scan(&units, &baseUnits); err != nil {
 		t.Fatal(err)
@@ -22,7 +22,7 @@ func TestCatalogSchemaEnforcesExactTypesLifecycleAndUnitRules(t *testing.T) {
 
 	itemID := insertTestItem(t, db, "Farinha", "farinha", "g", true, false, false)
 	var quantity, value int64
-	if err := db.Conn.QueryRow(`
+	if err := db.conn.QueryRow(`
 		SELECT quantity_atomic, inventory_value_micro
 		FROM inventory_balances WHERE item_id = ?
 	`, itemID).Scan(&quantity, &value); err != nil {
@@ -31,43 +31,116 @@ func TestCatalogSchemaEnforcesExactTypesLifecycleAndUnitRules(t *testing.T) {
 	if quantity != 0 || value != 0 {
 		t.Fatalf("initial balance = (%d, %d), want zero", quantity, value)
 	}
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		UPDATE items SET sku = 'FAR-01', normalized_sku = 'far-01' WHERE id = ?
 	`, itemID); err != nil {
 		t.Fatal(err)
 	}
 
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO items (
 			name, normalized_name, base_unit_code,
 			is_purchasable, is_producible, is_sellable,
 			created_at_ms, updated_at_ms
 		) VALUES ('FARINHA', 'farinha', 'g', 1, 0, 0, 1, 1)
 	`)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO items (
 			name, normalized_name, base_unit_code,
 			sku, normalized_sku, is_purchasable, is_producible, is_sellable,
 			created_at_ms, updated_at_ms
 		) VALUES ('Other flour', 'other flour', 'g', 'far-01', 'far-01', 1, 0, 0, 1, 1)
 	`)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO items (
 			name, normalized_name, base_unit_code,
 			is_purchasable, is_producible, is_sellable,
 			created_at_ms, updated_at_ms
 		) VALUES ('Bag', 'bag', 'kg', 1, 0, 0, 1, 1)
 	`)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO items (
 			name, normalized_name, base_unit_code,
 			is_purchasable, is_producible, is_sellable,
 			created_at_ms, updated_at_ms
 		) VALUES ('Invalid', 'invalid', 'g', 1.5, 0, 0, 1, 1)
 	`)
-	expectExecError(t, db.Conn, `UPDATE measurement_units SET symbol = 'gram' WHERE code = 'g'`)
-	expectExecError(t, db.Conn, `DELETE FROM items WHERE id = ?`, itemID)
-	expectExecError(t, db.Conn, `UPDATE schema_migrations SET name = 'changed.sql' WHERE version = 1`)
+	expectExecError(t, db.conn, `UPDATE measurement_units SET symbol = 'gram' WHERE code = 'g'`)
+	expectExecError(t, db.conn, `DELETE FROM items WHERE id = ?`, itemID)
+	expectExecError(t, db.conn, `UPDATE schema_migrations SET name = 'changed.sql' WHERE version = 1`)
+}
+
+func TestArchiveTimestampMustMatchOptimisticVersion(t *testing.T) {
+	db := openSchemaTestDatabase(t)
+	itemID := insertTestItem(t, db, "Archive item", "archive item", "g", true, false, false)
+	outputID := insertTestItem(t, db, "Archive output", "archive output", "g", false, true, false)
+
+	result, err := db.conn.Exec(`
+		INSERT INTO item_packagings (
+			item_id, name, normalized_name, entered_unit_code,
+			conversion_numerator_atomic, conversion_denominator,
+			created_at_ms, updated_at_ms
+		) VALUES (?, 'Archive bag', 'archive bag', 'kg', 1000000, 1, 1, 1)
+	`, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packagingID, _ := result.LastInsertId()
+	result, err = db.conn.Exec(`
+		INSERT INTO counterparties (name, created_at_ms, updated_at_ms)
+		VALUES ('Archive counterparty', 1, 1)
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	counterpartyID, _ := result.LastInsertId()
+	result, err = db.conn.Exec(`
+		INSERT INTO recipes (
+			name, normalized_name, output_item_id, created_at_ms, updated_at_ms
+		) VALUES ('Archive recipe', 'archive recipe', ?, 1, 1)
+	`, outputID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipeID, _ := result.LastInsertId()
+
+	insertCases := []string{
+		`INSERT INTO items (
+			name, normalized_name, base_unit_code,
+			is_purchasable, is_producible, is_sellable,
+			created_at_ms, updated_at_ms, archived_at_ms
+		) VALUES ('Bad archived item', 'bad archived item', 'g', 0, 0, 0, 1, 1, 2)`,
+		fmt.Sprintf(`INSERT INTO item_packagings (
+			item_id, name, normalized_name, entered_unit_code,
+			conversion_numerator_atomic, conversion_denominator,
+			created_at_ms, updated_at_ms, archived_at_ms
+		) VALUES (%d, 'Bad archived bag', 'bad archived bag', 'kg', 1000000, 1, 1, 1, 2)`, itemID),
+		`INSERT INTO counterparties (
+			name, created_at_ms, updated_at_ms, archived_at_ms
+		) VALUES ('Bad archived counterparty', 1, 1, 2)`,
+		fmt.Sprintf(`INSERT INTO recipes (
+			name, normalized_name, output_item_id,
+			created_at_ms, updated_at_ms, archived_at_ms
+		) VALUES ('Bad archived recipe', 'bad archived recipe', %d, 1, 1, 2)`, outputID),
+	}
+	for _, query := range insertCases {
+		expectExecError(t, db.conn, query)
+	}
+
+	updateCases := []struct {
+		table string
+		id    int64
+	}{
+		{table: "items", id: itemID},
+		{table: "item_packagings", id: packagingID},
+		{table: "counterparties", id: counterpartyID},
+		{table: "recipes", id: recipeID},
+	}
+	for _, test := range updateCases {
+		expectExecError(t, db.conn, fmt.Sprintf(
+			"UPDATE %s SET archived_at_ms = 2 WHERE id = ?", test.table,
+		), test.id)
+	}
 }
 
 func TestRecipeSchemaPreservesPublishedRevisionHistory(t *testing.T) {
@@ -75,7 +148,7 @@ func TestRecipeSchemaPreservesPublishedRevisionHistory(t *testing.T) {
 	ingredientID := insertTestItem(t, db, "Flour", "flour", "g", true, false, false)
 	outputID := insertTestItem(t, db, "Cake", "cake", "each", false, true, true)
 
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		INSERT INTO item_packagings (
 			item_id, name, normalized_name, entered_unit_code,
 			conversion_numerator_atomic, conversion_denominator,
@@ -84,7 +157,7 @@ func TestRecipeSchemaPreservesPublishedRevisionHistory(t *testing.T) {
 	`, ingredientID); err != nil {
 		t.Fatal(err)
 	}
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO item_packagings (
 			item_id, name, normalized_name, entered_unit_code,
 			conversion_numerator_atomic, conversion_denominator,
@@ -92,7 +165,7 @@ func TestRecipeSchemaPreservesPublishedRevisionHistory(t *testing.T) {
 		) VALUES (?, 'Bottle', 'bottle', 'ml', 1000, 1, 1, 1)
 	`, ingredientID)
 
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO recipes (
 			name, normalized_name, output_item_id, created_at_ms, updated_at_ms
 		) VALUES ('Cake recipe', 'cake recipe', ?, 1, 1)
@@ -101,7 +174,7 @@ func TestRecipeSchemaPreservesPublishedRevisionHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	recipeID, _ := result.LastInsertId()
-	result, err = db.Conn.Exec(`
+	result, err = db.conn.Exec(`
 		INSERT INTO recipe_revisions (
 			recipe_id, revision_number, standard_yield_quantity_atomic,
 			instructions, preparation_time_minutes, created_at_ms
@@ -111,8 +184,14 @@ func TestRecipeSchemaPreservesPublishedRevisionHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	revisionID, _ := result.LastInsertId()
-	expectExecError(t, db.Conn, `UPDATE items SET base_unit_code = 'g' WHERE id = ?`, outputID)
-	if _, err := db.Conn.Exec(`
+	expectExecError(t, db.conn, `
+		INSERT INTO recipe_revisions (
+			recipe_id, revision_number, standard_yield_quantity_atomic,
+			instructions, preparation_time_minutes, created_at_ms
+		) VALUES (?, 3, 1000, 'Skipped revision', 45, 3)
+	`, recipeID)
+	expectExecError(t, db.conn, `UPDATE items SET base_unit_code = 'g' WHERE id = ?`, outputID)
+	if _, err := db.conn.Exec(`
 		INSERT INTO recipe_revision_components (
 			recipe_revision_id, component_order, item_id, quantity_atomic,
 			entered_unit_code, conversion_numerator_atomic, conversion_denominator,
@@ -122,24 +201,53 @@ func TestRecipeSchemaPreservesPublishedRevisionHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO recipe_revision_components (
 			recipe_revision_id, component_order, item_id, quantity_atomic,
 			entered_unit_code, conversion_numerator_atomic, conversion_denominator,
 			created_at_ms
 		) VALUES (?, 2, ?, 1000, 'each', 1000, 1, 2)
 	`, revisionID, outputID)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		UPDATE recipe_revisions SET instructions = 'Changed' WHERE id = ?
 	`, revisionID)
-	expectExecError(t, db.Conn, `UPDATE recipes SET output_item_id = ? WHERE id = ?`, ingredientID, recipeID)
-	expectExecError(t, db.Conn, `UPDATE items SET base_unit_code = 'ml' WHERE id = ?`, ingredientID)
+	expectExecError(t, db.conn, `UPDATE recipes SET output_item_id = ? WHERE id = ?`, ingredientID, recipeID)
+	expectExecError(t, db.conn, `UPDATE items SET base_unit_code = 'ml' WHERE id = ?`, ingredientID)
+	expectExecError(t, db.conn, `UPDATE items SET is_producible = 0, updated_at_ms = 3 WHERE id = ?`, outputID)
+	expectExecError(t, db.conn, `UPDATE items SET archived_at_ms = 3, updated_at_ms = 3 WHERE id = ?`, outputID)
+	if _, err := db.conn.Exec(`
+		UPDATE recipes SET archived_at_ms = 3, updated_at_ms = 3 WHERE id = ?
+	`, recipeID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.conn.Exec(`
+		UPDATE items
+		SET is_producible = 0, archived_at_ms = 4, updated_at_ms = 4
+		WHERE id = ?
+	`, outputID); err != nil {
+		t.Fatal(err)
+	}
+	expectExecError(t, db.conn, `
+		UPDATE recipes SET archived_at_ms = NULL, updated_at_ms = 5 WHERE id = ?
+	`, recipeID)
+	if _, err := db.conn.Exec(`
+		UPDATE items
+		SET is_producible = 1, archived_at_ms = NULL, updated_at_ms = 5
+		WHERE id = ?
+	`, outputID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.conn.Exec(`
+		UPDATE recipes SET archived_at_ms = NULL, updated_at_ms = 6 WHERE id = ?
+	`, recipeID); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestArchivedPackagingAllowsSafeBaseUnitCorrection(t *testing.T) {
 	db := openSchemaTestDatabase(t)
 	itemID := insertTestItem(t, db, "Mistyped item", "mistyped item", "g", true, false, false)
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO item_packagings (
 			item_id, name, normalized_name, entered_unit_code,
 			conversion_numerator_atomic, conversion_denominator,
@@ -151,25 +259,25 @@ func TestArchivedPackagingAllowsSafeBaseUnitCorrection(t *testing.T) {
 	}
 	packagingID, _ := result.LastInsertId()
 
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		UPDATE items SET base_unit_code = 'ml', updated_at_ms = 2 WHERE id = ?
 	`, itemID)
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		UPDATE item_packagings
 		SET archived_at_ms = 2, updated_at_ms = 2
 		WHERE id = ?
 	`, packagingID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		UPDATE items SET base_unit_code = 'ml', updated_at_ms = 3 WHERE id = ?
 	`, itemID); err != nil {
 		t.Fatal(err)
 	}
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		UPDATE item_packagings SET archived_at_ms = NULL, updated_at_ms = 4 WHERE id = ?
 	`, packagingID)
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		UPDATE item_packagings
 		SET entered_unit_code = 'ml',
 			conversion_numerator_atomic = 1000,
@@ -180,7 +288,7 @@ func TestArchivedPackagingAllowsSafeBaseUnitCorrection(t *testing.T) {
 	`, packagingID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		UPDATE item_packagings SET archived_at_ms = NULL, updated_at_ms = 5 WHERE id = ?
 	`, packagingID); err != nil {
 		t.Fatal(err)
@@ -191,7 +299,7 @@ func TestDocumentSchemaEnforcesPostingShapeAndImmutability(t *testing.T) {
 	db := openSchemaTestDatabase(t)
 	itemID := insertTestItem(t, db, "Sugar", "sugar", "g", true, false, true)
 
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO counterparties (
 			name, created_at_ms, updated_at_ms
 		) VALUES ('Supplier', 1, 1)
@@ -200,7 +308,7 @@ func TestDocumentSchemaEnforcesPostingShapeAndImmutability(t *testing.T) {
 		t.Fatal(err)
 	}
 	supplierID, _ := result.LastInsertId()
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		INSERT INTO counterparty_roles (counterparty_id, role, created_at_ms)
 		VALUES (?, 'SUPPLIER', 1)
 	`, supplierID); err != nil {
@@ -212,34 +320,34 @@ func TestDocumentSchemaEnforcesPostingShapeAndImmutability(t *testing.T) {
 	)
 	lineID := insertTestLine(t, db, purchaseID, 1, itemID, "IN", 1000, "g", 500000, 500, nil)
 
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO stock_document_lines (
 			document_id, line_order, item_id, direction, quantity_atomic,
 			entered_unit_code, conversion_numerator_atomic, conversion_denominator,
 			inventory_value_micro, commercial_total_minor
 		) VALUES (?, 2, ?, 'OUT', 1000, 'g', 1000, 1, 500000, 500)
 	`, purchaseID, itemID)
-	expectExecError(t, db.Conn, `UPDATE stock_documents SET notes = 'changed' WHERE id = ?`, purchaseID)
-	expectExecError(t, db.Conn, `UPDATE stock_document_lines SET quantity_atomic = 2 WHERE id = ?`, lineID)
-	expectExecError(t, db.Conn, `UPDATE app_settings SET currency_code = 'USD' WHERE id = 1`)
+	expectExecError(t, db.conn, `UPDATE stock_documents SET notes = 'changed' WHERE id = ?`, purchaseID)
+	expectExecError(t, db.conn, `UPDATE stock_document_lines SET quantity_atomic = 2 WHERE id = ?`, lineID)
+	expectExecError(t, db.conn, `UPDATE app_settings SET currency_code = 'USD' WHERE id = 1`)
 
 	freeCandidateID := insertTestDocument(
 		t, db, "PURCHASE", 2, nil, nil, nil, "purchase-zero",
 	)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO stock_document_lines (
 			document_id, line_order, item_id, direction, quantity_atomic,
 			entered_unit_code, conversion_numerator_atomic, conversion_denominator,
 			inventory_value_micro, commercial_total_minor
 		) VALUES (?, 1, ?, 'IN', 1000, 'g', 1000, 1, 0, 0)
 	`, freeCandidateID, itemID)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO stock_documents (
 			kind, idempotency_key, posting_sequence, occurred_on, posted_at_ms,
 			currency_code, currency_minor_digits
 		) VALUES ('SALE', 'bad-sequence', 1, '2026-07-14', 3, 'BRL', 2)
 	`)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO stock_documents (
 			kind, idempotency_key, posting_sequence, occurred_on, posted_at_ms,
 			currency_code, currency_minor_digits
@@ -256,7 +364,7 @@ func TestReversalSchemaRequiresExactLinkedInverse(t *testing.T) {
 		t, db, "REVERSAL", 2, "EXACT_REVERSAL", purchaseID, nil, "reverse-purchase",
 	)
 
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO stock_document_lines (
 			document_id, line_order, item_id, direction, quantity_atomic,
 			entered_unit_code, conversion_numerator_atomic, conversion_denominator,
@@ -269,7 +377,7 @@ func TestReversalSchemaRequiresExactLinkedInverse(t *testing.T) {
 	if reversalLineID == 0 {
 		t.Fatal("expected reversal line id")
 	}
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO stock_documents (
 			kind, idempotency_key, posting_sequence, occurred_on, posted_at_ms,
 			currency_code, currency_minor_digits, reason_code, reverses_document_id
@@ -287,20 +395,20 @@ func TestAdjustmentAndProductionMetadataMatchCanonicalLines(t *testing.T) {
 		t, db, "ADJUSTMENT", 1, "PHYSICAL_COUNT", nil, nil, "count",
 	)
 	countLineID := insertTestLine(t, db, adjustmentID, 1, ingredientID, "IN", 200, "g", 0, nil, nil)
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		INSERT INTO adjustment_line_details (
 			line_id, expected_quantity_atomic, observed_quantity_atomic
 		) VALUES (?, 500, 700)
 	`, countLineID); err != nil {
 		t.Fatal(err)
 	}
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO adjustment_line_details (
 			line_id, expected_quantity_atomic, observed_quantity_atomic
 		) VALUES (?, 500, 650)
 	`, countLineID)
 
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO recipes (
 			name, normalized_name, output_item_id, created_at_ms, updated_at_ms
 		) VALUES ('Truffle recipe', 'truffle recipe', ?, 1, 1)
@@ -309,7 +417,7 @@ func TestAdjustmentAndProductionMetadataMatchCanonicalLines(t *testing.T) {
 		t.Fatal(err)
 	}
 	recipeID, _ := result.LastInsertId()
-	result, err = db.Conn.Exec(`
+	result, err = db.conn.Exec(`
 		INSERT INTO recipe_revisions (
 			recipe_id, revision_number, standard_yield_quantity_atomic,
 			instructions, preparation_time_minutes, created_at_ms
@@ -322,14 +430,14 @@ func TestAdjustmentAndProductionMetadataMatchCanonicalLines(t *testing.T) {
 	productionID := insertTestDocument(t, db, "PRODUCTION", 2, nil, nil, nil, "production")
 	inputLineID := insertTestLine(t, db, productionID, 1, ingredientID, "OUT", 100, "g", 10000, nil, nil)
 	outputLineID := insertTestLine(t, db, productionID, 2, outputID, "IN", 1000, "each", 15000, nil, nil)
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		INSERT INTO production_runs (
 			document_id, recipe_revision_id, output_line_id, direct_production_cost_micro
 		) VALUES (?, ?, ?, 5000)
 	`, productionID, revisionID, outputLineID); err != nil {
 		t.Fatal(err)
 	}
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO production_runs (
 			document_id, recipe_revision_id, output_line_id, direct_production_cost_micro
 		) VALUES (?, ?, ?, 0)
@@ -341,7 +449,7 @@ func TestLotsAndAllocationsPreventOverconsumptionAndSupportExactRestore(t *testi
 	itemID := insertTestItem(t, db, "Butter", "butter", "g", true, false, true)
 	purchaseID := insertTestDocument(t, db, "PURCHASE", 1, nil, nil, nil, "purchase-lot")
 	purchaseLineID := insertTestLine(t, db, purchaseID, 1, itemID, "IN", 100, "g", 100000, 100, nil)
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO inventory_lots (
 			item_id, source_line_id, initial_quantity_atomic,
 			lot_code, originated_on, expires_on, created_at_ms
@@ -354,7 +462,7 @@ func TestLotsAndAllocationsPreventOverconsumptionAndSupportExactRestore(t *testi
 
 	saleID := insertTestDocument(t, db, "SALE", 2, nil, nil, nil, "sale-1")
 	saleLineID := insertTestLine(t, db, saleID, 1, itemID, "OUT", 60, "g", 60000, 150, nil)
-	result, err = db.Conn.Exec(`
+	result, err = db.conn.Exec(`
 		INSERT INTO lot_allocations (line_id, lot_id, quantity_atomic, created_at_ms)
 		VALUES (?, ?, 60, 2)
 	`, saleLineID, lotID)
@@ -365,7 +473,7 @@ func TestLotsAndAllocationsPreventOverconsumptionAndSupportExactRestore(t *testi
 
 	secondSaleID := insertTestDocument(t, db, "SALE", 3, nil, nil, nil, "sale-2")
 	secondSaleLineID := insertTestLine(t, db, secondSaleID, 1, itemID, "OUT", 50, "g", 50000, 120, nil)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO lot_allocations (line_id, lot_id, quantity_atomic, created_at_ms)
 		VALUES (?, ?, 50, 3)
 	`, secondSaleLineID, lotID)
@@ -376,7 +484,7 @@ func TestLotsAndAllocationsPreventOverconsumptionAndSupportExactRestore(t *testi
 	restoringLineID := insertTestLine(
 		t, db, reversalID, 1, itemID, "IN", 60, "g", 60000, 150, saleLineID,
 	)
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		INSERT INTO lot_allocations (
 			line_id, lot_id, quantity_atomic, restores_allocation_id, created_at_ms
 		) VALUES (?, ?, 60, ?, 4)
@@ -385,7 +493,7 @@ func TestLotsAndAllocationsPreventOverconsumptionAndSupportExactRestore(t *testi
 	}
 
 	var netConsumed int64
-	if err := db.Conn.QueryRow(`
+	if err := db.conn.QueryRow(`
 		SELECT SUM(CASE WHEN restores_allocation_id IS NULL
 			THEN quantity_atomic ELSE -quantity_atomic END)
 		FROM lot_allocations WHERE lot_id = ?
@@ -395,7 +503,7 @@ func TestLotsAndAllocationsPreventOverconsumptionAndSupportExactRestore(t *testi
 	if netConsumed != 0 {
 		t.Fatalf("net lot consumption = %d, want 0 after exact restore", netConsumed)
 	}
-	expectExecError(t, db.Conn, `DELETE FROM inventory_lots WHERE id = ?`, lotID)
+	expectExecError(t, db.conn, `DELETE FROM inventory_lots WHERE id = ?`, lotID)
 }
 
 func TestLotAllocationCannotConsumeALaterPostingLot(t *testing.T) {
@@ -406,7 +514,7 @@ func TestLotAllocationCannotConsumeALaterPostingLot(t *testing.T) {
 	sourceLineID := insertTestLine(
 		t, db, laterPurchaseID, 1, itemID, "IN", 1000, "ml", 100000, 100, nil,
 	)
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO inventory_lots (
 			item_id, source_line_id, initial_quantity_atomic, originated_on, created_at_ms
 		) VALUES (?, ?, 1000, '2026-07-14', 2)
@@ -419,7 +527,7 @@ func TestLotAllocationCannotConsumeALaterPostingLot(t *testing.T) {
 		t, db, earlierSaleID, 1, itemID, "OUT", 1000, "ml", 100000, 150, nil,
 	)
 
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO lot_allocations (line_id, lot_id, quantity_atomic, created_at_ms)
 		VALUES (?, ?, 1000, 3)
 	`, earlierSaleLineID, laterLotID)
@@ -443,11 +551,11 @@ func TestInboundReversalMustConsumeItsTargetLineLot(t *testing.T) {
 	reversalLineID := insertTestLine(
 		t, db, reversalID, 1, itemID, "OUT", 100, "ml", 10000, 10, secondLineID,
 	)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		INSERT INTO lot_allocations (line_id, lot_id, quantity_atomic, created_at_ms)
 		VALUES (?, ?, 100, 3)
 	`, reversalLineID, firstLotID)
-	if _, err := db.Conn.Exec(`
+	if _, err := db.conn.Exec(`
 		INSERT INTO lot_allocations (line_id, lot_id, quantity_atomic, created_at_ms)
 		VALUES (?, ?, 100, 3)
 	`, reversalLineID, secondLotID); err != nil {
@@ -458,13 +566,13 @@ func TestInboundReversalMustConsumeItsTargetLineLot(t *testing.T) {
 func TestInventoryBalanceRejectsInvalidProjectionStates(t *testing.T) {
 	db := openSchemaTestDatabase(t)
 	itemID := insertTestItem(t, db, "Egg", "egg", "each", true, false, true)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		UPDATE inventory_balances SET quantity_atomic = -1 WHERE item_id = ?
 	`, itemID)
-	expectExecError(t, db.Conn, `
+	expectExecError(t, db.conn, `
 		UPDATE inventory_balances SET inventory_value_micro = 1 WHERE item_id = ?
 	`, itemID)
-	expectExecError(t, db.Conn, `DELETE FROM inventory_balances WHERE item_id = ?`, itemID)
+	expectExecError(t, db.conn, `DELETE FROM inventory_balances WHERE item_id = ?`, itemID)
 }
 
 func openSchemaTestDatabase(t *testing.T) *Database {
@@ -492,7 +600,7 @@ func insertTestItem(
 	sellable bool,
 ) int64 {
 	t.Helper()
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO items (
 			name, normalized_name, base_unit_code,
 			is_purchasable, is_producible, is_sellable,
@@ -520,7 +628,7 @@ func insertTestDocument(
 	idempotencyKey string,
 ) int64 {
 	t.Helper()
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO stock_documents (
 			kind, idempotency_key, posting_sequence, counterparty_id,
 			occurred_on, posted_at_ms, currency_code, currency_minor_digits,
@@ -551,7 +659,7 @@ func insertTestLine(
 	reversesLine any,
 ) int64 {
 	t.Helper()
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO stock_document_lines (
 			document_id, line_order, item_id, direction, quantity_atomic,
 			entered_unit_code, conversion_numerator_atomic, conversion_denominator,
@@ -578,7 +686,7 @@ func insertTestLot(
 	createdAt int64,
 ) int64 {
 	t.Helper()
-	result, err := db.Conn.Exec(`
+	result, err := db.conn.Exec(`
 		INSERT INTO inventory_lots (
 			item_id, source_line_id, initial_quantity_atomic, originated_on, created_at_ms
 		) VALUES (?, ?, ?, '2026-07-14', ?)

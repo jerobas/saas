@@ -44,6 +44,6 @@ structural constraints and immutability guards.
 - Existing service and frontend compatibility APIs may be deleted instead of
   preserved.
 - The seven experimental migrations can be rebaselined before production.
-- Repositories are aggregate-oriented and cannot expose unrestricted table CRUD.
+- Stores are aggregate-oriented and cannot expose unrestricted table CRUD.
 - Every vertical feature is developed schema/query first and UI last.
 - Tests and documentation are completion requirements for every layer.
