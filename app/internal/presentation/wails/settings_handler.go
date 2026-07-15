@@ -93,14 +93,45 @@ func (h *SettingsHandler) UpdateSettings(ctx context.Context, req dto.SettingsUp
 	return mapSettings(updatedSettings), nil
 }
 
-func mapSettings(settingsValue interface{ BusinessName() domain.DisplayName; Locale() domain.Locale; Timezone() domain.BusinessTimezone; Currency() domain.Currency; HourlyLaborCost() domain.Option[domain.MinorAmount]; DefaultGrossMargin() domain.Option[domain.BasisPoints]; CreatedAt() domain.UTCInstant; UpdatedAt() domain.UTCInstant }) dto.SettingsResponse {
+func mapSettings(settingsValue interface {
+	BusinessName() domain.DisplayName
+	Locale() domain.Locale
+	Timezone() domain.BusinessTimezone
+	Currency() domain.Currency
+	HourlyLaborCost() domain.Option[domain.MinorAmount]
+	DefaultGrossMargin() domain.Option[domain.BasisPoints]
+	CreatedAt() domain.UTCInstant
+	UpdatedAt() domain.UTCInstant
+}) dto.SettingsResponse {
+	hourlyLaborCost := optionalMinorAmount(settingsValue.HourlyLaborCost())
+	defaultGrossMargin := optionalBasisPoints(settingsValue.DefaultGrossMargin())
 	return dto.SettingsResponse{
-		BusinessName:       settingsValue.BusinessName().String(),
-		Locale:             settingsValue.Locale().String(),
-		Timezone:           settingsValue.Timezone().Name(),
-		CurrencyCode:       settingsValue.Currency().Code().String(),
+		BusinessName:        settingsValue.BusinessName().String(),
+		Locale:              settingsValue.Locale().String(),
+		Timezone:            settingsValue.Timezone().Name(),
+		CurrencyCode:        settingsValue.Currency().Code().String(),
 		CurrencyMinorDigits: int64(settingsValue.Currency().MinorDigits().Int()),
-		CreatedAtMs:        settingsValue.CreatedAt().UnixMilli(),
-		UpdatedAtMs:        settingsValue.UpdatedAt().UnixMilli(),
+		HourlyLaborCost:     hourlyLaborCost,
+		DefaultGrossMargin:  defaultGrossMargin,
+		CreatedAtMs:         settingsValue.CreatedAt().UnixMilli(),
+		UpdatedAtMs:         settingsValue.UpdatedAt().UnixMilli(),
 	}
+}
+
+func optionalMinorAmount(value domain.Option[domain.MinorAmount]) *int64 {
+	minor, ok := value.Get()
+	if !ok {
+		return nil
+	}
+	raw := minor.Int64()
+	return &raw
+}
+
+func optionalBasisPoints(value domain.Option[domain.BasisPoints]) *int64 {
+	points, ok := value.Get()
+	if !ok {
+		return nil
+	}
+	raw := points.Int64()
+	return &raw
 }
