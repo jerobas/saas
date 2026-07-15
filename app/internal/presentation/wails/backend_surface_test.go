@@ -33,6 +33,10 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		application.NewSQLiteCounterpartyStore(store),
 		clock,
 	))
+	purchaseHandler := NewPurchaseHandler(application.NewPurchaseService(
+		application.NewSQLitePurchaseStore(store),
+		clock,
+	))
 
 	settingsValue, err := settingsHandler.GetSettings(ctx)
 	if err != nil {
@@ -280,6 +284,35 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 	if restored.ArchivedAtMs != nil || restored.UpdatedAtMs != clock.now.UnixMilli() {
 		t.Fatalf("restored counterparty = %#v", restored)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(15_000))
+	expiresOn := "2026-12-31"
+	purchase, err := purchaseHandler.PostPurchase(ctx, dto.PurchasePostRequest{
+		IdempotencyKey: "purchase-flour-1",
+		CounterpartyID: &restored.ID,
+		OccurredOn:     "2026-07-15",
+		Lines: []dto.PurchaseLineRequest{
+			{
+				ItemID:                    restoredItem.ID,
+				QuantityAtomic:            1_000,
+				EnteredUnitCode:           "g",
+				ConversionNumeratorAtomic: 1_000,
+				ConversionDenominator:     1,
+				CommercialTotalMinor:      500,
+				LotCode:                   stringPointer("LOT-1"),
+				ExpiresOn:                 &expiresOn,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post purchase: %v", err)
+	}
+	if purchase.ID == 0 || purchase.PostingSequence != 1 || purchase.PostedAtMs != clock.now.UnixMilli() {
+		t.Fatalf("purchase = %#v", purchase)
+	}
+	if len(purchase.Lines) != 1 || purchase.Lines[0].LotID == 0 || purchase.Lines[0].InventoryValueMicro != 5_000_000 {
+		t.Fatalf("purchase lines = %#v", purchase.Lines)
 	}
 }
 

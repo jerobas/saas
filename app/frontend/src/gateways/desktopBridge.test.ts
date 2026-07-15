@@ -3,6 +3,7 @@ import {
   catalogGateway,
   counterpartyGateway,
   GetAllItems,
+  purchaseGateway,
   referenceDataGateway,
   settingsGateway,
 } from "./desktopBridge";
@@ -276,5 +277,60 @@ describe("desktop bridge", () => {
 
     expect(listCounterparties).toHaveBeenCalledWith(listRequest);
     expect(updateCounterparty).toHaveBeenCalledWith(counterparty.id, updateRequest);
+  });
+
+  it("forwards purchase posting calls to the V2 purchase handler", async () => {
+    const response = {
+      id: 40,
+      idempotencyKey: "purchase-1",
+      postingSequence: 1,
+      counterpartyId: 20,
+      occurredOn: "2026-07-15",
+      postedAtMs: 1_700_000_000_000,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      lines: [
+        {
+          id: 50,
+          lineOrder: 1,
+          itemId: 10,
+          quantityAtomic: 1_000,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+          inventoryValueMicro: 5_000_000,
+          commercialTotalMinor: 500,
+          lotId: 60,
+          originatedOn: "2026-07-15",
+        },
+      ],
+    };
+    const postPurchase = vi.fn().mockResolvedValue(response);
+    window.go = {
+      service: {
+        PurchaseHandler: {
+          PostPurchase: postPurchase,
+        },
+      },
+    };
+
+    const request = {
+      idempotencyKey: "purchase-1",
+      counterpartyId: 20,
+      occurredOn: "2026-07-15",
+      lines: [
+        {
+          itemId: 10,
+          quantityAtomic: 1_000,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+          commercialTotalMinor: 500,
+        },
+      ],
+    };
+
+    await expect(purchaseGateway.postPurchase(request)).resolves.toEqual(response);
+    expect(postPurchase).toHaveBeenCalledWith(request);
   });
 });

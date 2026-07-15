@@ -223,6 +223,58 @@ export interface CounterpartyUpdateRequest extends CounterpartyWriteRequest {
   expectedUpdatedAtMs: number;
 }
 
+export interface PurchasePostRequest {
+  idempotencyKey: string;
+  counterpartyId?: number | null;
+  occurredOn: string;
+  reasonCode?: "FREE_STOCK" | null;
+  notes?: string | null;
+  lines: PurchaseLineRequest[];
+}
+
+export interface PurchaseLineRequest {
+  itemId: number;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  commercialTotalMinor: number;
+  lotCode?: string | null;
+  expiresOn?: string | null;
+}
+
+export interface PurchaseDocumentResponse {
+  id: number;
+  idempotencyKey: string;
+  postingSequence: number;
+  counterpartyId?: number | null;
+  occurredOn: string;
+  postedAtMs: number;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  reasonCode?: "FREE_STOCK" | null;
+  notes?: string | null;
+  lines: PurchaseLineResponse[];
+}
+
+export interface PurchaseLineResponse {
+  id: number;
+  lineOrder: number;
+  itemId: number;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  inventoryValueMicro: number;
+  commercialTotalMinor: number;
+  lotId: number;
+  lotCode?: string | null;
+  originatedOn: string;
+  expiresOn?: string | null;
+}
+
 async function invoke<T>(service: string, method: string, ...args: unknown[]): Promise<T> {
   const bridgeMethod =
     window.go?.service?.[service]?.[method] ?? window.go?.main?.[service]?.[method];
@@ -286,6 +338,11 @@ export const counterpartyGateway = {
     invoke<CounterpartyResponse>("CounterpartyHandler", "ArchiveCounterparty", id, request),
   restoreCounterparty: (id: number, request: VersionedRequest) =>
     invoke<CounterpartyResponse>("CounterpartyHandler", "RestoreCounterparty", id, request),
+};
+
+export const purchaseGateway = {
+  postPurchase: (request: PurchasePostRequest) =>
+    invoke<PurchaseDocumentResponse>("PurchaseHandler", "PostPurchase", request),
 };
 
 export const CreateItem = (name: string, unit: string, minimumStock: number) =>

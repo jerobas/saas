@@ -5,11 +5,14 @@ inventory, production, sales, and backups. It uses Wails, Go, SQLite, React,
 Vite, and Tailwind CSS. Application data is stored locally on the user's
 machine.
 
-> **Current capability:** Phase 5 has started. The V2 schema, domain model,
-> aggregate SQLite stores, and application/Wails contracts for settings,
-> measurement units, catalog items, item packagings, and counterparties are in
-> place. The visible legacy feature pages have not been replaced with V2
-> workflows yet and are not currently usable.
+> **Current capability:** Phase 5 is in progress. The V2 schema, domain model,
+> aggregate SQLite stores, application/Wails contracts, typed desktop gateway,
+> and first real desktop screens are in place for settings, measurement units,
+> catalog items, item packagings, and counterparties. Purchase posting has
+> started at the backend/Wails/gateway layer: a purchase can create an immutable
+> stock document, inbound line, inventory lot, and updated balance. Legacy pages
+> for the later inventory, recipe, production, sales, and reporting workflows are
+> still not real V2 workflows.
 
 The `api/` directory is parked legacy code. It is outside the desktop runtime,
 development setup, verification gates, and CI, and this repository does not
