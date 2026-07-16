@@ -3,6 +3,11 @@
 ## Polish de frontend
 
 - [x] Remover o card "Unidades" da tela de Produtos/Catalogo.
+- [ ] Adicionar UI minima para reversao exata de documentos.
+- [ ] Melhorar Receitas: renomear receita pela UI.
+- [ ] Melhorar Receitas: permitir multiplos componentes na UI.
+- [ ] Melhorar Receitas: permitir escolher componente por embalagem, nao so unidade base.
+- [ ] Melhorar Receitas: polir historico/editor de revisoes sem quebrar imutabilidade.
 
 ## Lembretes do plano
 
