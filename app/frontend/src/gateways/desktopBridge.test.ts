@@ -72,6 +72,29 @@ describe("desktop bridge", () => {
     expect(updateSettings).toHaveBeenCalledWith(request);
   });
 
+  it("supports the Wails package namespace used by V2 handlers", async () => {
+    const settings = {
+      businessName: "Sweeters",
+      locale: "pt-BR",
+      timezone: "America/Sao_Paulo",
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      createdAtMs: 1_700_000_000_000,
+      updatedAtMs: 1_700_000_000_001,
+    };
+    const getSettings = vi.fn().mockResolvedValue(settings);
+    window.go = {
+      wails: {
+        SettingsHandler: {
+          GetSettings: getSettings,
+        },
+      },
+    };
+
+    await expect(settingsGateway.getSettings()).resolves.toEqual(settings);
+    expect(getSettings).toHaveBeenCalledOnce();
+  });
+
   it("forwards reference data calls to the V2 reference data handler", async () => {
     const gram = {
       code: "g",

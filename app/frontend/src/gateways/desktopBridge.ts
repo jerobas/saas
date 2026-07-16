@@ -4,6 +4,7 @@ type ServiceRegistry = Record<string, Record<string, BridgeMethod>>;
 interface WailsBridge {
   service?: ServiceRegistry;
   main?: ServiceRegistry;
+  wails?: ServiceRegistry;
 }
 
 declare global {
@@ -396,7 +397,9 @@ export interface AllocationResponse {
 
 async function invoke<T>(service: string, method: string, ...args: unknown[]): Promise<T> {
   const bridgeMethod =
-    window.go?.service?.[service]?.[method] ?? window.go?.main?.[service]?.[method];
+    window.go?.service?.[service]?.[method] ??
+    window.go?.main?.[service]?.[method] ??
+    window.go?.wails?.[service]?.[method];
 
   if (typeof bridgeMethod !== "function") {
     throw new Error(`Desktop bridge method ${service}.${method} is unavailable.`);
