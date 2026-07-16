@@ -6,6 +6,7 @@ import {
   inventoryGateway,
   purchaseGateway,
   referenceDataGateway,
+  reversalGateway,
   settingsGateway,
 } from "./desktopBridge";
 
@@ -415,6 +416,59 @@ describe("desktop bridge", () => {
 
     await expect(adjustmentGateway.postAdjustment(request)).resolves.toEqual(response);
     expect(postAdjustment).toHaveBeenCalledWith(request);
+  });
+
+  it("forwards reversal posting calls to the V2 reversal handler", async () => {
+    const response = {
+      id: 42,
+      idempotencyKey: "reverse-adjustment-1",
+      postingSequence: 3,
+      targetDocumentId: 41,
+      occurredOn: "2026-07-16",
+      postedAtMs: 1_700_000_000_200,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      reasonCode: "EXACT_REVERSAL" as const,
+      lines: [
+        {
+          id: 52,
+          lineOrder: 1,
+          itemId: 10,
+          direction: "IN" as const,
+          quantityAtomic: 250,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+          inventoryValueMicro: 1_250_000,
+          reversesLineId: 51,
+          allocations: [
+            {
+              id: 71,
+              lotId: 60,
+              quantityAtomic: 250,
+              restoresAllocationId: 70,
+            },
+          ],
+        },
+      ],
+    };
+    const postReversal = vi.fn().mockResolvedValue(response);
+    window.go = {
+      service: {
+        ReversalHandler: {
+          PostReversal: postReversal,
+        },
+      },
+    };
+
+    const request = {
+      idempotencyKey: "reverse-adjustment-1",
+      targetDocumentId: 41,
+      occurredOn: "2026-07-16",
+    };
+
+    await expect(reversalGateway.postReversal(request)).resolves.toEqual(response);
+    expect(postReversal).toHaveBeenCalledWith(request);
   });
 
   it("forwards inventory read calls to the V2 inventory handler", async () => {

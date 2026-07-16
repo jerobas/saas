@@ -460,6 +460,50 @@ export interface AdjustmentAllocationResponse {
   quantityAtomic: number;
 }
 
+export interface ReversalPostRequest {
+  idempotencyKey: string;
+  targetDocumentId: number;
+  occurredOn: string;
+  notes?: string | null;
+}
+
+export interface ReversalDocumentResponse {
+  id: number;
+  idempotencyKey: string;
+  postingSequence: number;
+  targetDocumentId: number;
+  occurredOn: string;
+  postedAtMs: number;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  reasonCode: "EXACT_REVERSAL";
+  notes?: string | null;
+  lines: ReversalLineResponse[];
+}
+
+export interface ReversalLineResponse {
+  id: number;
+  lineOrder: number;
+  itemId: number;
+  direction: StockDirection;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  inventoryValueMicro: number;
+  commercialTotalMinor?: number | null;
+  reversesLineId: number;
+  allocations: ReversalAllocationResponse[];
+}
+
+export interface ReversalAllocationResponse {
+  id: number;
+  lotId: number;
+  quantityAtomic: number;
+  restoresAllocationId?: number | null;
+}
+
 async function invoke<T>(service: string, method: string, ...args: unknown[]): Promise<T> {
   const bridgeMethod =
     window.go?.service?.[service]?.[method] ??
@@ -539,6 +583,11 @@ export const purchaseGateway = {
 export const adjustmentGateway = {
   postAdjustment: (request: AdjustmentPostRequest) =>
     invoke<AdjustmentDocumentResponse>("AdjustmentHandler", "PostAdjustment", request),
+};
+
+export const reversalGateway = {
+  postReversal: (request: ReversalPostRequest) =>
+    invoke<ReversalDocumentResponse>("ReversalHandler", "PostReversal", request),
 };
 
 export const inventoryGateway = {

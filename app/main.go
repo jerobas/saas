@@ -88,6 +88,11 @@ func main() {
 		application.SystemClock{},
 	)
 	adjustmentHandler := presentationwails.NewAdjustmentHandler(adjustmentService)
+	reversalService := application.NewReversalService(
+		application.NewSQLiteReversalStore(sqliteStore),
+		application.SystemClock{},
+	)
+	reversalHandler := presentationwails.NewReversalHandler(reversalService)
 	inventoryHandler := presentationwails.NewInventoryHandler(application.NewInventoryService(
 		application.NewSQLiteInventoryStore(sqliteStore),
 	))
@@ -109,6 +114,7 @@ func main() {
 			counterpartyHandler,
 			purchaseHandler,
 			adjustmentHandler,
+			reversalHandler,
 			inventoryHandler,
 		},
 	})

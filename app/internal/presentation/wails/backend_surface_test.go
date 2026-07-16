@@ -39,6 +39,10 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		application.NewSQLiteAdjustmentStore(store),
 		clock,
 	))
+	reversalHandler := NewReversalHandler(application.NewReversalService(
+		application.NewSQLiteReversalStore(store),
+		clock,
+	))
 	inventoryHandler := NewInventoryHandler(application.NewInventoryService(
 		application.NewSQLiteInventoryStore(store),
 	))
@@ -402,6 +406,38 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 	if adjustedBalance.QuantityAtomic != 750 || adjustedBalance.InventoryValueMicro != 3_750_000 {
 		t.Fatalf("adjusted balance = %#v", adjustedBalance)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(17_000))
+	reversal, err := reversalHandler.PostReversal(dto.ReversalPostRequest{
+		IdempotencyKey:   "reverse-waste-flour-1",
+		TargetDocumentID: adjustment.ID,
+		OccurredOn:       "2026-07-16",
+	})
+	if err != nil {
+		t.Fatalf("post reversal: %v", err)
+	}
+	if reversal.ID == 0 || reversal.PostingSequence != 3 || reversal.TargetDocumentID != adjustment.ID ||
+		reversal.ReasonCode != "EXACT_REVERSAL" || reversal.PostedAtMs != clock.now.UnixMilli() {
+		t.Fatalf("reversal = %#v", reversal)
+	}
+	if len(reversal.Lines) != 1 || reversal.Lines[0].Direction != "IN" ||
+		reversal.Lines[0].QuantityAtomic != 250 || reversal.Lines[0].InventoryValueMicro != 1_250_000 ||
+		reversal.Lines[0].ReversesLineID != adjustment.Lines[0].ID {
+		t.Fatalf("reversal lines = %#v", reversal.Lines)
+	}
+	if len(reversal.Lines[0].Allocations) != 1 ||
+		reversal.Lines[0].Allocations[0].RestoresAllocationID == nil ||
+		*reversal.Lines[0].Allocations[0].RestoresAllocationID != adjustment.Lines[0].Allocations[0].ID {
+		t.Fatalf("reversal allocations = %#v", reversal.Lines[0].Allocations)
+	}
+
+	restoredBalance, err := inventoryHandler.GetInventoryBalance(restoredItem.ID)
+	if err != nil {
+		t.Fatalf("get restored inventory balance: %v", err)
+	}
+	if restoredBalance.QuantityAtomic != 1_000 || restoredBalance.InventoryValueMicro != 5_000_000 {
+		t.Fatalf("restored balance = %#v", restoredBalance)
 	}
 }
 
