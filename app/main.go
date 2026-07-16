@@ -83,6 +83,11 @@ func main() {
 		application.SystemClock{},
 	)
 	purchaseHandler := presentationwails.NewPurchaseHandler(purchaseService)
+	adjustmentService := application.NewAdjustmentService(
+		application.NewSQLiteAdjustmentStore(sqliteStore),
+		application.SystemClock{},
+	)
+	adjustmentHandler := presentationwails.NewAdjustmentHandler(adjustmentService)
 	inventoryHandler := presentationwails.NewInventoryHandler(application.NewInventoryService(
 		application.NewSQLiteInventoryStore(sqliteStore),
 	))
@@ -103,6 +108,7 @@ func main() {
 			catalogHandler,
 			counterpartyHandler,
 			purchaseHandler,
+			adjustmentHandler,
 			inventoryHandler,
 		},
 	})

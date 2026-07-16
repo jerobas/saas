@@ -35,6 +35,10 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		application.NewSQLitePurchaseStore(store),
 		clock,
 	))
+	adjustmentHandler := NewAdjustmentHandler(application.NewAdjustmentService(
+		application.NewSQLiteAdjustmentStore(store),
+		clock,
+	))
 	inventoryHandler := NewInventoryHandler(application.NewInventoryService(
 		application.NewSQLiteInventoryStore(store),
 	))
@@ -364,6 +368,40 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 	if len(ledger.Items) != 1 || ledger.Items[0].LineID != purchase.Lines[0].ID {
 		t.Fatalf("ledger = %#v", ledger)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(16_000))
+	adjustment, err := adjustmentHandler.PostAdjustment(dto.AdjustmentPostRequest{
+		IdempotencyKey: "waste-flour-1",
+		OccurredOn:     "2026-07-16",
+		ReasonCode:     "WASTE",
+		Lines: []dto.AdjustmentLineRequest{
+			{
+				ItemID:                    restoredItem.ID,
+				Direction:                 "OUT",
+				QuantityAtomic:            250,
+				EnteredUnitCode:           "g",
+				ConversionNumeratorAtomic: 1_000,
+				ConversionDenominator:     1,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post adjustment: %v", err)
+	}
+	if adjustment.ID == 0 || adjustment.PostingSequence != 2 || adjustment.Lines[0].InventoryValueMicro != 1_250_000 {
+		t.Fatalf("adjustment = %#v", adjustment)
+	}
+	if len(adjustment.Lines[0].Allocations) != 1 || adjustment.Lines[0].Allocations[0].QuantityAtomic != 250 {
+		t.Fatalf("adjustment allocations = %#v", adjustment.Lines[0].Allocations)
+	}
+
+	adjustedBalance, err := inventoryHandler.GetInventoryBalance(restoredItem.ID)
+	if err != nil {
+		t.Fatalf("get adjusted inventory balance: %v", err)
+	}
+	if adjustedBalance.QuantityAtomic != 750 || adjustedBalance.InventoryValueMicro != 3_750_000 {
+		t.Fatalf("adjusted balance = %#v", adjustedBalance)
 	}
 }
 

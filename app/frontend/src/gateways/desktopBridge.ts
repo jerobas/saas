@@ -390,6 +390,76 @@ export interface AllocationResponse {
   expiresOn?: string | null;
 }
 
+export type AdjustmentReason =
+  | "OPENING_BALANCE"
+  | "FREE_STOCK"
+  | "PHYSICAL_COUNT"
+  | "WASTE"
+  | "EXPIRY"
+  | "DAMAGE"
+  | "SAMPLE"
+  | "DOCUMENTED_CORRECTION";
+
+export type StockDirection = "IN" | "OUT";
+
+export interface AdjustmentPostRequest {
+  idempotencyKey: string;
+  occurredOn: string;
+  reasonCode: AdjustmentReason;
+  notes?: string | null;
+  lines: AdjustmentLineRequest[];
+}
+
+export interface AdjustmentLineRequest {
+  itemId: number;
+  direction: StockDirection;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  inventoryValueMicro?: number | null;
+  lotCode?: string | null;
+  expiresOn?: string | null;
+}
+
+export interface AdjustmentDocumentResponse {
+  id: number;
+  idempotencyKey: string;
+  postingSequence: number;
+  occurredOn: string;
+  postedAtMs: number;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  reasonCode: AdjustmentReason;
+  notes?: string | null;
+  lines: AdjustmentLineResponse[];
+}
+
+export interface AdjustmentLineResponse {
+  id: number;
+  lineOrder: number;
+  itemId: number;
+  direction: StockDirection;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  inventoryValueMicro: number;
+  lotId?: number | null;
+  lotCode?: string | null;
+  originatedOn?: string | null;
+  expiresOn?: string | null;
+  allocations: AdjustmentAllocationResponse[];
+}
+
+export interface AdjustmentAllocationResponse {
+  id: number;
+  lotId: number;
+  quantityAtomic: number;
+}
+
 async function invoke<T>(service: string, method: string, ...args: unknown[]): Promise<T> {
   const bridgeMethod =
     window.go?.service?.[service]?.[method] ??
@@ -464,6 +534,11 @@ export const purchaseGateway = {
     invoke<PurchasePageResponse>("PurchaseHandler", "ListPurchases", request),
   postPurchase: (request: PurchasePostRequest) =>
     invoke<PurchaseDocumentResponse>("PurchaseHandler", "PostPurchase", request),
+};
+
+export const adjustmentGateway = {
+  postAdjustment: (request: AdjustmentPostRequest) =>
+    invoke<AdjustmentDocumentResponse>("AdjustmentHandler", "PostAdjustment", request),
 };
 
 export const inventoryGateway = {

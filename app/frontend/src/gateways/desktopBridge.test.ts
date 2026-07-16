@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  adjustmentGateway,
   catalogGateway,
   counterpartyGateway,
   inventoryGateway,
@@ -360,6 +361,60 @@ describe("desktop bridge", () => {
     expect(getPurchase).toHaveBeenCalledWith(response.id);
     expect(listPurchases).toHaveBeenCalledWith(listRequest);
     expect(postPurchase).toHaveBeenCalledWith(request);
+  });
+
+  it("forwards adjustment posting calls to the V2 adjustment handler", async () => {
+    const response = {
+      id: 41,
+      idempotencyKey: "adjustment-1",
+      postingSequence: 2,
+      occurredOn: "2026-07-16",
+      postedAtMs: 1_700_000_000_100,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      reasonCode: "WASTE" as const,
+      lines: [
+        {
+          id: 51,
+          lineOrder: 1,
+          itemId: 10,
+          direction: "OUT" as const,
+          quantityAtomic: 250,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+          inventoryValueMicro: 1_250_000,
+          allocations: [{ id: 70, lotId: 60, quantityAtomic: 250 }],
+        },
+      ],
+    };
+    const postAdjustment = vi.fn().mockResolvedValue(response);
+    window.go = {
+      service: {
+        AdjustmentHandler: {
+          PostAdjustment: postAdjustment,
+        },
+      },
+    };
+
+    const request = {
+      idempotencyKey: "adjustment-1",
+      occurredOn: "2026-07-16",
+      reasonCode: "WASTE" as const,
+      lines: [
+        {
+          itemId: 10,
+          direction: "OUT" as const,
+          quantityAtomic: 250,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+        },
+      ],
+    };
+
+    await expect(adjustmentGateway.postAdjustment(request)).resolves.toEqual(response);
+    expect(postAdjustment).toHaveBeenCalledWith(request);
   });
 
   it("forwards inventory read calls to the V2 inventory handler", async () => {
