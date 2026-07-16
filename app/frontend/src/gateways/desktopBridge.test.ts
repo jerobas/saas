@@ -8,6 +8,7 @@ import {
   referenceDataGateway,
   recipeGateway,
   reversalGateway,
+  saleGateway,
   settingsGateway,
 } from "./desktopBridge";
 
@@ -470,6 +471,61 @@ describe("desktop bridge", () => {
 
     await expect(reversalGateway.postReversal(request)).resolves.toEqual(response);
     expect(postReversal).toHaveBeenCalledWith(request);
+  });
+
+  it("forwards sale posting calls to the V2 sale handler", async () => {
+    const response = {
+      id: 43,
+      idempotencyKey: "sale-1",
+      postingSequence: 4,
+      counterpartyId: 20,
+      occurredOn: "2026-07-18",
+      postedAtMs: 1_700_000_000_300,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      lines: [
+        {
+          id: 53,
+          lineOrder: 1,
+          itemId: 10,
+          direction: "OUT" as const,
+          quantityAtomic: 20,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+          inventoryValueMicro: 600_000,
+          commercialTotalMinor: 1_000,
+          allocations: [{ id: 72, lotId: 60, quantityAtomic: 20 }],
+        },
+      ],
+    };
+    const postSale = vi.fn().mockResolvedValue(response);
+    window.go = {
+      service: {
+        SaleHandler: {
+          PostSale: postSale,
+        },
+      },
+    };
+
+    const request = {
+      idempotencyKey: "sale-1",
+      counterpartyId: 20,
+      occurredOn: "2026-07-18",
+      lines: [
+        {
+          itemId: 10,
+          quantityAtomic: 20,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+          commercialTotalMinor: 1_000,
+        },
+      ],
+    };
+
+    await expect(saleGateway.postSale(request)).resolves.toEqual(response);
+    expect(postSale).toHaveBeenCalledWith(request);
   });
 
   it("forwards recipe calls to the V2 recipe handler", async () => {
