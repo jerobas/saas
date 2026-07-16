@@ -70,6 +70,14 @@ function RecipesPage() {
     [componentItems, form.outputItemId],
   );
 
+  const catalogItemNames = useMemo(() => {
+    const names = new Map<number, string>();
+    [...outputItems, ...componentItems].forEach((item) => {
+      names.set(item.id, item.name);
+    });
+    return names;
+  }, [componentItems, outputItems]);
+
   const loadSelectedRecipe = useCallback(async (id: number) => {
     const [recipe, revisionList] = await Promise.all([
       recipeGateway.getRecipe(id),
@@ -595,7 +603,16 @@ function RecipesPage() {
                     <div key={revision.id} className="rounded-2xl border border-slate-200 p-4">
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <p className="font-semibold text-slate-950">Revisao {revision.number}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-950">
+                              Revisao {revision.number}
+                            </p>
+                            {revision.id === selectedRecipe.currentRevision.id && (
+                              <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">
+                                Atual
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-slate-600">
                             Rendimento {revision.standardYieldQuantityAtomic} · preparo{" "}
                             {revision.preparationTimeMinutes} min
@@ -603,14 +620,32 @@ function RecipesPage() {
                         </div>
                         <span className="text-xs text-slate-500">#{revision.id}</span>
                       </div>
+                      <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
+                        Revisao publicada e imutavel. Para alterar a ficha tecnica, publique uma
+                        nova revisao.
+                      </p>
                       <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
                         {revision.instructions || "Sem instrucoes."}
                       </p>
-                      <div className="mt-3 text-sm text-slate-600">
+                      <div className="mt-3 space-y-2">
                         {revision.components.map((component) => (
-                          <div key={component.id}>
-                            Item #{component.itemId}: {component.quantityAtomic}{" "}
-                            {component.enteredUnitCode}
+                          <div
+                            key={component.id}
+                            className="rounded-xl border border-slate-100 bg-white px-3 py-2 text-sm text-slate-700"
+                          >
+                            <div className="font-semibold text-slate-900">
+                              {component.order}.{" "}
+                              {catalogItemNames.get(component.itemId) ??
+                                `Item #${component.itemId}`}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {component.quantityAtomic} {component.enteredUnitCode}
+                              {component.enteredPackagingName
+                                ? ` via ${component.enteredPackagingName}`
+                                : " via unidade base"}
+                              {" · "}conversao {component.conversionNumeratorAtomic}/
+                              {component.conversionDenominator}
+                            </div>
                           </div>
                         ))}
                       </div>

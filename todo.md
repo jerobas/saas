@@ -6,8 +6,7 @@
 - [ ] Refinar Ajustes: historico minimo de documentos e atalho para reversao.
 - [ ] Melhorar Receitas: permitir multiplos componentes na UI.
 - [ ] Melhorar Receitas: permitir escolher componente por embalagem, nao so unidade base.
-- [ ] Melhorar Receitas: polir historico/editor de revisoes sem quebrar imutabilidade.
-- [x] Refinar Producao: preview simples antes de postar, mostrando consumo esperado, lotes FEFO e custo estimado.
+- [x] Melhorar Receitas: polir historico/editor de revisoes sem quebrar imutabilidade.
 - [ ] Refinar Vendas: permitir mais de uma linha/carrinho simples quando o detalhe/listagem estiver confortavel.
 
 ## Backlog adiado

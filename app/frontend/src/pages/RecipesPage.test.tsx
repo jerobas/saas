@@ -169,6 +169,9 @@ describe("RecipesPage", () => {
     });
     expect(await screen.findByText('Receita "Receita de bolo" criada.')).toBeInTheDocument();
     expect(await screen.findByText("Revisao 1")).toBeInTheDocument();
+    expect(await screen.findByText("1. Farinha")).toBeInTheDocument();
+    expect(screen.getByText("Atual")).toBeInTheDocument();
+    expect(screen.getByText(/Revisao publicada e imutavel/)).toBeInTheDocument();
   });
 
   it("renames the selected recipe through the V2 gateway", async () => {
