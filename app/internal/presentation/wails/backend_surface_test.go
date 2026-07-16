@@ -47,6 +47,10 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		application.NewSQLiteProductionStore(store),
 		clock,
 	))
+	saleHandler := NewSaleHandler(application.NewSaleService(
+		application.NewSQLiteSaleStore(store),
+		clock,
+	))
 	recipeHandler := NewRecipeHandler(application.NewRecipeService(
 		application.NewSQLiteRecipeStore(store),
 		clock,
@@ -623,6 +627,47 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	if componentBalance.QuantityAtomic != 500 || componentBalance.InventoryValueMicro != 2_500_000 ||
 		outputBalance.QuantityAtomic != 100 || outputBalance.InventoryValueMicro != 3_000_000 {
 		t.Fatalf("production balances component=%#v output=%#v", componentBalance, outputBalance)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(19_000))
+	sale, err := saleHandler.PostSale(dto.SalePostRequest{
+		IdempotencyKey: "sell-cake-1",
+		OccurredOn:     "2026-07-18",
+		Lines: []dto.SaleLineRequest{
+			{
+				ItemID:                    outputItem.ID,
+				QuantityAtomic:            20,
+				EnteredUnitCode:           "g",
+				ConversionNumeratorAtomic: 1_000,
+				ConversionDenominator:     1,
+				CommercialTotalMinor:      1_000,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post sale: %v", err)
+	}
+	if sale.ID == 0 || sale.PostingSequence != 5 || sale.PostedAtMs != clock.now.UnixMilli() ||
+		sale.ReasonCode != nil || sale.CounterpartyID != nil {
+		t.Fatalf("sale = %#v", sale)
+	}
+	if len(sale.Lines) != 1 || sale.Lines[0].Direction != "OUT" ||
+		sale.Lines[0].ItemID != outputItem.ID ||
+		sale.Lines[0].QuantityAtomic != 20 ||
+		sale.Lines[0].InventoryValueMicro != 600_000 ||
+		sale.Lines[0].CommercialTotalMinor != 1_000 {
+		t.Fatalf("sale lines = %#v", sale.Lines)
+	}
+	if len(sale.Lines[0].Allocations) != 1 || sale.Lines[0].Allocations[0].QuantityAtomic != 20 {
+		t.Fatalf("sale allocations = %#v", sale.Lines[0].Allocations)
+	}
+
+	soldOutputBalance, err := inventoryHandler.GetInventoryBalance(outputItem.ID)
+	if err != nil {
+		t.Fatalf("get output balance after sale: %v", err)
+	}
+	if soldOutputBalance.QuantityAtomic != 80 || soldOutputBalance.InventoryValueMicro != 2_400_000 {
+		t.Fatalf("sold output balance = %#v", soldOutputBalance)
 	}
 }
 

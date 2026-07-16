@@ -574,6 +574,63 @@ export interface ProductionAllocationResponse {
   quantityAtomic: number;
 }
 
+export type SaleReason = "PROMOTION" | "SAMPLE";
+
+export interface SalePostRequest {
+  idempotencyKey: string;
+  counterpartyId?: number | null;
+  occurredOn: string;
+  reasonCode?: SaleReason | null;
+  notes?: string | null;
+  lines: SaleLineRequest[];
+}
+
+export interface SaleLineRequest {
+  itemId: number;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  commercialTotalMinor: number;
+  lotId?: number | null;
+}
+
+export interface SaleDocumentResponse {
+  id: number;
+  idempotencyKey: string;
+  postingSequence: number;
+  counterpartyId?: number | null;
+  occurredOn: string;
+  postedAtMs: number;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  reasonCode?: SaleReason | null;
+  notes?: string | null;
+  lines: SaleLineResponse[];
+}
+
+export interface SaleLineResponse {
+  id: number;
+  lineOrder: number;
+  itemId: number;
+  direction: StockDirection;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  inventoryValueMicro: number;
+  commercialTotalMinor: number;
+  allocations: SaleAllocationResponse[];
+}
+
+export interface SaleAllocationResponse {
+  id: number;
+  lotId: number;
+  quantityAtomic: number;
+}
+
 export interface RecipeCursorRequest {
   name: string;
   id: number;
@@ -773,6 +830,11 @@ export const reversalGateway = {
 export const productionGateway = {
   postProduction: (request: ProductionPostRequest) =>
     invoke<ProductionDocumentResponse>("ProductionHandler", "PostProduction", request),
+};
+
+export const saleGateway = {
+  postSale: (request: SalePostRequest) =>
+    invoke<SaleDocumentResponse>("SaleHandler", "PostSale", request),
 };
 
 export const recipeGateway = {

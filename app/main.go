@@ -98,6 +98,11 @@ func main() {
 		application.SystemClock{},
 	)
 	productionHandler := presentationwails.NewProductionHandler(productionService)
+	saleService := application.NewSaleService(
+		application.NewSQLiteSaleStore(sqliteStore),
+		application.SystemClock{},
+	)
+	saleHandler := presentationwails.NewSaleHandler(saleService)
 	recipeService := application.NewRecipeService(
 		application.NewSQLiteRecipeStore(sqliteStore),
 		application.SystemClock{},
@@ -126,6 +131,7 @@ func main() {
 			adjustmentHandler,
 			reversalHandler,
 			productionHandler,
+			saleHandler,
 			recipeHandler,
 			inventoryHandler,
 		},
