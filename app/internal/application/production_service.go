@@ -284,8 +284,8 @@ func (s *ProductionService) PostProduction(ctx context.Context, input Production
 	if err != nil {
 		return ProductionDocument{}, fmt.Errorf("post production: %w", err)
 	}
-	if !document.PostedAt().Equal(postedAt) {
-		return ProductionDocument{}, domain.ErrInvariant
+	if err := ensurePostingClockCompatible(document.PostedAt(), postedAt); err != nil {
+		return ProductionDocument{}, err
 	}
 	return document, nil
 }

@@ -274,8 +274,8 @@ func (s *PurchaseService) PostPurchase(ctx context.Context, input PurchasePostIn
 	if err != nil {
 		return PurchaseDocument{}, fmt.Errorf("post purchase: %w", err)
 	}
-	if !document.PostedAt().Equal(postedAt) {
-		return PurchaseDocument{}, domain.ErrInvariant
+	if err := ensurePostingClockCompatible(document.PostedAt(), postedAt); err != nil {
+		return PurchaseDocument{}, err
 	}
 	return document, nil
 }

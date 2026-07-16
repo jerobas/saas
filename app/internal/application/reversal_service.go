@@ -248,8 +248,8 @@ func (s *ReversalService) PostReversal(ctx context.Context, input ReversalPostIn
 	if err != nil {
 		return ReversalDocument{}, fmt.Errorf("post reversal: %w", err)
 	}
-	if !document.PostedAt().Equal(postedAt) {
-		return ReversalDocument{}, domain.ErrInvariant
+	if err := ensurePostingClockCompatible(document.PostedAt(), postedAt); err != nil {
+		return ReversalDocument{}, err
 	}
 	return document, nil
 }

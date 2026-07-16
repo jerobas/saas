@@ -279,8 +279,8 @@ func (s *SaleService) PostSale(ctx context.Context, input SalePostInput) (SaleDo
 	if err != nil {
 		return SaleDocument{}, fmt.Errorf("post sale: %w", err)
 	}
-	if !document.PostedAt().Equal(postedAt) {
-		return SaleDocument{}, domain.ErrInvariant
+	if err := ensurePostingClockCompatible(document.PostedAt(), postedAt); err != nil {
+		return SaleDocument{}, err
 	}
 	return document, nil
 }

@@ -252,8 +252,8 @@ func (s *AdjustmentService) PostAdjustment(ctx context.Context, input Adjustment
 	if err != nil {
 		return AdjustmentDocument{}, fmt.Errorf("post adjustment: %w", err)
 	}
-	if !document.PostedAt().Equal(postedAt) {
-		return AdjustmentDocument{}, domain.ErrInvariant
+	if err := ensurePostingClockCompatible(document.PostedAt(), postedAt); err != nil {
+		return AdjustmentDocument{}, err
 	}
 	return document, nil
 }
