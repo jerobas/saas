@@ -207,6 +207,10 @@ describe("ProductionPage", () => {
     render(<ProductionPage />);
 
     expect(await screen.findByText("Bolo simples")).toBeInTheDocument();
+    expect(screen.getByText("Preview de producao")).toBeInTheDocument();
+    expect(screen.getByText("Custo estimado")).toBeInTheDocument();
+    expect(screen.getByText("500 atomicos esperados")).toBeInTheDocument();
+    expect(screen.getByText("FAR-1")).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Custo direto"));
     await user.type(screen.getByLabelText("Custo direto"), "0,50");
     await user.type(screen.getByLabelText("Lote saida"), "BOLO-1");

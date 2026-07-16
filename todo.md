@@ -3,12 +3,11 @@
 ## Polish de frontend
 
 - [ ] Adicionar UI minima para reversao exata de documentos.
-- [x] Refinar Compras: detalhe de documento postado com linhas/lotes/valores.
 - [ ] Refinar Ajustes: historico minimo de documentos e atalho para reversao.
 - [ ] Melhorar Receitas: permitir multiplos componentes na UI.
 - [ ] Melhorar Receitas: permitir escolher componente por embalagem, nao so unidade base.
 - [ ] Melhorar Receitas: polir historico/editor de revisoes sem quebrar imutabilidade.
-- [ ] Refinar Producao: preview simples antes de postar, mostrando consumo esperado, lotes FEFO e custo estimado.
+- [x] Refinar Producao: preview simples antes de postar, mostrando consumo esperado, lotes FEFO e custo estimado.
 - [ ] Refinar Vendas: permitir mais de uma linha/carrinho simples quando o detalhe/listagem estiver confortavel.
 
 ## Backlog adiado

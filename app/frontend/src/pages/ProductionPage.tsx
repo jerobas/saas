@@ -77,6 +77,14 @@ const formatInventoryMicro = (micro: number) =>
     currency: "BRL",
   }).format(micro / 1_000_000);
 
+const estimateInventoryValue = (
+  quantityAtomic: number,
+  balance: InventoryBalanceResponse | null,
+) => {
+  if (!balance || balance.quantityAtomic <= 0 || quantityAtomic <= 0) return 0;
+  return Math.round((balance.inventoryValueMicro * quantityAtomic) / balance.quantityAtomic);
+};
+
 const lotLabel = (lot: LotResponse) => {
   const code = lot.lotCode ? `${lot.lotCode} · ` : "";
   const expiry = lot.expiresOn ? ` · vence ${lot.expiresOn}` : "";
@@ -111,6 +119,34 @@ function ProductionPage() {
 
   const outputBalance = outputItem ? (balances[outputItem.id] ?? null) : null;
 
+  const productionPreview = useMemo(() => {
+    const directCostMicro = parseMoneyMicro(form.directCost) ?? 0;
+    const outputQuantityAtomic = parseInteger(form.outputQuantityAtomic) ?? 0;
+    const components = componentRows.map((component) => {
+      const quantityAtomic = parseInteger(component.quantityAtomic) ?? 0;
+      const selectedLotID = parseInteger(component.lotId);
+      const lot =
+        component.lots.find((current) => current.id === selectedLotID) ?? component.lots[0] ?? null;
+      return {
+        ...component,
+        quantityAtomic,
+        lot,
+        estimatedValueMicro: estimateInventoryValue(quantityAtomic, component.balance),
+      };
+    });
+    const componentValueMicro = components.reduce(
+      (acc, component) => acc + component.estimatedValueMicro,
+      0,
+    );
+    return {
+      outputQuantityAtomic,
+      directCostMicro,
+      componentValueMicro,
+      estimatedOutputValueMicro: componentValueMicro + directCostMicro,
+      components,
+    };
+  }, [componentRows, form.directCost, form.outputQuantityAtomic]);
+
   const refreshInventory = useCallback(
     async (recipe: RecipeResponse | null, occurredOn: string) => {
       if (!recipe) return;
@@ -122,16 +158,18 @@ function ProductionPage() {
 
       const [balancePairs, lotPairs] = await Promise.all([
         Promise.all(
-          uniqueItemIds.map(async (itemId) => [
-            itemId,
-            await inventoryGateway.getInventoryBalance(itemId),
-          ] as const),
+          uniqueItemIds.map(
+            async (itemId) => [itemId, await inventoryGateway.getInventoryBalance(itemId)] as const,
+          ),
         ),
         Promise.all(
-          recipe.currentRevision.components.map(async (component) => [
-            component.itemId,
-            await inventoryGateway.listEligibleFefoLots(component.itemId, occurredOn),
-          ] as const),
+          recipe.currentRevision.components.map(
+            async (component) =>
+              [
+                component.itemId,
+                await inventoryGateway.listEligibleFefoLots(component.itemId, occurredOn),
+              ] as const,
+          ),
         ),
       ]);
 
@@ -146,10 +184,10 @@ function ProductionPage() {
       const recipe = await recipeGateway.getRecipe(recipeId);
       const output = await catalogGateway.getItem(recipe.outputItemId);
       const componentPairs = await Promise.all(
-        recipe.currentRevision.components.map(async (component) => [
-          component.itemId,
-          await catalogGateway.getItem(component.itemId),
-        ] as const),
+        recipe.currentRevision.components.map(
+          async (component) =>
+            [component.itemId, await catalogGateway.getItem(component.itemId)] as const,
+        ),
       );
 
       setSelectedRecipe(recipe);
@@ -178,7 +216,10 @@ function ProductionPage() {
     setLoading(true);
     setMessage(null);
     try {
-      const recipePage = await recipeGateway.listRecipes({ archiveFilter: "ACTIVE", pageSize: 100 });
+      const recipePage = await recipeGateway.listRecipes({
+        archiveFilter: "ACTIVE",
+        pageSize: 100,
+      });
       setRecipes(recipePage.items);
       const firstRecipe = recipePage.items[0];
       if (firstRecipe) {
@@ -347,7 +388,7 @@ function ProductionPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-950">Nova producao</h2>
-              <p className="text-sm text-slate-500">Sem preview sofisticado por enquanto.</p>
+              <p className="text-sm text-slate-500">Preview simples antes da postagem.</p>
             </div>
           </div>
 
@@ -452,7 +493,9 @@ function ProductionPage() {
               <span className="mb-1 block text-sm font-semibold text-slate-700">Notas</span>
               <textarea
                 value={form.notes}
-                onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, notes: event.target.value }))
+                }
                 className="min-h-20 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
@@ -501,6 +544,72 @@ function ProductionPage() {
             )}
           </section>
 
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-950">Preview de producao</h2>
+            {!selectedRecipe || !outputItem ? (
+              <p className="mt-4 text-sm text-slate-500">
+                Selecione uma receita para calcular o preview.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase text-slate-500">Yield alvo</p>
+                    <p className="mt-1 font-semibold text-slate-950">
+                      {productionPreview.outputQuantityAtomic} atomicos
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      Custo componentes
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-950">
+                      {formatInventoryMicro(productionPreview.componentValueMicro)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase text-slate-500">Custo estimado</p>
+                    <p className="mt-1 font-semibold text-slate-950">
+                      {formatInventoryMicro(productionPreview.estimatedOutputValueMicro)}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      inclui direto {formatInventoryMicro(productionPreview.directCostMicro)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+                  {productionPreview.components.length === 0 ? (
+                    <p className="p-4 text-sm text-slate-500">Nenhum insumo no preview.</p>
+                  ) : (
+                    productionPreview.components.map((component) => (
+                      <div key={component.itemId} className="grid gap-2 p-4 md:grid-cols-3">
+                        <div>
+                          <p className="font-semibold text-slate-950">
+                            {component.item?.name ?? `Item #${component.itemId}`}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            {component.quantityAtomic} atomicos esperados
+                          </p>
+                        </div>
+                        <p className="text-sm text-slate-700">
+                          FEFO sugerido:{" "}
+                          <strong>
+                            {component.lot?.lotCode ?? `lote #${component.lot?.id ?? "-"}`}
+                          </strong>
+                        </p>
+                        <p className="text-sm text-slate-700">
+                          valor estimado:{" "}
+                          <strong>{formatInventoryMicro(component.estimatedValueMicro)}</strong>
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
           <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 p-6">
               <h2 className="text-xl font-bold text-slate-950">Consumo real</h2>
@@ -514,7 +623,10 @@ function ProductionPage() {
                 <p className="p-6 text-sm text-slate-500">Nenhum componente carregado.</p>
               ) : (
                 componentRows.map((component) => (
-                  <div key={component.itemId} className="grid gap-4 p-6 lg:grid-cols-[1fr_160px_260px]">
+                  <div
+                    key={component.itemId}
+                    className="grid gap-4 p-6 lg:grid-cols-[1fr_160px_260px]"
+                  >
                     <div>
                       <p className="font-semibold text-slate-950">
                         {component.item?.name ?? `Item #${component.itemId}`}
