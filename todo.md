@@ -10,7 +10,7 @@
 - [ ] Melhorar Receitas: permitir escolher componente por embalagem, nao so unidade base.
 - [ ] Melhorar Receitas: polir historico/editor de revisoes sem quebrar imutabilidade.
 - [ ] Refinar Producao: preview simples antes de postar, mostrando consumo esperado, lotes FEFO e custo estimado.
-- [ ] Refinar Vendas: detalhe de venda postada com alocacoes/lotes consumidos.
+- [x] Refinar Vendas: detalhe de venda postada com alocacoes/lotes consumidos.
 - [ ] Refinar Vendas: permitir mais de uma linha/carrinho simples quando o detalhe/listagem estiver confortavel.
 
 ## Backlog adiado
@@ -25,7 +25,3 @@
 - A UI de vendas pertence a Phase 5.6: vendas, alocacao de saida, custo da mercadoria e saldos.
 - Phase 5.7 e 5.8 existem, mas ficam adiadas por enquanto; o foco imediato e refinar as verticais ja implementadas.
 - A Phase 7 vem depois e cobre durabilidade/release: validacao de backup/restore, replay de projecoes, smoke test empacotado e builds reproduziveis.
-
-## Durabilidade / idempotencia
-
-- [x] Revisar services de posting para permitir replay idempotente quando o documento existente foi postado em um instante anterior ao relogio atual.

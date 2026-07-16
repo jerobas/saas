@@ -1,5 +1,5 @@
 import { ArrowClockwise, ShoppingCart, Tag } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   catalogGateway,
   counterpartyGateway,
@@ -688,34 +688,92 @@ function SalesPage() {
                         0,
                       );
                       return (
-                        <tr key={sale.id} className="hover:bg-slate-50">
-                          <td className="px-6 py-4">
-                            <p className="font-semibold text-slate-950">{saleLabel(sale)}</p>
-                            <p className="text-xs text-slate-500">{sale.idempotencyKey}</p>
-                          </td>
-                          <td className="px-6 py-4 text-slate-700">{sale.occurredOn}</td>
-                          <td className="px-6 py-4 text-slate-700">
-                            {sale.counterpartyId == null
-                              ? "Sem cliente"
-                              : (customerNames.get(sale.counterpartyId) ??
-                                `cliente #${sale.counterpartyId}`)}
-                          </td>
-                          <td className="px-6 py-4 text-slate-700">
-                            {sale.lines.map((line) => (
-                              <div key={line.id}>
-                                {itemNames.get(line.itemId) ?? `item #${line.itemId}`}:{" "}
-                                {line.quantityAtomic} {line.enteredUnitCode}
+                        <Fragment key={sale.id}>
+                          <tr className="hover:bg-slate-50">
+                            <td className="px-6 py-4">
+                              <p className="font-semibold text-slate-950">{saleLabel(sale)}</p>
+                              <p className="text-xs text-slate-500">{sale.idempotencyKey}</p>
+                            </td>
+                            <td className="px-6 py-4 text-slate-700">{sale.occurredOn}</td>
+                            <td className="px-6 py-4 text-slate-700">
+                              {sale.counterpartyId == null
+                                ? "Sem cliente"
+                                : (customerNames.get(sale.counterpartyId) ??
+                                  `cliente #${sale.counterpartyId}`)}
+                            </td>
+                            <td className="px-6 py-4 text-slate-700">
+                              {sale.lines.map((line) => (
+                                <div key={line.id}>
+                                  {itemNames.get(line.itemId) ?? `item #${line.itemId}`}:{" "}
+                                  {line.quantityAtomic} {line.enteredUnitCode}
+                                </div>
+                              ))}
+                            </td>
+                            <td className="px-6 py-4 font-semibold text-slate-900">
+                              {formatMoneyMinor(revenue)}
+                            </td>
+                            <td className="px-6 py-4 font-semibold text-slate-900">
+                              {formatInventoryMicro(cogs)}
+                            </td>
+                            <td className="px-6 py-4 text-slate-700">{sale.reasonCode ?? "-"}</td>
+                          </tr>
+                          <tr className="bg-slate-50/70">
+                            <td colSpan={7} className="px-6 pb-5 pt-0">
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                  Detalhe da venda: alocacoes e custo
+                                </p>
+                                <div className="mt-3 space-y-3">
+                                  {sale.lines.map((line) => (
+                                    <div
+                                      key={line.id}
+                                      className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-[1fr_1fr_1fr]"
+                                    >
+                                      <div>
+                                        <p className="font-semibold text-slate-900">
+                                          {itemNames.get(line.itemId) ?? `item #${line.itemId}`}
+                                        </p>
+                                        <p className="text-xs text-slate-500">
+                                          linha #{line.id} · {line.quantityAtomic}{" "}
+                                          {line.enteredUnitCode}
+                                        </p>
+                                      </div>
+                                      <div className="text-sm text-slate-700">
+                                        <p>
+                                          Receita:{" "}
+                                          <strong>
+                                            {formatMoneyMinor(line.commercialTotalMinor)}
+                                          </strong>
+                                        </p>
+                                        <p>
+                                          COGS:{" "}
+                                          <strong>
+                                            {formatInventoryMicro(line.inventoryValueMicro)}
+                                          </strong>
+                                        </p>
+                                      </div>
+                                      <div className="text-sm text-slate-700">
+                                        <p className="font-semibold text-slate-900">
+                                          Lotes consumidos
+                                        </p>
+                                        {line.allocations.length === 0 ? (
+                                          <p className="text-slate-500">Sem alocacoes.</p>
+                                        ) : (
+                                          line.allocations.map((allocation) => (
+                                            <p key={allocation.id}>
+                                              lote #{allocation.lotId}:{" "}
+                                              <strong>{allocation.quantityAtomic}</strong> atomicos
+                                            </p>
+                                          ))
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            ))}
-                          </td>
-                          <td className="px-6 py-4 font-semibold text-slate-900">
-                            {formatMoneyMinor(revenue)}
-                          </td>
-                          <td className="px-6 py-4 font-semibold text-slate-900">
-                            {formatInventoryMicro(cogs)}
-                          </td>
-                          <td className="px-6 py-4 text-slate-700">{sale.reasonCode ?? "-"}</td>
-                        </tr>
+                            </td>
+                          </tr>
+                        </Fragment>
                       );
                     })}
                   </tbody>

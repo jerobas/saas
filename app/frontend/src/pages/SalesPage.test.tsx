@@ -176,6 +176,9 @@ describe("SalesPage", () => {
     );
     expect(await screen.findByText("#90 / seq 3")).toBeInTheDocument();
     expect(screen.getByText("2026-07-18")).toBeInTheDocument();
+    expect(screen.getByText("Detalhe da venda: alocacoes e custo")).toBeInTheDocument();
+    expect(screen.getByText("Lotes consumidos")).toBeInTheDocument();
+    expect(screen.getByText(/lote #30:/)).toBeInTheDocument();
     expect(gatewayMocks.saleGateway.listSales).toHaveBeenCalledWith({ pageSize: 25 });
     expect(gatewayMocks.inventoryGateway.listEligibleFefoLots).toHaveBeenCalledTimes(2);
     expect(gatewayMocks.inventoryGateway.getInventoryBalance).toHaveBeenCalledTimes(2);
