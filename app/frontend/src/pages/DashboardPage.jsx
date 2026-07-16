@@ -1,378 +1,70 @@
 import { motion } from "motion/react";
-import { useState } from "react";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import { ArrowUpRight, Package, ShoppingCart, CurrencyDollar } from "@phosphor-icons/react";
+import { ChartBar, Database, Package, ShoppingCart } from "@phosphor-icons/react";
 
-const DashboardPage = () => {
-  const [activeTab, setActiveTab] = useState("overview");
-  // Dados fake para vendas mensais
-  const salesdData = [
-    { month: "Jan", sales: 4000, revenue: 2400 },
-    { month: "Fev", sales: 3000, revenue: 1398 },
-    { month: "Mar", sales: 2000, revenue: 9800 },
-    { month: "Abr", sales: 2780, revenue: 3908 },
-    { month: "Mai", sales: 1890, revenue: 4800 },
-    { month: "Jun", sales: 2390, revenue: 3800 },
-  ];
+const nextSlices = [
+  {
+    icon: <ShoppingCart size={24} />,
+    title: "Compras",
+    description: "Próximo fluxo operacional: postar compras e criar lotes de entrada.",
+  },
+  {
+    icon: <Package size={24} />,
+    title: "Estoque",
+    description: "Saldos e lotes já leem o backend V2; falta a tela de lançamento.",
+  },
+  {
+    icon: <ChartBar size={24} />,
+    title: "Relatórios",
+    description: "Dashboard real depende das consultas de vendas, produção e inventário.",
+  },
+];
 
-  // Dados fake para produtos mais vendidos
-  const topProductsData = [
-    { name: "Bolo de Chocolate", sales: 450 },
-    { name: "Brigadeiro", sales: 380 },
-    { name: "Mousse", sales: 320 },
-    { name: "Torta de Morango", sales: 290 },
-    { name: "Docinhos", sales: 250 },
-  ];
-
-  // Dados fake para distribuição de vendas por categoria
-  const categoriesData = [
-    { name: "Bolos", value: 35 },
-    { name: "Doces", value: 25 },
-    { name: "Tortas", value: 20 },
-    { name: "Outros", value: 20 },
-  ];
-
-  const COLORS = ["#ec4899", "#f472b6", "#fbcfe8", "#fce7f3"];
-
-  // Métricas do topo
-  const metrics = [
-    {
-      title: "Receita Total",
-      value: "R$ 24.500",
-      icon: <CurrencyDollar size={32} />,
-      color: "bg-green-100",
-      textColor: "text-green-600",
-    },
-    {
-      title: "Vendas",
-      value: "1.850",
-      icon: <ShoppingCart size={32} />,
-      color: "bg-blue-100",
-      textColor: "text-blue-600",
-    },
-    {
-      title: "Produtos",
-      value: "45",
-      icon: <Package size={32} />,
-      color: "bg-purple-100",
-      textColor: "text-purple-600",
-    },
-    {
-      title: "Crescimento",
-      value: "+12.5%",
-      icon: <ArrowUpRight size={32} />,
-      color: "bg-orange-100",
-      textColor: "text-orange-600",
-    },
-  ];
-
-  return (
-    <>
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <h1 className="text-3xl font-bold text-slate-900">Painel</h1>
-          <p className="text-slate-600 mt-2">
-            Bem-vindo de volta! Aqui está um resumo do seu negócio.
-          </p>
-        </div>
-      </header>
-
-      {/* Tab Navigation */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-8">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`py-4 px-2 border-b-2 font-semibold transition-all ${
-                activeTab === "overview"
-                  ? "border-pink-600 text-pink-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Visão Geral
-            </button>
-            <button
-              onClick={() => setActiveTab("revenue")}
-              className={`py-4 px-2 border-b-2 font-semibold transition-all ${
-                activeTab === "revenue"
-                  ? "border-pink-600 text-pink-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Receita
-            </button>
-            <button
-              onClick={() => setActiveTab("sales")}
-              className={`py-4 px-2 border-b-2 font-semibold transition-all ${
-                activeTab === "sales"
-                  ? "border-pink-600 text-pink-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Vendas
-            </button>
-            <button
-              onClick={() => setActiveTab("products")}
-              className={`py-4 px-2 border-b-2 font-semibold transition-all ${
-                activeTab === "products"
-                  ? "border-pink-600 text-pink-600"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Produtos
-            </button>
-          </div>
-        </div>
+const DashboardPage = () => (
+  <>
+    <header className="border-b border-slate-200 bg-white">
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <h1 className="text-3xl font-bold text-slate-900">Painel</h1>
+        <p className="mt-2 text-slate-600">
+          O dashboard fake foi removido. Esta área volta quando existirem consultas V2 reais.
+        </p>
       </div>
+    </header>
 
-      {/* Tab Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Overview Tab */}
-        {activeTab === "overview" && (
-          <motion.div
+    <main className="mx-auto max-w-7xl px-6 py-8">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 rounded-2xl border border-slate-100 bg-white p-8 shadow-sm"
+      >
+        <div className="mb-4 inline-flex rounded-full bg-pink-50 p-3 text-pink-600">
+          <Database size={28} />
+        </div>
+        <h2 className="text-2xl font-semibold text-slate-900">Fonte de verdade: V2 local</h2>
+        <p className="mt-3 max-w-3xl text-slate-600">
+          Settings, unidades, catálogo, embalagens, contrapartes, saldos e lotes já passam pelo
+          SQLite local e handlers Wails V2. O painel precisa esperar as próximas consultas reais em
+          vez de exibir números inventados.
+        </p>
+      </motion.section>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        {nextSlices.map((slice) => (
+          <motion.article
+            key={slice.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
+            className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
           >
-            {/* Métricas do Topo */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-            >
-              {metrics.map((metric, i) => (
-                <motion.div
-                  key={i}
-                  whileHover={{ scale: 1.05 }}
-                  className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`${metric.color} rounded-xl p-3`}>
-                      <div className={metric.textColor}>{metric.icon}</div>
-                    </div>
-                  </div>
-                  <h3 className="text-slate-600 text-sm font-medium">{metric.title}</h3>
-                  <p className="text-2xl font-bold text-slate-900 mt-2">{metric.value}</p>
-                </motion.div>
-              ))}
-            </motion.div>
-
-            {/* Gráficos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Gráfico de Vendas */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm"
-              >
-                <h2 className="text-xl font-bold text-slate-900 mb-6">Vendas e Receita</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={salesdData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#1e293b",
-                        border: "none",
-                        borderRadius: "8px",
-                        color: "#fff",
-                      }}
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="sales"
-                      stroke="#ec4899"
-                      strokeWidth={2}
-                      dot={{ fill: "#ec4899" }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      dot={{ fill: "#8b5cf6" }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </motion.div>
-
-              {/* Gráfico de Categorias */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm"
-              >
-                <h2 className="text-xl font-bold text-slate-900 mb-6">Categorias</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={categoriesData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name} ${value}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoriesData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `${value}%`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </motion.div>
+            <div className="mb-4 inline-flex rounded-full bg-slate-100 p-3 text-slate-700">
+              {slice.icon}
             </div>
-
-            {/* Produtos Mais Vendidos */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm"
-            >
-              <h2 className="text-xl font-bold text-slate-900 mb-6">Produtos Mais Vendidos</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topProductsData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      border: "none",
-                      borderRadius: "8px",
-                      color: "#fff",
-                    }}
-                  />
-                  <Bar dataKey="sales" fill="#ec4899" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Revenue Tab */}
-        {activeTab === "revenue" && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
-          >
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Receita Mensal</h2>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={salesdData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="month" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      border: "none",
-                      borderRadius: "8px",
-                      color: "#fff",
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    dot={{ fill: "#10b981", r: 6 }}
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Sales Tab */}
-        {activeTab === "sales" && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
-          >
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Vendas Mensais</h2>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={salesdData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="month" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      border: "none",
-                      borderRadius: "8px",
-                      color: "#fff",
-                    }}
-                  />
-                  <Bar dataKey="sales" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Products Tab */}
-        {activeTab === "products" && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
-          >
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                Top 5 Produtos Mais Vendidos
-              </h2>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={topProductsData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" stroke="#94a3b8" />
-                  <YAxis dataKey="name" type="category" stroke="#94a3b8" width={150} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      border: "none",
-                      borderRadius: "8px",
-                      color: "#fff",
-                    }}
-                  />
-                  <Bar dataKey="sales" fill="#a855f7" radius={[0, 8, 8, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-        )}
-      </main>
-    </>
-  );
-};
+            <h3 className="text-lg font-semibold text-slate-900">{slice.title}</h3>
+            <p className="mt-2 text-sm text-slate-600">{slice.description}</p>
+          </motion.article>
+        ))}
+      </div>
+    </main>
+  </>
+);
 
 export default DashboardPage;

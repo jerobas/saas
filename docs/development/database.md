@@ -25,9 +25,8 @@ environment variable is set.
 
 Database files, WAL sidecars, exports, and preserved development copies match
 the repository's ignore rules and must not be committed. The pre-baseline file
-found during Phase 3 was copied to
-`app/database/app.pre-v2-20260714.db`. It contained no business rows and is
-retained only for diagnosis, not as a supported import source.
+found during Phase 3 contained no business rows and has been removed from the
+repository; it is not a supported import source.
 
 ## Startup contract
 

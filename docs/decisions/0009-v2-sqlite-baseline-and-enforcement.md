@@ -101,9 +101,9 @@ stores and use cases are rebuilt against this schema in bottom-up order.
 
 ### Backup and restore
 
-The ignored development database is preserved as
-`app/database/app.pre-v2-20260714.db` before the reset. It is a diagnostic
-backup, not a supported V2 import fixture.
+The discovered development database had no business rows and was not retained
+as a V2 import fixture. Local database files are runtime artifacts and must stay
+outside version control.
 
 Consistent export may remain available. Restore/import is disabled during this
 phase because replacing the file beneath live `*sql.DB` users can leave closed

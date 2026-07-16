@@ -1,491 +1,259 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Plus, Trash, Warning } from "@phosphor-icons/react";
-import { CreateItem, DeleteItem, GetAllItems, GetBatchesByItem } from "../gateways/desktopBridge";
+import { ArrowsClockwise, Package, Warning } from "@phosphor-icons/react";
+import { inventoryGateway } from "../gateways/desktopBridge";
+
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+const integerFormatter = new Intl.NumberFormat("pt-BR");
+
+const formatQuantity = (quantityAtomic, unitCode) =>
+  `${integerFormatter.format(quantityAtomic)} ${unitCode}`;
+
+const formatInventoryValue = (valueMicro) => currencyFormatter.format(valueMicro / 1_000_000);
+
+const capabilityLabels = {
+  purchasable: "Compra",
+  producible: "Produção",
+  sellable: "Venda",
+};
+
+const activeCapabilities = (capabilities) =>
+  Object.entries(capabilityLabels).filter(([key]) => capabilities?.[key]);
 
 const InventoryPage = () => {
-  const [ingredientsWithStock, setIngredientsWithStock] = useState([]);
+  const [balances, setBalances] = useState([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [newItem, setNewItem] = useState({
-    name: "",
-    unit: "kg",
-    minStock: "0",
-  });
 
-  const loadIngredients = useCallback(async () => {
+  const loadBalances = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const items = await GetAllItems();
-
-      // Buscar estoque de cada item
-      const itemsWithStock = await Promise.all(
-        (items || []).map(async (item) => {
-          const batches = await GetBatchesByItem(item.id);
-          const totalStock = batches.reduce((acc, batch) => acc + batch.quantity_remaining, 0);
-          const avgPrice =
-            batches.length > 0
-              ? batches.reduce((acc, batch) => acc + batch.unit_price, 0) / batches.length
-              : 0;
-
-          return {
-            ...item,
-            currentStock: totalStock,
-            avgPrice: avgPrice,
-            totalValue: totalStock * avgPrice,
-            isLowStock: totalStock <= item.min_stock_alert,
-          };
-        }),
-      );
-
-      setIngredientsWithStock(itemsWithStock);
+      const page = await inventoryGateway.listInventoryBalances({
+        includeArchived: false,
+        search: search.trim() ? search.trim() : null,
+        pageSize: 100,
+      });
+      setBalances(page.items ?? []);
     } catch (err) {
-      console.error("Erro ao carregar ingredientes:", err);
-      setError("Erro ao carregar ingredientes. Tente novamente.");
+      console.error("Erro ao carregar saldos de estoque:", err);
+      setError(err.message || "Erro ao carregar saldos de estoque.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search]);
 
   useEffect(() => {
-    void loadIngredients();
-  }, [loadIngredients]);
+    void loadBalances();
+  }, [loadBalances]);
 
-  const addIngredient = async (ingredient) => {
-    try {
-      setError(null);
+  const totals = useMemo(() => {
+    const inventoryValueMicro = balances.reduce((acc, item) => acc + item.inventoryValueMicro, 0);
+    const lowStockItems = balances.filter(
+      (item) =>
+        item.reorderQuantityAtomic != null && item.quantityAtomic <= item.reorderQuantityAtomic,
+    ).length;
 
-      const item = await CreateItem(ingredient.name, ingredient.unit, ingredient.minStock);
-
-      if (!item) {
-        throw new Error("Falha ao criar item");
-      }
-
-      await loadIngredients();
-      return true;
-    } catch (err) {
-      console.error("Erro ao adicionar ingrediente:", err);
-      setError(err.message || "Erro ao adicionar ingrediente. Tente novamente.");
-      return false;
-    }
-  };
-
-  const deleteIngredient = async (id) => {
-    try {
-      setError(null);
-      await DeleteItem(id);
-      await loadIngredients();
-      return true;
-    } catch (err) {
-      console.error("Erro ao deletar ingrediente:", err);
-      setError("Erro ao deletar ingrediente. Tente novamente.");
-      return false;
-    }
-  };
-
-  const handleAddItem = async () => {
-    if (isSubmitting) return;
-
-    if (newItem.name) {
-      setIsSubmitting(true);
-
-      const success = await addIngredient({
-        name: newItem.name,
-        unit: newItem.unit,
-        minStock: parseFloat(newItem.minStock) || 0,
-      });
-
-      if (success) {
-        setNewItem({ name: "", unit: "kg", minStock: "0" });
-        setOpenDialog(false);
-      }
-
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteItem = async (id) => {
-    if (loading) return;
-    setDeleteConfirmId(id);
-  };
-
-  const confirmDelete = async () => {
-    if (deleteConfirmId && !loading) {
-      await deleteIngredient(deleteConfirmId);
-      setDeleteConfirmId(null);
-    }
-  };
-
-  const totalInventoryValue = ingredientsWithStock.reduce((acc, item) => acc + item.totalValue, 0);
-  const lowStockItems = ingredientsWithStock.filter((item) => item.isLowStock).length;
+    return {
+      inventoryValueMicro,
+      lowStockItems,
+    };
+  }, [balances]);
 
   return (
     <>
-      {/* Loading Overlay */}
-      {(loading || isSubmitting) && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 flex items-center justify-center z-[60] backdrop-blur-md"
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 border-4 border-pink-200 border-t-pink-600 rounded-full"
-            />
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-slate-900">
-                {isSubmitting ? "Salvando ingrediente..." : "Carregando estoque..."}
-              </h3>
-              <p className="text-sm text-slate-600 mt-1">Por favor aguarde</p>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmId && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-md"
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl"
-          >
-            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-6">
-              <Trash size={24} className="text-red-600" />
-            </div>
-
-            <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">
-              Deletar Ingrediente?
-            </h2>
-
-            <p className="text-slate-600 text-center mb-6">
-              Tem certeza que deseja remover este ingrediente do estoque? Esta ação não pode ser
-              desfeita.
-            </p>
-
-            <div className="flex gap-4">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                disabled={loading}
-                className="flex-1 px-4 py-3 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-all disabled:bg-slate-50 disabled:cursor-not-allowed font-medium"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={loading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                    />
-                    Deletando...
-                  </>
-                ) : (
-                  "Sim, Deletar"
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Ingredientes</h1>
-              <p className="text-slate-600 mt-2">Gerencie seu estoque de ingredientes</p>
+              <h1 className="text-3xl font-bold text-slate-900">Estoque</h1>
+              <p className="text-slate-600 mt-2">
+                Saldos reais do inventário V2, calculados a partir do ledger local.
+              </p>
             </div>
             <button
-              onClick={() => setOpenDialog(true)}
-              disabled={loading || isSubmitting}
-              className="flex items-center gap-2 bg-pink-600 text-white px-6 py-3 rounded-lg hover:bg-pink-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed"
+              onClick={() => void loadBalances()}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-pink-600 px-5 py-3 text-white transition-all hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              <Plus size={20} />
-              Novo Ingrediente
+              <ArrowsClockwise size={20} className={loading ? "animate-spin" : ""} />
+              Atualizar
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Error Message */}
+        <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+          O cadastro de itens fica em <strong>Produtos</strong>. Entrada de estoque será feita pelo
+          fluxo de <strong>compras/postagem</strong>; esta tela agora apenas lê os saldos V2 reais.
+        </div>
+
         {error && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-6"
+            className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
           >
             <span>{error}</span>
             <button
               onClick={() => setError(null)}
               className="ml-auto text-red-600 hover:text-red-800"
             >
-              ✕
+              ×
             </button>
           </motion.div>
         )}
 
-        {/* Summary Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+          className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3"
         >
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 className="text-slate-600 text-sm font-medium">Total de Ingredientes</h3>
-            <p className="text-3xl font-bold text-slate-900 mt-2">{ingredientsWithStock.length}</p>
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h3 className="text-sm font-medium text-slate-600">Itens com saldo</h3>
+            <p className="mt-2 text-3xl font-bold text-slate-900">{balances.length}</p>
           </div>
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 className="text-slate-600 text-sm font-medium">Valor Total em Estoque</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">
-              {new Intl.NumberFormat("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              }).format(totalInventoryValue)}
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h3 className="text-sm font-medium text-slate-600">Valor em estoque</h3>
+            <p className="mt-2 text-3xl font-bold text-green-600">
+              {formatInventoryValue(totals.inventoryValueMicro)}
             </p>
           </div>
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 className="text-slate-600 text-sm font-medium">Custo Médio</h3>
-            <p className="text-3xl font-bold text-blue-600 mt-2">
-              {new Intl.NumberFormat("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              }).format(
-                ingredientsWithStock.length > 0
-                  ? totalInventoryValue / ingredientsWithStock.length
-                  : 0,
-              )}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-2">
               <Warning size={20} className="text-orange-600" />
-              <h3 className="text-slate-600 text-sm font-medium">Estoque Baixo</h3>
+              <h3 className="text-sm font-medium text-slate-600">Abaixo do ponto de reposição</h3>
             </div>
-            <p className="text-3xl font-bold text-orange-600 mt-2">{lowStockItems}</p>
+            <p className="mt-2 text-3xl font-bold text-orange-600">{totals.lowStockItems}</p>
           </div>
         </motion.div>
 
-        {/* Items Table */}
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:flex-row md:items-center">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar item..."
+            className="min-w-0 flex-1 rounded-lg border border-slate-300 px-4 py-2 outline-none transition focus:border-pink-500 focus:ring-2 focus:ring-pink-100"
+          />
+          <button
+            onClick={() => void loadBalances()}
+            disabled={loading}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+          >
+            Buscar
+          </button>
+        </div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
+          className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
         >
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="border-b border-slate-200 bg-slate-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Nome</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Item</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Estoque Atual
+                    Saldo atual
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Preço Médio
+                    Valor
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Valor Total
+                    Reposição
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Estoque Mínimo
+                    Capacidades
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Status
+                    Último documento
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Ação</th>
                 </tr>
               </thead>
               <tbody>
-                {ingredientsWithStock.length === 0 ? (
+                {loading ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
-                      Nenhum ingrediente cadastrado. Clique em "Novo Ingrediente" para começar.
+                    <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                      Carregando saldos...
+                    </td>
+                  </tr>
+                ) : balances.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                      <Package size={32} className="mx-auto mb-3 text-slate-400" />
+                      Nenhum saldo de estoque encontrado.
                     </td>
                   </tr>
                 ) : (
-                  ingredientsWithStock.map((item) => (
-                    <tr
-                      key={item.id}
-                      className={`border-b border-slate-100 hover:bg-slate-50 ${
-                        item.isLowStock ? "bg-orange-50" : ""
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-sm text-slate-900 font-medium">{item.name}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        {item.currentStock.toFixed(3)} {item.unit}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        {new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(item.avgPrice)}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                        {new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(item.totalValue)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        {parseFloat(item.min_stock_alert).toFixed(3)} {item.unit}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {item.isLowStock ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                            <Warning size={14} />
-                            Baixo
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                            OK
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="text-red-600 hover:text-red-700 disabled:text-slate-300 disabled:cursor-not-allowed transition-colors"
-                          disabled={loading || isSubmitting}
-                          title="Deletar ingrediente"
-                        >
-                          <Trash size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  balances.map((item) => {
+                    const lowStock =
+                      item.reorderQuantityAtomic != null &&
+                      item.quantityAtomic <= item.reorderQuantityAtomic;
+                    const capabilities = activeCapabilities(item.capabilities);
+
+                    return (
+                      <tr
+                        key={item.itemId}
+                        className={`border-b border-slate-100 hover:bg-slate-50 ${
+                          lowStock ? "bg-orange-50" : ""
+                        }`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-slate-900">{item.itemName}</div>
+                          <div className="text-xs text-slate-500">#{item.itemId}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          {formatQuantity(item.quantityAtomic, item.baseUnitCode)}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                          {formatInventoryValue(item.inventoryValueMicro)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          {item.reorderQuantityAtomic == null ? (
+                            <span className="text-slate-400">Não definido</span>
+                          ) : (
+                            formatQuantity(item.reorderQuantityAtomic, item.baseUnitCode)
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-2">
+                            {capabilities.length === 0 ? (
+                              <span className="text-sm text-slate-400">Nenhuma</span>
+                            ) : (
+                              capabilities.map(([key, label]) => (
+                                <span
+                                  key={key}
+                                  className="rounded-full bg-pink-50 px-2 py-1 text-xs font-medium text-pink-700"
+                                >
+                                  {label}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          {item.lastDocumentId == null ? (
+                            <span className="text-slate-400">Nenhum</span>
+                          ) : (
+                            `#${item.lastDocumentId}`
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
         </motion.div>
-
-        {/* Add Item Dialog */}
-        {openDialog && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-md">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl"
-            >
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Adicionar Ingrediente</h2>
-
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-6"
-                >
-                  <span>{error}</span>
-                </motion.div>
-              )}
-
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Nome</label>
-                  <input
-                    type="text"
-                    value={newItem.name}
-                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
-                    placeholder="Ex: Farinha de Trigo"
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Unidade</label>
-                  <select
-                    value={newItem.unit}
-                    onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
-                    disabled={isSubmitting}
-                  >
-                    <option value="kg">Quilograma (kg)</option>
-                    <option value="g">Grama (g)</option>
-                    <option value="l">Litro (l)</option>
-                    <option value="ml">Mililitro (ml)</option>
-                    <option value="dz">Dúzia (dz)</option>
-                    <option value="un">Unidade (un)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Estoque Mínimo
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={newItem.minStock}
-                    onChange={(e) => setNewItem({ ...newItem, minStock: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
-                    placeholder="0"
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    💡 <strong>Dica:</strong> Após criar o ingrediente, vá para a página de{" "}
-                    <strong>Lotes</strong> para adicionar o estoque inicial.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  onClick={() => {
-                    setOpenDialog(false);
-                    setError(null);
-                  }}
-                  className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-all disabled:bg-slate-50 disabled:cursor-not-allowed"
-                  disabled={isSubmitting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleAddItem}
-                  disabled={isSubmitting || loading || !newItem.name.trim()}
-                  className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isSubmitting || loading ? (
-                    <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                      />
-                      Salvando...
-                    </>
-                  ) : (
-                    "Adicionar"
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
       </main>
     </>
   );

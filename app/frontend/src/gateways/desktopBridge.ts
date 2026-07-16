@@ -13,31 +13,6 @@ declare global {
   }
 }
 
-export interface LegacyItem {
-  id: string;
-  name: string;
-  unit: string;
-  min_stock_alert: number;
-}
-
-export interface LegacyBatch {
-  id: string;
-  item_id: string;
-  quantity_remaining: number;
-  unit_price: number;
-}
-
-export interface LegacyRecipeIngredientInput {
-  item_id: string;
-  quantity: number;
-}
-
-export interface LegacyRecipe {
-  id: string;
-  name: string;
-  ingredients?: LegacyRecipeIngredientInput[];
-}
-
 export type ArchiveFilter = "ACTIVE" | "ARCHIVED" | "ALL";
 export type CounterpartyRole = "SUPPLIER" | "CUSTOMER";
 export type MeasurementDimension = "MASS" | "VOLUME" | "COUNT";
@@ -481,33 +456,5 @@ export const inventoryGateway = {
   listLineAllocations: (lineId: number) =>
     invoke<AllocationResponse[]>("InventoryHandler", "ListLineAllocations", lineId),
 };
-
-export const CreateItem = (name: string, unit: string, minimumStock: number) =>
-  invoke<LegacyItem>("ItemService", "CreateItem", name, unit, minimumStock);
-
-export const DeleteItem = (id: string) => invoke<void>("ItemService", "DeleteItem", id);
-
-export const GetAllItems = () => invoke<LegacyItem[]>("ItemService", "GetAllItems");
-
-export const CreateBatch = (itemId: string, quantity: number, totalPrice: number) =>
-  invoke<LegacyBatch>("BatchService", "CreateBatch", itemId, quantity, totalPrice);
-
-export const DeleteBatch = (id: string) => invoke<void>("BatchService", "DeleteBatch", id);
-
-export const GetBatchesByItem = (itemId: string) =>
-  invoke<LegacyBatch[]>("BatchService", "GetBatchesByItem", itemId);
-
-export const CreateRecipe = (name: string, ingredients: LegacyRecipeIngredientInput[]) =>
-  invoke<LegacyRecipe>("RecipeService", "CreateRecipe", name, ingredients);
-
-export const DeleteRecipe = (id: string) => invoke<void>("RecipeService", "DeleteRecipe", id);
-
-export const GetAllRecipes = () => invoke<LegacyRecipe[]>("RecipeService", "GetAllRecipes");
-
-export const UpdateRecipe = (
-  id: string,
-  name: string,
-  ingredients: LegacyRecipeIngredientInput[],
-) => invoke<void>("RecipeService", "UpdateRecipe", id, name, ingredients);
 
 export const ExportDatabase = () => invoke<void>("DatabaseService", "Export");

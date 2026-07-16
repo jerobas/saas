@@ -15,9 +15,8 @@ machine.
 > line allocations. Legacy pages for recipe, production, sales, and reporting
 > workflows are still not real V2 workflows.
 
-The `api/` directory is parked legacy code. It is outside the desktop runtime,
-development setup, verification gates, and CI, and this repository does not
-deploy it.
+The repository now contains only the local desktop application. The former
+remote API/payment/licensing experiment was removed from the active codebase.
 
 ## Prerequisites
 
@@ -88,8 +87,7 @@ app/
                   Named SQL, generated queries, and aggregate stores
   service/        Operating-system/database lifecycle Wails services
   frontend/       React desktop interface
-api/              Parked legacy code; excluded from the desktop application
-docs/             Architecture, domain contract, ADRs, and historical archive
+docs/             Architecture, domain contract, ADRs, and development guides
 scripts/          Windows setup, development, and verification commands
 ```
 

@@ -41,14 +41,8 @@ new migration and then every dependent layer.
   audits, browser smoke tests, and CI expectations.
 
 Phase 3 replaced the seven experimental migrations with the strict, checksummed
-V2 baseline. Phase 4 removes the incompatible Go persistence layer and adds
+V2 baseline. Phase 4 removed the incompatible Go persistence layer and added
 strong domain snapshots, generated queries, and aggregate stores above that
-contract. Application commands, V2 Wails handlers, and feature pages remain
-later bottom-up layers and cannot override the implemented schema or domain
-rules.
-
-## Historical material
-
-Pre-V2 notes are retained under [`archive/pre-v2/`](archive/pre-v2/README.md)
-for context only. They are not specifications and must not be used to resolve a
-conflict with the documents above.
+contract. Phase 5 is wiring application commands, V2 Wails handlers, and real
+feature pages in bottom-up order; higher layers cannot override the implemented
+schema or domain rules.

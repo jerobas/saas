@@ -6,7 +6,7 @@ No files were changed while preparing this plan.
 
 The active product becomes a completely local desktop application:
 
-- `api/` remains untouched and out of scope.
+- The former `api/` experiment is deleted from the active repository.
 - No HTTP client, authentication, licensing, payments, remote synchronization, or cloud deployment.
 - Desktop development, testing, building, and releases must not require network services.
 - Existing remote-dependent frontend functionality will be removed from the active desktop build, not mocked.
