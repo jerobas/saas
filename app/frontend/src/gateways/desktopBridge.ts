@@ -504,6 +504,116 @@ export interface ReversalAllocationResponse {
   restoresAllocationId?: number | null;
 }
 
+export interface RecipeCursorRequest {
+  name: string;
+  id: number;
+}
+
+export interface RecipeCursorResponse {
+  name: string;
+  id: number;
+}
+
+export interface RecipeListRequest {
+  archiveFilter?: ArchiveFilter;
+  search?: string | null;
+  after?: RecipeCursorRequest | null;
+  pageSize?: number;
+}
+
+export interface RecipePageResponse {
+  items: RecipeSummaryResponse[];
+  next?: RecipeCursorResponse | null;
+}
+
+export interface CurrentRecipeRevisionSummaryResponse {
+  id: number;
+  number: number;
+  standardYieldQuantityAtomic: number;
+}
+
+export interface RecipeSummaryResponse {
+  id: number;
+  name: string;
+  outputItemId: number;
+  outputItemName: string;
+  createdAtMs: number;
+  updatedAtMs: number;
+  archivedAtMs?: number | null;
+  currentRevision: CurrentRecipeRevisionSummaryResponse;
+}
+
+export interface RecipeResponse {
+  id: number;
+  name: string;
+  outputItemId: number;
+  createdAtMs: number;
+  updatedAtMs: number;
+  archivedAtMs?: number | null;
+  currentRevision: RecipeRevisionResponse;
+}
+
+export interface RecipeCreateRequest {
+  name: string;
+  outputItemId: number;
+  revision: RecipeRevisionWriteRequest;
+}
+
+export interface RecipePublishRevisionRequest {
+  expectedLatestRevision: number;
+  expectedUpdatedAtMs: number;
+  revision: RecipeRevisionWriteRequest;
+}
+
+export interface RecipeRenameRequest {
+  name: string;
+  expectedUpdatedAtMs: number;
+}
+
+export interface RecipeRevisionWriteRequest {
+  standardYieldQuantityAtomic: number;
+  instructions: string;
+  preparationTimeMinutes: number;
+  estimatedDirectCostMicro?: number | null;
+  components: RecipeComponentRequest[];
+}
+
+export type RecipeComponentSourceType = "UNIT" | "PACKAGING";
+
+export interface RecipeComponentRequest {
+  order: number;
+  itemId: number;
+  quantityAtomic: number;
+  sourceType: RecipeComponentSourceType;
+  unitCode?: string | null;
+  packagingId?: number | null;
+}
+
+export interface RecipeRevisionResponse {
+  id: number;
+  recipeId: number;
+  number: number;
+  standardYieldQuantityAtomic: number;
+  instructions: string;
+  preparationTimeMinutes: number;
+  estimatedDirectCostMicro?: number | null;
+  createdAtMs: number;
+  components: RecipeComponentResponse[];
+}
+
+export interface RecipeComponentResponse {
+  id: number;
+  revisionId: number;
+  order: number;
+  itemId: number;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  createdAtMs: number;
+}
+
 async function invoke<T>(service: string, method: string, ...args: unknown[]): Promise<T> {
   const bridgeMethod =
     window.go?.service?.[service]?.[method] ??
@@ -588,6 +698,26 @@ export const adjustmentGateway = {
 export const reversalGateway = {
   postReversal: (request: ReversalPostRequest) =>
     invoke<ReversalDocumentResponse>("ReversalHandler", "PostReversal", request),
+};
+
+export const recipeGateway = {
+  getRecipe: (id: number) => invoke<RecipeResponse>("RecipeHandler", "GetRecipe", id),
+  getRecipeRevision: (id: number) =>
+    invoke<RecipeRevisionResponse>("RecipeHandler", "GetRecipeRevision", id),
+  listRecipeRevisions: (recipeId: number) =>
+    invoke<RecipeRevisionResponse[]>("RecipeHandler", "ListRecipeRevisions", recipeId),
+  listRecipes: (request: RecipeListRequest) =>
+    invoke<RecipePageResponse>("RecipeHandler", "ListRecipes", request),
+  createRecipe: (request: RecipeCreateRequest) =>
+    invoke<RecipeResponse>("RecipeHandler", "CreateRecipe", request),
+  publishRecipeRevision: (id: number, request: RecipePublishRevisionRequest) =>
+    invoke<RecipeRevisionResponse>("RecipeHandler", "PublishRecipeRevision", id, request),
+  renameRecipe: (id: number, request: RecipeRenameRequest) =>
+    invoke<RecipeResponse>("RecipeHandler", "RenameRecipe", id, request),
+  archiveRecipe: (id: number, request: VersionedRequest) =>
+    invoke<RecipeResponse>("RecipeHandler", "ArchiveRecipe", id, request),
+  restoreRecipe: (id: number, request: VersionedRequest) =>
+    invoke<RecipeResponse>("RecipeHandler", "RestoreRecipe", id, request),
 };
 
 export const inventoryGateway = {

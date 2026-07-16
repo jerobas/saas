@@ -43,6 +43,10 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		application.NewSQLiteReversalStore(store),
 		clock,
 	))
+	recipeHandler := NewRecipeHandler(application.NewRecipeService(
+		application.NewSQLiteRecipeStore(store),
+		clock,
+	))
 	inventoryHandler := NewInventoryHandler(application.NewInventoryService(
 		application.NewSQLiteInventoryStore(store),
 	))
@@ -251,6 +255,120 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("restored item = %#v", restoredItem)
 	}
 
+	clock.now = must(domain.UTCInstantFromUnixMilli(11_500))
+	outputItem, err := catalogHandler.CreateItem(dto.ItemWriteRequest{
+		Name:         "Cake",
+		BaseUnitCode: "g",
+		Capabilities: dto.CapabilitiesRequest{
+			Producible: true,
+			Sellable:   true,
+		},
+		DefaultSalePrice: &defaultSalePrice,
+	})
+	if err != nil {
+		t.Fatalf("create recipe output item: %v", err)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(11_600))
+	recipeUnitCode := "g"
+	recipeValue, err := recipeHandler.CreateRecipe(dto.RecipeCreateRequest{
+		Name:         "Cake recipe",
+		OutputItemID: outputItem.ID,
+		Revision: dto.RecipeRevisionWriteRequest{
+			StandardYieldQuantity:  1_000,
+			Instructions:           "Mix and bake.",
+			PreparationTimeMinutes: 45,
+			Components: []dto.RecipeComponentRequest{
+				{
+					Order:          1,
+					ItemID:         restoredItem.ID,
+					QuantityAtomic: 500,
+					SourceType:     "UNIT",
+					UnitCode:       &recipeUnitCode,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create recipe: %v", err)
+	}
+	if recipeValue.ID == 0 || recipeValue.CurrentRevision.Number != 1 ||
+		recipeValue.CurrentRevision.CreatedAtMs != clock.now.UnixMilli() ||
+		len(recipeValue.CurrentRevision.Components) != 1 {
+		t.Fatalf("recipe = %#v", recipeValue)
+	}
+
+	recipePage, err := recipeHandler.ListRecipes(dto.RecipeListRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("list recipes: %v", err)
+	}
+	if len(recipePage.Items) != 1 || recipePage.Items[0].ID != recipeValue.ID ||
+		recipePage.Items[0].OutputItemName != outputItem.Name {
+		t.Fatalf("recipe page = %#v", recipePage)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(11_700))
+	publishedRevision, err := recipeHandler.PublishRecipeRevision(recipeValue.ID, dto.RecipePublishRevisionRequest{
+		ExpectedLatestRevision: recipeValue.CurrentRevision.Number,
+		ExpectedUpdatedAtMs:    recipeValue.UpdatedAtMs,
+		Revision: dto.RecipeRevisionWriteRequest{
+			StandardYieldQuantity:  1_000,
+			Instructions:           "Mix, rest, and bake.",
+			PreparationTimeMinutes: 50,
+			Components: []dto.RecipeComponentRequest{
+				{
+					Order:          1,
+					ItemID:         restoredItem.ID,
+					QuantityAtomic: 550,
+					SourceType:     "UNIT",
+					UnitCode:       &recipeUnitCode,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("publish recipe revision: %v", err)
+	}
+	if publishedRevision.Number != 2 || publishedRevision.CreatedAtMs != clock.now.UnixMilli() {
+		t.Fatalf("published recipe revision = %#v", publishedRevision)
+	}
+	revisions, err := recipeHandler.ListRecipeRevisions(recipeValue.ID)
+	if err != nil {
+		t.Fatalf("list recipe revisions: %v", err)
+	}
+	if len(revisions) != 2 || revisions[0].Number != 2 || revisions[1].Number != 1 {
+		t.Fatalf("recipe revisions = %#v", revisions)
+	}
+	recipeValue, err = recipeHandler.GetRecipe(recipeValue.ID)
+	if err != nil {
+		t.Fatalf("get recipe: %v", err)
+	}
+	if recipeValue.CurrentRevision.Number != 2 || recipeValue.UpdatedAtMs != clock.now.UnixMilli() {
+		t.Fatalf("current recipe = %#v", recipeValue)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(11_800))
+	archivedRecipe, err := recipeHandler.ArchiveRecipe(recipeValue.ID, dto.VersionedRequest{
+		ExpectedUpdatedAtMs: recipeValue.UpdatedAtMs,
+	})
+	if err != nil {
+		t.Fatalf("archive recipe: %v", err)
+	}
+	if archivedRecipe.ArchivedAtMs == nil || *archivedRecipe.ArchivedAtMs != clock.now.UnixMilli() {
+		t.Fatalf("archived recipe = %#v", archivedRecipe)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(11_900))
+	restoredRecipe, err := recipeHandler.RestoreRecipe(archivedRecipe.ID, dto.VersionedRequest{
+		ExpectedUpdatedAtMs: archivedRecipe.UpdatedAtMs,
+	})
+	if err != nil {
+		t.Fatalf("restore recipe: %v", err)
+	}
+	if restoredRecipe.ArchivedAtMs != nil || restoredRecipe.UpdatedAtMs != clock.now.UnixMilli() {
+		t.Fatalf("restored recipe = %#v", restoredRecipe)
+	}
+
 	clock.now = must(domain.UTCInstantFromUnixMilli(12_000))
 	phone := "+55 11 99999-0000"
 	created, err := counterpartyHandler.CreateCounterparty(dto.CounterpartyWriteRequest{
@@ -352,7 +470,14 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	if err != nil {
 		t.Fatalf("list inventory balances: %v", err)
 	}
-	if len(balancePage.Items) != 1 || balancePage.Items[0].ItemID != restoredItem.ID {
+	foundPurchasedBalance := false
+	for _, item := range balancePage.Items {
+		if item.ItemID == restoredItem.ID {
+			foundPurchasedBalance = true
+			break
+		}
+	}
+	if !foundPurchasedBalance {
 		t.Fatalf("balance page = %#v", balancePage)
 	}
 

@@ -6,6 +6,7 @@ import {
   inventoryGateway,
   purchaseGateway,
   referenceDataGateway,
+  recipeGateway,
   reversalGateway,
   settingsGateway,
 } from "./desktopBridge";
@@ -469,6 +470,142 @@ describe("desktop bridge", () => {
 
     await expect(reversalGateway.postReversal(request)).resolves.toEqual(response);
     expect(postReversal).toHaveBeenCalledWith(request);
+  });
+
+  it("forwards recipe calls to the V2 recipe handler", async () => {
+    const revision = {
+      id: 81,
+      recipeId: 80,
+      number: 1,
+      standardYieldQuantityAtomic: 1_000,
+      instructions: "Mix and bake.",
+      preparationTimeMinutes: 45,
+      createdAtMs: 1_700_000_000_000,
+      components: [
+        {
+          id: 82,
+          revisionId: 81,
+          order: 1,
+          itemId: 10,
+          quantityAtomic: 500,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+          createdAtMs: 1_700_000_000_000,
+        },
+      ],
+    };
+    const recipe = {
+      id: 80,
+      name: "Cake recipe",
+      outputItemId: 11,
+      createdAtMs: 1_700_000_000_000,
+      updatedAtMs: 1_700_000_000_000,
+      currentRevision: revision,
+    };
+    const page = {
+      items: [
+        {
+          id: recipe.id,
+          name: recipe.name,
+          outputItemId: recipe.outputItemId,
+          outputItemName: "Cake",
+          createdAtMs: recipe.createdAtMs,
+          updatedAtMs: recipe.updatedAtMs,
+          currentRevision: {
+            id: revision.id,
+            number: revision.number,
+            standardYieldQuantityAtomic: revision.standardYieldQuantityAtomic,
+          },
+        },
+      ],
+      next: null,
+    };
+    const getRecipe = vi.fn().mockResolvedValue(recipe);
+    const getRecipeRevision = vi.fn().mockResolvedValue(revision);
+    const listRecipeRevisions = vi.fn().mockResolvedValue([revision]);
+    const listRecipes = vi.fn().mockResolvedValue(page);
+    const createRecipe = vi.fn().mockResolvedValue(recipe);
+    const publishRecipeRevision = vi.fn().mockResolvedValue({ ...revision, id: 83, number: 2 });
+    const renameRecipe = vi.fn().mockResolvedValue({ ...recipe, name: "Renamed cake recipe" });
+    const archiveRecipe = vi.fn().mockResolvedValue({ ...recipe, archivedAtMs: 1_700_000_000_100 });
+    const restoreRecipe = vi.fn().mockResolvedValue(recipe);
+    window.go = {
+      service: {
+        RecipeHandler: {
+          GetRecipe: getRecipe,
+          GetRecipeRevision: getRecipeRevision,
+          ListRecipeRevisions: listRecipeRevisions,
+          ListRecipes: listRecipes,
+          CreateRecipe: createRecipe,
+          PublishRecipeRevision: publishRecipeRevision,
+          RenameRecipe: renameRecipe,
+          ArchiveRecipe: archiveRecipe,
+          RestoreRecipe: restoreRecipe,
+        },
+      },
+    };
+
+    const writeRevision = {
+      standardYieldQuantityAtomic: 1_000,
+      instructions: "Mix and bake.",
+      preparationTimeMinutes: 45,
+      components: [
+        {
+          order: 1,
+          itemId: 10,
+          quantityAtomic: 500,
+          sourceType: "UNIT" as const,
+          unitCode: "g",
+        },
+      ],
+    };
+    const createRequest = {
+      name: recipe.name,
+      outputItemId: recipe.outputItemId,
+      revision: writeRevision,
+    };
+    const publishRequest = {
+      expectedLatestRevision: 1,
+      expectedUpdatedAtMs: recipe.updatedAtMs,
+      revision: { ...writeRevision, instructions: "Mix, rest, and bake." },
+    };
+    const versionedRequest = { expectedUpdatedAtMs: recipe.updatedAtMs };
+
+    await expect(recipeGateway.getRecipe(recipe.id)).resolves.toEqual(recipe);
+    await expect(recipeGateway.getRecipeRevision(revision.id)).resolves.toEqual(revision);
+    await expect(recipeGateway.listRecipeRevisions(recipe.id)).resolves.toEqual([revision]);
+    await expect(recipeGateway.listRecipes({ pageSize: 25 })).resolves.toEqual(page);
+    await expect(recipeGateway.createRecipe(createRequest)).resolves.toEqual(recipe);
+    await expect(recipeGateway.publishRecipeRevision(recipe.id, publishRequest)).resolves.toEqual({
+      ...revision,
+      id: 83,
+      number: 2,
+    });
+    await expect(
+      recipeGateway.renameRecipe(recipe.id, {
+        name: "Renamed cake recipe",
+        expectedUpdatedAtMs: recipe.updatedAtMs,
+      }),
+    ).resolves.toEqual({ ...recipe, name: "Renamed cake recipe" });
+    await expect(recipeGateway.archiveRecipe(recipe.id, versionedRequest)).resolves.toEqual({
+      ...recipe,
+      archivedAtMs: 1_700_000_000_100,
+    });
+    await expect(recipeGateway.restoreRecipe(recipe.id, versionedRequest)).resolves.toEqual(recipe);
+
+    expect(getRecipe).toHaveBeenCalledWith(recipe.id);
+    expect(getRecipeRevision).toHaveBeenCalledWith(revision.id);
+    expect(listRecipeRevisions).toHaveBeenCalledWith(recipe.id);
+    expect(listRecipes).toHaveBeenCalledWith({ pageSize: 25 });
+    expect(createRecipe).toHaveBeenCalledWith(createRequest);
+    expect(publishRecipeRevision).toHaveBeenCalledWith(recipe.id, publishRequest);
+    expect(renameRecipe).toHaveBeenCalledWith(recipe.id, {
+      name: "Renamed cake recipe",
+      expectedUpdatedAtMs: recipe.updatedAtMs,
+    });
+    expect(archiveRecipe).toHaveBeenCalledWith(recipe.id, versionedRequest);
+    expect(restoreRecipe).toHaveBeenCalledWith(recipe.id, versionedRequest);
   });
 
   it("forwards inventory read calls to the V2 inventory handler", async () => {
