@@ -13,6 +13,7 @@ const gatewayMocks = vi.hoisted(() => ({
     listRecipes: vi.fn(),
     createRecipe: vi.fn(),
     publishRecipeRevision: vi.fn(),
+    renameRecipe: vi.fn(),
     archiveRecipe: vi.fn(),
     restoreRecipe: vi.fn(),
   },
@@ -113,6 +114,11 @@ describe("RecipesPage", () => {
       id: 32,
       number: 2,
     });
+    gatewayMocks.recipeGateway.renameRecipe.mockResolvedValue({
+      ...createdRecipe,
+      name: "Receita de bolo festa",
+      updatedAtMs: 1_700_000_000_200,
+    });
     gatewayMocks.recipeGateway.archiveRecipe.mockResolvedValue({
       ...createdRecipe,
       archivedAtMs: 1_700_000_000_200,
@@ -163,5 +169,30 @@ describe("RecipesPage", () => {
     });
     expect(await screen.findByText('Receita "Receita de bolo" criada.')).toBeInTheDocument();
     expect(await screen.findByText("Revisao 1")).toBeInTheDocument();
+  });
+
+  it("renames the selected recipe through the V2 gateway", async () => {
+    const user = userEvent.setup();
+    gatewayMocks.recipeGateway.listRecipes.mockReset();
+    gatewayMocks.recipeGateway.listRecipes.mockResolvedValue({
+      items: [recipeSummary],
+      next: null,
+    });
+
+    render(<RecipesPage />);
+
+    expect(await screen.findByText("Revisao 1")).toBeInTheDocument();
+    const renameInput = screen.getByLabelText("Renomear receita");
+    await user.clear(renameInput);
+    await user.type(renameInput, "Receita de bolo festa");
+    await user.click(screen.getByRole("button", { name: "Renomear" }));
+
+    expect(gatewayMocks.recipeGateway.renameRecipe).toHaveBeenCalledWith(20, {
+      name: "Receita de bolo festa",
+      expectedUpdatedAtMs: 1_700_000_000_100,
+    });
+    expect(
+      await screen.findByText('Receita renomeada para "Receita de bolo festa".'),
+    ).toBeInTheDocument();
   });
 });

@@ -1,4 +1,11 @@
-import { Archive, ArrowClockwise, FileText, Plus, UploadSimple } from "@phosphor-icons/react";
+import {
+  Archive,
+  ArrowClockwise,
+  FileText,
+  PencilSimple,
+  Plus,
+  UploadSimple,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   catalogGateway,
@@ -47,6 +54,7 @@ function RecipesPage() {
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeResponse | null>(null);
   const [revisions, setRevisions] = useState<RecipeRevisionResponse[]>([]);
   const [form, setForm] = useState<RecipeFormState>(() => emptyForm());
+  const [renameName, setRenameName] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -69,6 +77,7 @@ function RecipesPage() {
     ]);
     setSelectedRecipe(recipe);
     setRevisions(revisionList);
+    setRenameName(recipe.name);
   }, []);
 
   const loadPage = useCallback(async () => {
@@ -98,6 +107,7 @@ function RecipesPage() {
       } else {
         setSelectedRecipe(null);
         setRevisions([]);
+        setRenameName("");
       }
 
       setForm((current) => ({
@@ -217,6 +227,38 @@ function RecipesPage() {
       setMessage({
         type: "error",
         text: messageFromError(error, "Nao foi possivel publicar a revisao."),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renameSelectedRecipe = async () => {
+    if (saving || !selectedRecipe) return;
+    const name = renameName.trim();
+    if (name.length === 0) {
+      setMessage({ type: "error", text: "Informe o novo nome da receita." });
+      return;
+    }
+    if (name === selectedRecipe.name) {
+      setMessage({ type: "error", text: "O novo nome precisa ser diferente do atual." });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const updated = await recipeGateway.renameRecipe(selectedRecipe.id, {
+        name,
+        expectedUpdatedAtMs: selectedRecipe.updatedAtMs,
+      });
+      await loadPage();
+      await loadSelectedRecipe(updated.id);
+      setMessage({ type: "success", text: `Receita renomeada para "${updated.name}".` });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: messageFromError(error, "Nao foi possivel renomear a receita."),
       });
     } finally {
       setSaving(false);
@@ -523,6 +565,30 @@ function RecipesPage() {
                     Output #{selectedRecipe.outputItemId} · revisao atual v
                     {selectedRecipe.currentRevision.number}
                   </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Renomear receita
+                    <input
+                      value={renameName}
+                      onChange={(event) => setRenameName(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void renameSelectedRecipe()}
+                    disabled={
+                      saving ||
+                      loading ||
+                      renameName.trim().length === 0 ||
+                      renameName.trim() === selectedRecipe.name
+                    }
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    <PencilSimple size={16} />
+                    Renomear
+                  </button>
                 </div>
                 <div className="space-y-3">
                   {revisions.map((revision) => (
