@@ -37,6 +37,9 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		application.NewSQLitePurchaseStore(store),
 		clock,
 	))
+	inventoryHandler := NewInventoryHandler(application.NewInventoryService(
+		application.NewSQLiteInventoryStore(store),
+	))
 
 	settingsValue, err := settingsHandler.GetSettings(ctx)
 	if err != nil {
@@ -313,6 +316,40 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 	if len(purchase.Lines) != 1 || purchase.Lines[0].LotID == 0 || purchase.Lines[0].InventoryValueMicro != 5_000_000 {
 		t.Fatalf("purchase lines = %#v", purchase.Lines)
+	}
+
+	balance, err := inventoryHandler.GetInventoryBalance(ctx, restoredItem.ID)
+	if err != nil {
+		t.Fatalf("get inventory balance: %v", err)
+	}
+	if balance.QuantityAtomic != 1_000 || balance.InventoryValueMicro != 5_000_000 {
+		t.Fatalf("balance = %#v", balance)
+	}
+
+	balancePage, err := inventoryHandler.ListInventoryBalances(ctx, dto.InventoryBalanceListRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("list inventory balances: %v", err)
+	}
+	if len(balancePage.Items) != 1 || balancePage.Items[0].ItemID != restoredItem.ID {
+		t.Fatalf("balance page = %#v", balancePage)
+	}
+
+	lots, err := inventoryHandler.ListItemLotFacts(ctx, restoredItem.ID)
+	if err != nil {
+		t.Fatalf("list item lot facts: %v", err)
+	}
+	if len(lots) != 1 || lots[0].AvailableQuantity != 1_000 || lots[0].SourceDocumentID != purchase.ID {
+		t.Fatalf("lots = %#v", lots)
+	}
+
+	ledger, err := inventoryHandler.ListItemLedgerPage(ctx, dto.ItemLedgerPageRequest{
+		ItemID: restoredItem.ID, PageSize: 10,
+	})
+	if err != nil {
+		t.Fatalf("list item ledger: %v", err)
+	}
+	if len(ledger.Items) != 1 || ledger.Items[0].LineID != purchase.Lines[0].ID {
+		t.Fatalf("ledger = %#v", ledger)
 	}
 }
 

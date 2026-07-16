@@ -83,6 +83,9 @@ func main() {
 		application.SystemClock{},
 	)
 	purchaseHandler := presentationwails.NewPurchaseHandler(purchaseService)
+	inventoryHandler := presentationwails.NewInventoryHandler(application.NewInventoryService(
+		application.NewSQLiteInventoryStore(sqliteStore),
+	))
 
 	err := wails.Run(&options.App{
 		Title:  "app",
@@ -100,6 +103,7 @@ func main() {
 			catalogHandler,
 			counterpartyHandler,
 			purchaseHandler,
+			inventoryHandler,
 		},
 	})
 

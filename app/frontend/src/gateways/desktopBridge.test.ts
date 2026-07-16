@@ -3,6 +3,7 @@ import {
   catalogGateway,
   counterpartyGateway,
   GetAllItems,
+  inventoryGateway,
   purchaseGateway,
   referenceDataGateway,
   settingsGateway,
@@ -332,5 +333,93 @@ describe("desktop bridge", () => {
 
     await expect(purchaseGateway.postPurchase(request)).resolves.toEqual(response);
     expect(postPurchase).toHaveBeenCalledWith(request);
+  });
+
+  it("forwards inventory read calls to the V2 inventory handler", async () => {
+    const balancePage = {
+      items: [
+        {
+          itemId: 10,
+          itemName: "Chocolate",
+          baseUnitCode: "g",
+          quantityAtomic: 1_000,
+          inventoryValueMicro: 5_000_000,
+          updatedAtMs: 1_700_000_000_000,
+          capabilities: { purchasable: true, producible: false, sellable: true },
+        },
+      ],
+      next: null,
+    };
+    const lots = [
+      {
+        id: 60,
+        itemId: 10,
+        sourceLineId: 50,
+        sourcePostingSequence: 1,
+        initialQuantityAtomic: 1_000,
+        consumedQuantityAtomic: 0,
+        restoredQuantityAtomic: 0,
+        availableQuantityAtomic: 1_000,
+        originatedOn: "2026-07-15",
+        createdAtMs: 1_700_000_000_000,
+        sourceDocumentId: 40,
+        sourceKind: "PURCHASE",
+        sourceOccurredOn: "2026-07-15",
+      },
+    ];
+    const ledger = {
+      items: [
+        {
+          lineId: 50,
+          documentId: 40,
+          postingSequence: 1,
+          lineOrder: 1,
+          documentKind: "PURCHASE",
+          occurredOn: "2026-07-15",
+          postedAtMs: 1_700_000_000_000,
+          itemId: 10,
+          direction: "IN",
+          quantityAtomic: 1_000,
+          inventoryValueMicro: 5_000_000,
+          commercialTotalMinor: 500,
+          currencyCode: "BRL",
+          currencyMinorDigits: 2,
+          enteredUnitCode: "g",
+          conversionNumeratorAtomic: 1_000,
+          conversionDenominator: 1,
+          idempotencyKey: "purchase-1",
+        },
+      ],
+      next: null,
+    };
+    const listInventoryBalances = vi.fn().mockResolvedValue(balancePage);
+    const listItemLotFacts = vi.fn().mockResolvedValue(lots);
+    const listEligibleFEFOLots = vi.fn().mockResolvedValue(lots);
+    const listItemLedgerPage = vi.fn().mockResolvedValue(ledger);
+    window.go = {
+      service: {
+        InventoryHandler: {
+          ListInventoryBalances: listInventoryBalances,
+          ListItemLotFacts: listItemLotFacts,
+          ListEligibleFEFOLots: listEligibleFEFOLots,
+          ListItemLedgerPage: listItemLedgerPage,
+        },
+      },
+    };
+
+    const balanceRequest = { includeArchived: true, pageSize: 25 };
+    await expect(inventoryGateway.listInventoryBalances(balanceRequest)).resolves.toEqual(
+      balancePage,
+    );
+    await expect(inventoryGateway.listItemLotFacts(10)).resolves.toEqual(lots);
+    await expect(inventoryGateway.listEligibleFefoLots(10, "2026-07-15")).resolves.toEqual(lots);
+    await expect(
+      inventoryGateway.listItemLedgerPage({ itemId: 10, pageSize: 10 }),
+    ).resolves.toEqual(ledger);
+
+    expect(listInventoryBalances).toHaveBeenCalledWith(balanceRequest);
+    expect(listItemLotFacts).toHaveBeenCalledWith(10);
+    expect(listEligibleFEFOLots).toHaveBeenCalledWith(10, "2026-07-15");
+    expect(listItemLedgerPage).toHaveBeenCalledWith({ itemId: 10, pageSize: 10 });
   });
 });

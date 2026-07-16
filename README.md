@@ -10,9 +10,10 @@ machine.
 > and first real desktop screens are in place for settings, measurement units,
 > catalog items, item packagings, and counterparties. Purchase posting has
 > started at the backend/Wails/gateway layer: a purchase can create an immutable
-> stock document, inbound line, inventory lot, and updated balance. Legacy pages
-> for the later inventory, recipe, production, sales, and reporting workflows are
-> still not real V2 workflows.
+> stock document, inbound line, inventory lot, and updated balance, and the
+> desktop contract can read inventory balances, item lots, ledger entries, and
+> line allocations. Legacy pages for recipe, production, sales, and reporting
+> workflows are still not real V2 workflows.
 
 The `api/` directory is parked legacy code. It is outside the desktop runtime,
 development setup, verification gates, and CI, and this repository does not

@@ -275,6 +275,125 @@ export interface PurchaseLineResponse {
   expiresOn?: string | null;
 }
 
+export interface InventoryBalanceCursorRequest {
+  itemName: string;
+  itemId: number;
+}
+
+export interface InventoryBalanceCursorResponse {
+  itemName: string;
+  itemId: number;
+}
+
+export interface InventoryBalanceListRequest {
+  includeArchived?: boolean;
+  search?: string | null;
+  after?: InventoryBalanceCursorRequest | null;
+  pageSize?: number;
+}
+
+export interface InventoryBalancePageResponse {
+  items: InventoryBalanceResponse[];
+  next?: InventoryBalanceCursorResponse | null;
+}
+
+export interface InventoryBalanceResponse {
+  itemId: number;
+  itemName: string;
+  baseUnitCode: string;
+  itemArchivedAtMs?: number | null;
+  quantityAtomic: number;
+  inventoryValueMicro: number;
+  lastDocumentId?: number | null;
+  updatedAtMs: number;
+  capabilities: CapabilitiesResponse;
+  reorderQuantityAtomic?: number | null;
+}
+
+export interface LotResponse {
+  id: number;
+  itemId: number;
+  sourceLineId: number;
+  sourcePostingSequence: number;
+  initialQuantityAtomic: number;
+  consumedQuantityAtomic: number;
+  restoredQuantityAtomic: number;
+  availableQuantityAtomic: number;
+  lotCode?: string | null;
+  originatedOn: string;
+  expiresOn?: string | null;
+  createdAtMs: number;
+  sourceDocumentId: number;
+  sourceKind: string;
+  sourceOccurredOn: string;
+}
+
+export interface LedgerCursorRequest {
+  postingSequence: number;
+  lineOrder: number;
+  lineId: number;
+}
+
+export interface LedgerCursorResponse {
+  postingSequence: number;
+  lineOrder: number;
+  lineId: number;
+}
+
+export interface ItemLedgerPageRequest {
+  itemId: number;
+  after?: LedgerCursorRequest | null;
+  pageSize?: number;
+}
+
+export interface LedgerEntryPageResponse {
+  items: LedgerEntryResponse[];
+  next?: LedgerCursorResponse | null;
+}
+
+export interface LedgerEntryResponse {
+  lineId: number;
+  documentId: number;
+  postingSequence: number;
+  lineOrder: number;
+  documentKind: string;
+  occurredOn: string;
+  postedAtMs: number;
+  itemId: number;
+  direction: string;
+  quantityAtomic: number;
+  inventoryValueMicro: number;
+  commercialTotalMinor?: number | null;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  reversesLineId?: number | null;
+  idempotencyKey: string;
+  counterpartyId?: number | null;
+  counterpartyName?: string | null;
+  reasonCode?: string | null;
+  notes?: string | null;
+  reversesDocumentId?: number | null;
+}
+
+export interface AllocationResponse {
+  id: number;
+  lineId: number;
+  lotId: number;
+  quantityAtomic: number;
+  effect: string;
+  restoresAllocationId?: number | null;
+  createdAtMs: number;
+  sourceLineId: number;
+  lotInitialQuantityAtomic: number;
+  lotCode?: string | null;
+  originatedOn: string;
+  expiresOn?: string | null;
+}
+
 async function invoke<T>(service: string, method: string, ...args: unknown[]): Promise<T> {
   const bridgeMethod =
     window.go?.service?.[service]?.[method] ?? window.go?.main?.[service]?.[method];
@@ -343,6 +462,21 @@ export const counterpartyGateway = {
 export const purchaseGateway = {
   postPurchase: (request: PurchasePostRequest) =>
     invoke<PurchaseDocumentResponse>("PurchaseHandler", "PostPurchase", request),
+};
+
+export const inventoryGateway = {
+  getInventoryBalance: (itemId: number) =>
+    invoke<InventoryBalanceResponse>("InventoryHandler", "GetInventoryBalance", itemId),
+  listInventoryBalances: (request: InventoryBalanceListRequest) =>
+    invoke<InventoryBalancePageResponse>("InventoryHandler", "ListInventoryBalances", request),
+  listItemLotFacts: (itemId: number) =>
+    invoke<LotResponse[]>("InventoryHandler", "ListItemLotFacts", itemId),
+  listEligibleFefoLots: (itemId: number, businessDate: string) =>
+    invoke<LotResponse[]>("InventoryHandler", "ListEligibleFEFOLots", itemId, businessDate),
+  listItemLedgerPage: (request: ItemLedgerPageRequest) =>
+    invoke<LedgerEntryPageResponse>("InventoryHandler", "ListItemLedgerPage", request),
+  listLineAllocations: (lineId: number) =>
+    invoke<AllocationResponse[]>("InventoryHandler", "ListLineAllocations", lineId),
 };
 
 export const CreateItem = (name: string, unit: string, minimumStock: number) =>
