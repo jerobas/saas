@@ -202,6 +202,14 @@ function ProductsPage() {
       setMessage({ type: "error", text: "Selecione pelo menos uma capacidade para o item." });
       return;
     }
+    const defaultSalePrice = parseMoneyMinor(itemForm.defaultSalePrice);
+    if (!capabilities.sellable && defaultSalePrice !== undefined) {
+      setMessage({
+        type: "error",
+        text: "Preco de venda so pode ser informado quando a capacidade Venda esta marcada.",
+      });
+      return;
+    }
 
     setSaving(true);
     setMessage(null);
@@ -212,7 +220,7 @@ function ProductsPage() {
         description: optionalText(itemForm.description),
         baseUnitCode: itemForm.baseUnitCode,
         capabilities,
-        defaultSalePrice: parseMoneyMinor(itemForm.defaultSalePrice),
+        defaultSalePrice,
         reorderQuantityAtomic: parseInteger(itemForm.reorderQuantityAtomic),
       };
       const saved = editingItem
@@ -434,9 +442,14 @@ function ProductsPage() {
                             >
                           ] as boolean
                         }
-                        onChange={(event) =>
-                          setItemForm({ ...itemForm, [key]: event.target.checked })
-                        }
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setItemForm({
+                            ...itemForm,
+                            [key]: checked,
+                            ...(key === "sellable" && !checked ? { defaultSalePrice: "" } : {}),
+                          });
+                        }}
                       />
                       {label}
                     </label>
@@ -451,9 +464,15 @@ function ProductsPage() {
                     onChange={(event) =>
                       setItemForm({ ...itemForm, defaultSalePrice: event.target.value })
                     }
+                    disabled={!itemForm.sellable}
                     className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
                     placeholder="12,50"
                   />
+                  {!itemForm.sellable && (
+                    <span className="mt-1 block text-xs font-normal text-slate-500">
+                      Marque Venda para informar preco.
+                    </span>
+                  )}
                 </label>
                 <label className="block text-sm font-semibold text-slate-700">
                   Reposicao atomica
@@ -492,7 +511,7 @@ function ProductsPage() {
         </aside>
 
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-semibold text-slate-500">Total</p>
               <p className="mt-2 text-3xl font-bold text-slate-950">{items.length}</p>
@@ -500,10 +519,6 @@ function ProductsPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-semibold text-slate-500">Ativos</p>
               <p className="mt-2 text-3xl font-bold text-green-700">{activeItems.length}</p>
-            </div>
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-semibold text-slate-500">Unidades</p>
-              <p className="mt-2 text-3xl font-bold text-blue-700">{units.length}</p>
             </div>
           </div>
 

@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProductsPage from "./ProductsPage";
 
@@ -65,10 +66,52 @@ describe("ProductsPage", () => {
 
     expect(await screen.findByText("Chocolate")).toBeInTheDocument();
     expect(screen.getByText("Compra / Venda")).toBeInTheDocument();
+    expect(screen.queryByText("Unidades")).not.toBeInTheDocument();
     expect(gatewayMocks.catalogGateway.listItems).toHaveBeenCalledWith({
       archiveFilter: "ALL",
       requireCapabilities: { purchasable: false, producible: false, sellable: false },
       pageSize: 100,
     });
+  });
+
+  it("only allows default sale price when the item is sellable", async () => {
+    const user = userEvent.setup();
+    gatewayMocks.catalogGateway.createItem.mockResolvedValue({
+      id: 2,
+      name: "Flour",
+      sku: null,
+      description: null,
+      baseUnitCode: "g",
+      capabilities: { purchasable: true, producible: false, sellable: true },
+      defaultSalePrice: 1250,
+      reorderQuantityAtomic: null,
+      createdAtMs: 1_700_000_000_002,
+      updatedAtMs: 1_700_000_000_002,
+      archivedAtMs: null,
+      baseUnit: gram,
+      packagings: [],
+    });
+
+    render(<ProductsPage />);
+
+    const salePrice = await screen.findByPlaceholderText("12,50");
+    expect(salePrice).toBeDisabled();
+    expect(screen.getByText("Marque Venda para informar preco.")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Venda"));
+    expect(salePrice).toBeEnabled();
+
+    await user.type(screen.getByPlaceholderText("Farinha de trigo"), "Flour");
+    await user.type(salePrice, "12,50");
+    await user.click(screen.getByRole("button", { name: "Criar" }));
+
+    expect(gatewayMocks.catalogGateway.createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Flour",
+        baseUnitCode: "g",
+        capabilities: { purchasable: true, producible: false, sellable: true },
+        defaultSalePrice: 1250,
+      }),
+    );
   });
 });
