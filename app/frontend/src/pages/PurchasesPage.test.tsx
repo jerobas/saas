@@ -138,5 +138,8 @@ describe("PurchasesPage", () => {
       }),
     );
     expect(await screen.findByText("#30 / seq 1")).toBeInTheDocument();
+    expect(screen.getByText("Detalhe da compra: linhas, lotes e valores")).toBeInTheDocument();
+    expect(screen.getByText("Lote criado")).toBeInTheDocument();
+    expect(screen.getByText(/lote #50/)).toBeInTheDocument();
   });
 });

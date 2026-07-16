@@ -3,9 +3,8 @@
 ## Polish de frontend
 
 - [ ] Adicionar UI minima para reversao exata de documentos.
-- [ ] Refinar Compras: detalhe de documento postado com linhas/lotes/valores.
+- [x] Refinar Compras: detalhe de documento postado com linhas/lotes/valores.
 - [ ] Refinar Ajustes: historico minimo de documentos e atalho para reversao.
-- [x] Melhorar Receitas: renomear receita pela UI.
 - [ ] Melhorar Receitas: permitir multiplos componentes na UI.
 - [ ] Melhorar Receitas: permitir escolher componente por embalagem, nao so unidade base.
 - [ ] Melhorar Receitas: polir historico/editor de revisoes sem quebrar imutabilidade.
