@@ -48,6 +48,12 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     },
     {
       icon: <Package size={24} />,
+      label: "Produção",
+      id: "production",
+      path: "/production",
+    },
+    {
+      icon: <Package size={24} />,
       label: "Produtos",
       id: "products",
       path: "/products",

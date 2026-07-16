@@ -16,6 +16,7 @@ vi.mock("./pages/InventoryPage", () => ({ default: () => <h1>Inventory</h1> }));
 vi.mock("./pages/BatchesPage", () => ({ default: () => <h1>Batches</h1> }));
 vi.mock("./pages/RecipesPage", () => ({ default: () => <h1>Recipes</h1> }));
 vi.mock("./pages/ProductsPage", () => ({ default: () => <h1>Products</h1> }));
+vi.mock("./pages/ProductionPage", () => ({ default: () => <h1>Production</h1> }));
 vi.mock("./pages/SalesPage", () => ({ default: () => <h1>Sales</h1> }));
 vi.mock("./pages/EnterprisePage", () => ({ default: () => <h1>Enterprise</h1> }));
 vi.mock("./pages/DatabasePage", () => ({ default: () => <h1>Database</h1> }));
