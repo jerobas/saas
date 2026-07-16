@@ -1,7 +1,6 @@
 package wails
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/jerobas/saas/internal/application"
@@ -21,20 +20,20 @@ func NewReferenceDataHandler(service *application.ReferenceDataService) *Referen
 	return &ReferenceDataHandler{service: service}
 }
 
-func (h *ReferenceDataHandler) GetMeasurementUnit(ctx context.Context, code string) (dto.MeasurementUnitResponse, error) {
+func (h *ReferenceDataHandler) GetMeasurementUnit(code string) (dto.MeasurementUnitResponse, error) {
 	unitCode, err := domain.NewUnitCode(code)
 	if err != nil {
 		return dto.MeasurementUnitResponse{}, fmt.Errorf("unit code: %w", err)
 	}
-	unit, err := h.service.GetMeasurementUnit(ctx, unitCode)
+	unit, err := h.service.GetMeasurementUnit(handlerContext(), unitCode)
 	if err != nil {
 		return dto.MeasurementUnitResponse{}, fmt.Errorf("get measurement unit: %w", err)
 	}
 	return mapMeasurementUnit(unit), nil
 }
 
-func (h *ReferenceDataHandler) ListMeasurementUnits(ctx context.Context) ([]dto.MeasurementUnitResponse, error) {
-	units, err := h.service.ListMeasurementUnits(ctx)
+func (h *ReferenceDataHandler) ListMeasurementUnits() ([]dto.MeasurementUnitResponse, error) {
+	units, err := h.service.ListMeasurementUnits(handlerContext())
 	if err != nil {
 		return nil, fmt.Errorf("list measurement units: %w", err)
 	}

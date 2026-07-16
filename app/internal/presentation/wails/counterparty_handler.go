@@ -1,7 +1,6 @@
 package wails
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/jerobas/saas/internal/application"
@@ -21,36 +20,36 @@ func NewCounterpartyHandler(service *application.CounterpartyService) *Counterpa
 	return &CounterpartyHandler{service: service}
 }
 
-func (h *CounterpartyHandler) GetCounterparty(ctx context.Context, id int64) (dto.CounterpartyResponse, error) {
+func (h *CounterpartyHandler) GetCounterparty(id int64) (dto.CounterpartyResponse, error) {
 	counterpartyID, err := domain.NewCounterpartyID(id)
 	if err != nil {
 		return dto.CounterpartyResponse{}, fmt.Errorf("counterparty id: %w", err)
 	}
-	value, err := h.service.GetCounterparty(ctx, counterpartyID)
+	value, err := h.service.GetCounterparty(handlerContext(), counterpartyID)
 	if err != nil {
 		return dto.CounterpartyResponse{}, fmt.Errorf("get counterparty: %w", err)
 	}
 	return mapCounterparty(value), nil
 }
 
-func (h *CounterpartyHandler) ListCounterparties(ctx context.Context, req dto.CounterpartyListRequest) (dto.CounterpartyPageResponse, error) {
+func (h *CounterpartyHandler) ListCounterparties(req dto.CounterpartyListRequest) (dto.CounterpartyPageResponse, error) {
 	input, err := parseCounterpartyListRequest(req)
 	if err != nil {
 		return dto.CounterpartyPageResponse{}, err
 	}
-	page, err := h.service.ListCounterparties(ctx, input)
+	page, err := h.service.ListCounterparties(handlerContext(), input)
 	if err != nil {
 		return dto.CounterpartyPageResponse{}, fmt.Errorf("list counterparties: %w", err)
 	}
 	return mapCounterpartyPage(page), nil
 }
 
-func (h *CounterpartyHandler) CreateCounterparty(ctx context.Context, req dto.CounterpartyWriteRequest) (dto.CounterpartyResponse, error) {
+func (h *CounterpartyHandler) CreateCounterparty(req dto.CounterpartyWriteRequest) (dto.CounterpartyResponse, error) {
 	input, err := parseCounterpartyWriteRequest(req)
 	if err != nil {
 		return dto.CounterpartyResponse{}, err
 	}
-	value, err := h.service.CreateCounterparty(ctx, application.CounterpartyCreateInput{
+	value, err := h.service.CreateCounterparty(handlerContext(), application.CounterpartyCreateInput{
 		Name: input.Name, Phone: input.Phone, Email: input.Email, Notes: input.Notes, Roles: input.Roles,
 	})
 	if err != nil {
@@ -59,7 +58,7 @@ func (h *CounterpartyHandler) CreateCounterparty(ctx context.Context, req dto.Co
 	return mapCounterparty(value), nil
 }
 
-func (h *CounterpartyHandler) UpdateCounterparty(ctx context.Context, id int64, req dto.CounterpartyUpdateRequest) (dto.CounterpartyResponse, error) {
+func (h *CounterpartyHandler) UpdateCounterparty(id int64, req dto.CounterpartyUpdateRequest) (dto.CounterpartyResponse, error) {
 	counterpartyID, err := domain.NewCounterpartyID(id)
 	if err != nil {
 		return dto.CounterpartyResponse{}, fmt.Errorf("counterparty id: %w", err)
@@ -72,7 +71,7 @@ func (h *CounterpartyHandler) UpdateCounterparty(ctx context.Context, id int64, 
 	if err != nil {
 		return dto.CounterpartyResponse{}, fmt.Errorf("expected updated at: %w", err)
 	}
-	value, err := h.service.UpdateCounterparty(ctx, application.CounterpartyUpdateInput{
+	value, err := h.service.UpdateCounterparty(handlerContext(), application.CounterpartyUpdateInput{
 		ID: counterpartyID, Name: input.Name, Phone: input.Phone, Email: input.Email,
 		Notes: input.Notes, Roles: input.Roles, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
@@ -82,12 +81,12 @@ func (h *CounterpartyHandler) UpdateCounterparty(ctx context.Context, id int64, 
 	return mapCounterparty(value), nil
 }
 
-func (h *CounterpartyHandler) ArchiveCounterparty(ctx context.Context, id int64, req dto.VersionedCounterpartyRequest) (dto.CounterpartyResponse, error) {
+func (h *CounterpartyHandler) ArchiveCounterparty(id int64, req dto.VersionedCounterpartyRequest) (dto.CounterpartyResponse, error) {
 	counterpartyID, expectedUpdatedAt, err := parseVersionedCounterparty(id, req)
 	if err != nil {
 		return dto.CounterpartyResponse{}, err
 	}
-	value, err := h.service.ArchiveCounterparty(ctx, application.CounterpartyArchiveInput{
+	value, err := h.service.ArchiveCounterparty(handlerContext(), application.CounterpartyArchiveInput{
 		ID: counterpartyID, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {
@@ -96,12 +95,12 @@ func (h *CounterpartyHandler) ArchiveCounterparty(ctx context.Context, id int64,
 	return mapCounterparty(value), nil
 }
 
-func (h *CounterpartyHandler) RestoreCounterparty(ctx context.Context, id int64, req dto.VersionedCounterpartyRequest) (dto.CounterpartyResponse, error) {
+func (h *CounterpartyHandler) RestoreCounterparty(id int64, req dto.VersionedCounterpartyRequest) (dto.CounterpartyResponse, error) {
 	counterpartyID, expectedUpdatedAt, err := parseVersionedCounterparty(id, req)
 	if err != nil {
 		return dto.CounterpartyResponse{}, err
 	}
-	value, err := h.service.RestoreCounterparty(ctx, application.CounterpartyRestoreInput{
+	value, err := h.service.RestoreCounterparty(handlerContext(), application.CounterpartyRestoreInput{
 		ID: counterpartyID, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {

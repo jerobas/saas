@@ -1,7 +1,6 @@
 package wails
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/jerobas/saas/internal/application"
@@ -20,12 +19,12 @@ func NewPurchaseHandler(service *application.PurchaseService) *PurchaseHandler {
 	return &PurchaseHandler{service: service}
 }
 
-func (h *PurchaseHandler) PostPurchase(ctx context.Context, req dto.PurchasePostRequest) (dto.PurchaseDocumentResponse, error) {
+func (h *PurchaseHandler) PostPurchase(req dto.PurchasePostRequest) (dto.PurchaseDocumentResponse, error) {
 	input, err := parsePurchasePostRequest(req)
 	if err != nil {
 		return dto.PurchaseDocumentResponse{}, err
 	}
-	posted, err := h.service.PostPurchase(ctx, input)
+	posted, err := h.service.PostPurchase(handlerContext(), input)
 	if err != nil {
 		return dto.PurchaseDocumentResponse{}, fmt.Errorf("post purchase: %w", err)
 	}

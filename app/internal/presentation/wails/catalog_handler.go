@@ -1,7 +1,6 @@
 package wails
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/jerobas/saas/internal/application"
@@ -21,43 +20,43 @@ func NewCatalogHandler(service *application.CatalogService) *CatalogHandler {
 	return &CatalogHandler{service: service}
 }
 
-func (h *CatalogHandler) GetItem(ctx context.Context, id int64) (dto.ItemResponse, error) {
+func (h *CatalogHandler) GetItem(id int64) (dto.ItemResponse, error) {
 	itemID, err := domain.NewItemID(id)
 	if err != nil {
 		return dto.ItemResponse{}, fmt.Errorf("item id: %w", err)
 	}
-	item, err := h.service.GetItem(ctx, itemID)
+	item, err := h.service.GetItem(handlerContext(), itemID)
 	if err != nil {
 		return dto.ItemResponse{}, fmt.Errorf("get item: %w", err)
 	}
 	return mapItem(item), nil
 }
 
-func (h *CatalogHandler) ListItems(ctx context.Context, req dto.ItemListRequest) (dto.ItemPageResponse, error) {
+func (h *CatalogHandler) ListItems(req dto.ItemListRequest) (dto.ItemPageResponse, error) {
 	input, err := parseItemListRequest(req)
 	if err != nil {
 		return dto.ItemPageResponse{}, err
 	}
-	page, err := h.service.ListItems(ctx, input)
+	page, err := h.service.ListItems(handlerContext(), input)
 	if err != nil {
 		return dto.ItemPageResponse{}, fmt.Errorf("list items: %w", err)
 	}
 	return mapItemPage(page), nil
 }
 
-func (h *CatalogHandler) CreateItem(ctx context.Context, req dto.ItemWriteRequest) (dto.ItemResponse, error) {
+func (h *CatalogHandler) CreateItem(req dto.ItemWriteRequest) (dto.ItemResponse, error) {
 	input, err := parseItemWriteRequest(req)
 	if err != nil {
 		return dto.ItemResponse{}, err
 	}
-	item, err := h.service.CreateItem(ctx, application.ItemCreateInput{ItemWriteInput: input})
+	item, err := h.service.CreateItem(handlerContext(), application.ItemCreateInput{ItemWriteInput: input})
 	if err != nil {
 		return dto.ItemResponse{}, fmt.Errorf("create item: %w", err)
 	}
 	return mapItem(item), nil
 }
 
-func (h *CatalogHandler) UpdateItem(ctx context.Context, id int64, req dto.ItemUpdateRequest) (dto.ItemResponse, error) {
+func (h *CatalogHandler) UpdateItem(id int64, req dto.ItemUpdateRequest) (dto.ItemResponse, error) {
 	itemID, err := domain.NewItemID(id)
 	if err != nil {
 		return dto.ItemResponse{}, fmt.Errorf("item id: %w", err)
@@ -70,7 +69,7 @@ func (h *CatalogHandler) UpdateItem(ctx context.Context, id int64, req dto.ItemU
 	if err != nil {
 		return dto.ItemResponse{}, fmt.Errorf("expected updated at: %w", err)
 	}
-	item, err := h.service.UpdateItem(ctx, application.ItemUpdateInput{
+	item, err := h.service.UpdateItem(handlerContext(), application.ItemUpdateInput{
 		ID: itemID, ItemWriteInput: input, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {
@@ -79,12 +78,12 @@ func (h *CatalogHandler) UpdateItem(ctx context.Context, id int64, req dto.ItemU
 	return mapItem(item), nil
 }
 
-func (h *CatalogHandler) ArchiveItem(ctx context.Context, id int64, req dto.VersionedRequest) (dto.ItemResponse, error) {
+func (h *CatalogHandler) ArchiveItem(id int64, req dto.VersionedRequest) (dto.ItemResponse, error) {
 	itemID, expectedUpdatedAt, err := parseVersionedItem(id, req)
 	if err != nil {
 		return dto.ItemResponse{}, err
 	}
-	item, err := h.service.ArchiveItem(ctx, application.ItemArchiveInput{
+	item, err := h.service.ArchiveItem(handlerContext(), application.ItemArchiveInput{
 		ID: itemID, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {
@@ -93,12 +92,12 @@ func (h *CatalogHandler) ArchiveItem(ctx context.Context, id int64, req dto.Vers
 	return mapItem(item), nil
 }
 
-func (h *CatalogHandler) RestoreItem(ctx context.Context, id int64, req dto.VersionedRequest) (dto.ItemResponse, error) {
+func (h *CatalogHandler) RestoreItem(id int64, req dto.VersionedRequest) (dto.ItemResponse, error) {
 	itemID, expectedUpdatedAt, err := parseVersionedItem(id, req)
 	if err != nil {
 		return dto.ItemResponse{}, err
 	}
-	item, err := h.service.RestoreItem(ctx, application.ItemRestoreInput{
+	item, err := h.service.RestoreItem(handlerContext(), application.ItemRestoreInput{
 		ID: itemID, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {
@@ -107,19 +106,19 @@ func (h *CatalogHandler) RestoreItem(ctx context.Context, id int64, req dto.Vers
 	return mapItem(item), nil
 }
 
-func (h *CatalogHandler) GetItemPackaging(ctx context.Context, id int64) (dto.PackagingResponse, error) {
+func (h *CatalogHandler) GetItemPackaging(id int64) (dto.PackagingResponse, error) {
 	packagingID, err := domain.NewPackagingID(id)
 	if err != nil {
 		return dto.PackagingResponse{}, fmt.Errorf("packaging id: %w", err)
 	}
-	packaging, err := h.service.GetItemPackaging(ctx, packagingID)
+	packaging, err := h.service.GetItemPackaging(handlerContext(), packagingID)
 	if err != nil {
 		return dto.PackagingResponse{}, fmt.Errorf("get item packaging: %w", err)
 	}
 	return mapPackaging(packaging), nil
 }
 
-func (h *CatalogHandler) CreateItemPackaging(ctx context.Context, req dto.PackagingCreateRequest) (dto.PackagingResponse, error) {
+func (h *CatalogHandler) CreateItemPackaging(req dto.PackagingCreateRequest) (dto.PackagingResponse, error) {
 	itemID, err := domain.NewItemID(req.ItemID)
 	if err != nil {
 		return dto.PackagingResponse{}, fmt.Errorf("item id: %w", err)
@@ -128,7 +127,7 @@ func (h *CatalogHandler) CreateItemPackaging(ctx context.Context, req dto.Packag
 	if err != nil {
 		return dto.PackagingResponse{}, err
 	}
-	packaging, err := h.service.CreatePackaging(ctx, application.PackagingCreateInput{
+	packaging, err := h.service.CreatePackaging(handlerContext(), application.PackagingCreateInput{
 		ItemID: itemID, PackagingWriteInput: input,
 	})
 	if err != nil {
@@ -137,7 +136,7 @@ func (h *CatalogHandler) CreateItemPackaging(ctx context.Context, req dto.Packag
 	return mapPackaging(packaging), nil
 }
 
-func (h *CatalogHandler) UpdateItemPackaging(ctx context.Context, id int64, req dto.PackagingUpdateRequest) (dto.PackagingResponse, error) {
+func (h *CatalogHandler) UpdateItemPackaging(id int64, req dto.PackagingUpdateRequest) (dto.PackagingResponse, error) {
 	packagingID, err := domain.NewPackagingID(id)
 	if err != nil {
 		return dto.PackagingResponse{}, fmt.Errorf("packaging id: %w", err)
@@ -150,7 +149,7 @@ func (h *CatalogHandler) UpdateItemPackaging(ctx context.Context, id int64, req 
 	if err != nil {
 		return dto.PackagingResponse{}, fmt.Errorf("expected updated at: %w", err)
 	}
-	packaging, err := h.service.UpdatePackaging(ctx, application.PackagingUpdateInput{
+	packaging, err := h.service.UpdatePackaging(handlerContext(), application.PackagingUpdateInput{
 		ID: packagingID, PackagingWriteInput: input, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {
@@ -159,12 +158,12 @@ func (h *CatalogHandler) UpdateItemPackaging(ctx context.Context, id int64, req 
 	return mapPackaging(packaging), nil
 }
 
-func (h *CatalogHandler) ArchiveItemPackaging(ctx context.Context, id int64, req dto.VersionedRequest) (dto.PackagingResponse, error) {
+func (h *CatalogHandler) ArchiveItemPackaging(id int64, req dto.VersionedRequest) (dto.PackagingResponse, error) {
 	packagingID, expectedUpdatedAt, err := parseVersionedPackaging(id, req)
 	if err != nil {
 		return dto.PackagingResponse{}, err
 	}
-	packaging, err := h.service.ArchivePackaging(ctx, application.PackagingArchiveInput{
+	packaging, err := h.service.ArchivePackaging(handlerContext(), application.PackagingArchiveInput{
 		ID: packagingID, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {
@@ -173,7 +172,7 @@ func (h *CatalogHandler) ArchiveItemPackaging(ctx context.Context, id int64, req
 	return mapPackaging(packaging), nil
 }
 
-func (h *CatalogHandler) ReconfigureArchivedItemPackaging(ctx context.Context, id int64, req dto.PackagingUpdateRequest) (dto.PackagingResponse, error) {
+func (h *CatalogHandler) ReconfigureArchivedItemPackaging(id int64, req dto.PackagingUpdateRequest) (dto.PackagingResponse, error) {
 	packagingID, err := domain.NewPackagingID(id)
 	if err != nil {
 		return dto.PackagingResponse{}, fmt.Errorf("packaging id: %w", err)
@@ -186,7 +185,7 @@ func (h *CatalogHandler) ReconfigureArchivedItemPackaging(ctx context.Context, i
 	if err != nil {
 		return dto.PackagingResponse{}, fmt.Errorf("expected updated at: %w", err)
 	}
-	packaging, err := h.service.ReconfigureArchivedPackaging(ctx, application.PackagingReconfigureInput{
+	packaging, err := h.service.ReconfigureArchivedPackaging(handlerContext(), application.PackagingReconfigureInput{
 		ID: packagingID, PackagingWriteInput: input, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {
@@ -195,12 +194,12 @@ func (h *CatalogHandler) ReconfigureArchivedItemPackaging(ctx context.Context, i
 	return mapPackaging(packaging), nil
 }
 
-func (h *CatalogHandler) RestoreItemPackaging(ctx context.Context, id int64, req dto.VersionedRequest) (dto.PackagingResponse, error) {
+func (h *CatalogHandler) RestoreItemPackaging(id int64, req dto.VersionedRequest) (dto.PackagingResponse, error) {
 	packagingID, expectedUpdatedAt, err := parseVersionedPackaging(id, req)
 	if err != nil {
 		return dto.PackagingResponse{}, err
 	}
-	packaging, err := h.service.RestorePackaging(ctx, application.PackagingRestoreInput{
+	packaging, err := h.service.RestorePackaging(handlerContext(), application.PackagingRestoreInput{
 		ID: packagingID, ExpectedUpdatedAt: expectedUpdatedAt,
 	})
 	if err != nil {

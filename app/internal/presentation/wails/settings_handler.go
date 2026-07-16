@@ -1,7 +1,6 @@
 package wails
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/jerobas/saas/internal/application"
@@ -20,15 +19,15 @@ func NewSettingsHandler(service *application.SettingsService) *SettingsHandler {
 	return &SettingsHandler{service: service}
 }
 
-func (h *SettingsHandler) GetSettings(ctx context.Context) (dto.SettingsResponse, error) {
-	settingsValue, err := h.service.GetSettings(ctx)
+func (h *SettingsHandler) GetSettings() (dto.SettingsResponse, error) {
+	settingsValue, err := h.service.GetSettings(handlerContext())
 	if err != nil {
 		return dto.SettingsResponse{}, fmt.Errorf("get settings: %w", err)
 	}
 	return mapSettings(settingsValue), nil
 }
 
-func (h *SettingsHandler) UpdateSettings(ctx context.Context, req dto.SettingsUpdateRequest) (dto.SettingsResponse, error) {
+func (h *SettingsHandler) UpdateSettings(req dto.SettingsUpdateRequest) (dto.SettingsResponse, error) {
 	businessName, err := domain.NewDisplayName(req.BusinessName)
 	if err != nil {
 		return dto.SettingsResponse{}, fmt.Errorf("business name: %w", err)
@@ -73,7 +72,7 @@ func (h *SettingsHandler) UpdateSettings(ctx context.Context, req dto.SettingsUp
 		return dto.SettingsResponse{}, fmt.Errorf("expected updated at: %w", err)
 	}
 
-	updatedSettings, err := h.service.UpdateSettings(ctx, application.SettingsUpdateInput{
+	updatedSettings, err := h.service.UpdateSettings(handlerContext(), application.SettingsUpdateInput{
 		BusinessName:       businessName,
 		Locale:             locale,
 		Timezone:           timezone,

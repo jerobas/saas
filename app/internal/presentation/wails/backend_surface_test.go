@@ -1,7 +1,6 @@
 package wails
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -24,7 +23,6 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	db := newSurfaceDatabase(t)
 	store := sqlite.NewStore(db)
 	clock := &surfaceClock{now: must(domain.UTCInstantFromUnixMilli(2_000))}
-	ctx := context.Background()
 
 	settingsHandler := NewSettingsHandler(application.NewSettingsService(application.NewSQLiteSettingsStore(store), clock))
 	referenceDataHandler := NewReferenceDataHandler(application.NewReferenceDataService(application.NewSQLiteReferenceDataStore(store)))
@@ -41,13 +39,13 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		application.NewSQLiteInventoryStore(store),
 	))
 
-	settingsValue, err := settingsHandler.GetSettings(ctx)
+	settingsValue, err := settingsHandler.GetSettings()
 	if err != nil {
 		t.Fatalf("get settings: %v", err)
 	}
 	hourlyLaborCost := int64(12_500)
 	defaultGrossMargin := int64(2_500)
-	updatedSettings, err := settingsHandler.UpdateSettings(ctx, dto.SettingsUpdateRequest{
+	updatedSettings, err := settingsHandler.UpdateSettings(dto.SettingsUpdateRequest{
 		BusinessName:        "Sweeters Test",
 		Locale:              "pt-BR",
 		Timezone:            "America/Sao_Paulo",
@@ -67,14 +65,14 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("settings updated at = %d, want %d", updatedSettings.UpdatedAtMs, clock.now.UnixMilli())
 	}
 
-	units, err := referenceDataHandler.ListMeasurementUnits(ctx)
+	units, err := referenceDataHandler.ListMeasurementUnits()
 	if err != nil {
 		t.Fatalf("list measurement units: %v", err)
 	}
 	if len(units) == 0 {
 		t.Fatal("expected seeded measurement units")
 	}
-	unit, err := referenceDataHandler.GetMeasurementUnit(ctx, units[0].Code)
+	unit, err := referenceDataHandler.GetMeasurementUnit(units[0].Code)
 	if err != nil {
 		t.Fatalf("get measurement unit: %v", err)
 	}
@@ -82,14 +80,14 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("measurement unit = %#v", unit)
 	}
 
-	gram, err := referenceDataHandler.GetMeasurementUnit(ctx, "g")
+	gram, err := referenceDataHandler.GetMeasurementUnit("g")
 	if err != nil {
 		t.Fatalf("get gram unit: %v", err)
 	}
 	if !gram.IsItemBase {
 		t.Fatalf("gram unit should be an item base unit: %#v", gram)
 	}
-	kilogram, err := referenceDataHandler.GetMeasurementUnit(ctx, "kg")
+	kilogram, err := referenceDataHandler.GetMeasurementUnit("kg")
 	if err != nil {
 		t.Fatalf("get kilogram unit: %v", err)
 	}
@@ -100,7 +98,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	clock.now = must(domain.UTCInstantFromUnixMilli(3_000))
 	defaultSalePrice := int64(1_250)
 	reorderQuantity := int64(5_000)
-	item, err := catalogHandler.CreateItem(ctx, dto.ItemWriteRequest{
+	item, err := catalogHandler.CreateItem(dto.ItemWriteRequest{
 		Name:         "Flour",
 		SKU:          stringPointer("FLOUR-001"),
 		Description:  stringPointer("Wheat flour"),
@@ -119,7 +117,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("created item = %#v", item)
 	}
 
-	itemPage, err := catalogHandler.ListItems(ctx, dto.ItemListRequest{PageSize: 10})
+	itemPage, err := catalogHandler.ListItems(dto.ItemListRequest{PageSize: 10})
 	if err != nil {
 		t.Fatalf("list items: %v", err)
 	}
@@ -128,7 +126,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(4_000))
-	updatedItem, err := catalogHandler.UpdateItem(ctx, item.ID, dto.ItemUpdateRequest{
+	updatedItem, err := catalogHandler.UpdateItem(item.ID, dto.ItemUpdateRequest{
 		ItemWriteRequest: dto.ItemWriteRequest{
 			Name:         "Premium Flour",
 			SKU:          stringPointer("FLOUR-001"),
@@ -151,7 +149,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(5_000))
-	packaging, err := catalogHandler.CreateItemPackaging(ctx, dto.PackagingCreateRequest{
+	packaging, err := catalogHandler.CreateItemPackaging(dto.PackagingCreateRequest{
 		ItemID: updatedItem.ID,
 		PackagingWriteRequest: dto.PackagingWriteRequest{
 			Name:                  "Kilogram bag",
@@ -168,7 +166,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(6_000))
-	updatedPackaging, err := catalogHandler.UpdateItemPackaging(ctx, packaging.ID, dto.PackagingUpdateRequest{
+	updatedPackaging, err := catalogHandler.UpdateItemPackaging(packaging.ID, dto.PackagingUpdateRequest{
 		PackagingWriteRequest: dto.PackagingWriteRequest{
 			Name:                  "Kilogram sack",
 			EnteredUnitCode:       "kg",
@@ -185,7 +183,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(7_000))
-	archivedPackaging, err := catalogHandler.ArchiveItemPackaging(ctx, updatedPackaging.ID, dto.VersionedRequest{
+	archivedPackaging, err := catalogHandler.ArchiveItemPackaging(updatedPackaging.ID, dto.VersionedRequest{
 		ExpectedUpdatedAtMs: updatedPackaging.UpdatedAtMs,
 	})
 	if err != nil {
@@ -196,7 +194,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(8_000))
-	reconfiguredPackaging, err := catalogHandler.ReconfigureArchivedItemPackaging(ctx, archivedPackaging.ID, dto.PackagingUpdateRequest{
+	reconfiguredPackaging, err := catalogHandler.ReconfigureArchivedItemPackaging(archivedPackaging.ID, dto.PackagingUpdateRequest{
 		PackagingWriteRequest: dto.PackagingWriteRequest{
 			Name:                  "Kilogram package",
 			EnteredUnitCode:       "kg",
@@ -213,7 +211,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(9_000))
-	restoredPackaging, err := catalogHandler.RestoreItemPackaging(ctx, reconfiguredPackaging.ID, dto.VersionedRequest{
+	restoredPackaging, err := catalogHandler.RestoreItemPackaging(reconfiguredPackaging.ID, dto.VersionedRequest{
 		ExpectedUpdatedAtMs: reconfiguredPackaging.UpdatedAtMs,
 	})
 	if err != nil {
@@ -224,7 +222,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(10_000))
-	archivedItem, err := catalogHandler.ArchiveItem(ctx, updatedItem.ID, dto.VersionedRequest{
+	archivedItem, err := catalogHandler.ArchiveItem(updatedItem.ID, dto.VersionedRequest{
 		ExpectedUpdatedAtMs: updatedItem.UpdatedAtMs,
 	})
 	if err != nil {
@@ -235,7 +233,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(11_000))
-	restoredItem, err := catalogHandler.RestoreItem(ctx, archivedItem.ID, dto.VersionedRequest{
+	restoredItem, err := catalogHandler.RestoreItem(archivedItem.ID, dto.VersionedRequest{
 		ExpectedUpdatedAtMs: archivedItem.UpdatedAtMs,
 	})
 	if err != nil {
@@ -247,7 +245,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(12_000))
 	phone := "+55 11 99999-0000"
-	created, err := counterpartyHandler.CreateCounterparty(ctx, dto.CounterpartyWriteRequest{
+	created, err := counterpartyHandler.CreateCounterparty(dto.CounterpartyWriteRequest{
 		Name:  "Supplier One",
 		Phone: &phone,
 		Roles: []string{"SUPPLIER"},
@@ -259,7 +257,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("created counterparty = %#v", created)
 	}
 
-	page, err := counterpartyHandler.ListCounterparties(ctx, dto.CounterpartyListRequest{PageSize: 10})
+	page, err := counterpartyHandler.ListCounterparties(dto.CounterpartyListRequest{PageSize: 10})
 	if err != nil {
 		t.Fatalf("list counterparties: %v", err)
 	}
@@ -268,7 +266,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(13_000))
-	archived, err := counterpartyHandler.ArchiveCounterparty(ctx, created.ID, dto.VersionedCounterpartyRequest{
+	archived, err := counterpartyHandler.ArchiveCounterparty(created.ID, dto.VersionedCounterpartyRequest{
 		ExpectedUpdatedAtMs: created.UpdatedAtMs,
 	})
 	if err != nil {
@@ -279,7 +277,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(14_000))
-	restored, err := counterpartyHandler.RestoreCounterparty(ctx, archived.ID, dto.VersionedCounterpartyRequest{
+	restored, err := counterpartyHandler.RestoreCounterparty(archived.ID, dto.VersionedCounterpartyRequest{
 		ExpectedUpdatedAtMs: archived.UpdatedAtMs,
 	})
 	if err != nil {
@@ -291,7 +289,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 
 	clock.now = must(domain.UTCInstantFromUnixMilli(15_000))
 	expiresOn := "2026-12-31"
-	purchase, err := purchaseHandler.PostPurchase(ctx, dto.PurchasePostRequest{
+	purchase, err := purchaseHandler.PostPurchase(dto.PurchasePostRequest{
 		IdempotencyKey: "purchase-flour-1",
 		CounterpartyID: &restored.ID,
 		OccurredOn:     "2026-07-15",
@@ -318,7 +316,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("purchase lines = %#v", purchase.Lines)
 	}
 
-	balance, err := inventoryHandler.GetInventoryBalance(ctx, restoredItem.ID)
+	balance, err := inventoryHandler.GetInventoryBalance(restoredItem.ID)
 	if err != nil {
 		t.Fatalf("get inventory balance: %v", err)
 	}
@@ -326,7 +324,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("balance = %#v", balance)
 	}
 
-	balancePage, err := inventoryHandler.ListInventoryBalances(ctx, dto.InventoryBalanceListRequest{PageSize: 10})
+	balancePage, err := inventoryHandler.ListInventoryBalances(dto.InventoryBalanceListRequest{PageSize: 10})
 	if err != nil {
 		t.Fatalf("list inventory balances: %v", err)
 	}
@@ -334,7 +332,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("balance page = %#v", balancePage)
 	}
 
-	lots, err := inventoryHandler.ListItemLotFacts(ctx, restoredItem.ID)
+	lots, err := inventoryHandler.ListItemLotFacts(restoredItem.ID)
 	if err != nil {
 		t.Fatalf("list item lot facts: %v", err)
 	}
@@ -342,7 +340,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("lots = %#v", lots)
 	}
 
-	ledger, err := inventoryHandler.ListItemLedgerPage(ctx, dto.ItemLedgerPageRequest{
+	ledger, err := inventoryHandler.ListItemLedgerPage(dto.ItemLedgerPageRequest{
 		ItemID: restoredItem.ID, PageSize: 10,
 	})
 	if err != nil {

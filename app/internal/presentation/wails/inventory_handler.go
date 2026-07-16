@@ -1,7 +1,6 @@
 package wails
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/jerobas/saas/internal/application"
@@ -21,43 +20,43 @@ func NewInventoryHandler(service *application.InventoryService) *InventoryHandle
 	return &InventoryHandler{service: service}
 }
 
-func (h *InventoryHandler) GetInventoryBalance(ctx context.Context, itemID int64) (dto.InventoryBalanceResponse, error) {
+func (h *InventoryHandler) GetInventoryBalance(itemID int64) (dto.InventoryBalanceResponse, error) {
 	id, err := domain.NewItemID(itemID)
 	if err != nil {
 		return dto.InventoryBalanceResponse{}, fmt.Errorf("item id: %w", err)
 	}
-	snapshot, err := h.service.GetInventoryBalance(ctx, id)
+	snapshot, err := h.service.GetInventoryBalance(handlerContext(), id)
 	if err != nil {
 		return dto.InventoryBalanceResponse{}, fmt.Errorf("get inventory balance: %w", err)
 	}
 	return mapInventoryBalanceSnapshot(snapshot, nil), nil
 }
 
-func (h *InventoryHandler) ListInventoryBalances(ctx context.Context, req dto.InventoryBalanceListRequest) (dto.InventoryBalancePageResponse, error) {
+func (h *InventoryHandler) ListInventoryBalances(req dto.InventoryBalanceListRequest) (dto.InventoryBalancePageResponse, error) {
 	input, err := parseInventoryBalanceListRequest(req)
 	if err != nil {
 		return dto.InventoryBalancePageResponse{}, err
 	}
-	page, err := h.service.ListInventoryBalances(ctx, input)
+	page, err := h.service.ListInventoryBalances(handlerContext(), input)
 	if err != nil {
 		return dto.InventoryBalancePageResponse{}, fmt.Errorf("list inventory balances: %w", err)
 	}
 	return mapInventoryBalancePage(page), nil
 }
 
-func (h *InventoryHandler) ListItemLotFacts(ctx context.Context, itemID int64) ([]dto.LotResponse, error) {
+func (h *InventoryHandler) ListItemLotFacts(itemID int64) ([]dto.LotResponse, error) {
 	id, err := domain.NewItemID(itemID)
 	if err != nil {
 		return nil, fmt.Errorf("item id: %w", err)
 	}
-	lots, err := h.service.ListItemLotFacts(ctx, id)
+	lots, err := h.service.ListItemLotFacts(handlerContext(), id)
 	if err != nil {
 		return nil, fmt.Errorf("list item lot facts: %w", err)
 	}
 	return mapLots(lots), nil
 }
 
-func (h *InventoryHandler) ListEligibleFEFOLots(ctx context.Context, itemID int64, businessDate string) ([]dto.LotResponse, error) {
+func (h *InventoryHandler) ListEligibleFEFOLots(itemID int64, businessDate string) ([]dto.LotResponse, error) {
 	id, err := domain.NewItemID(itemID)
 	if err != nil {
 		return nil, fmt.Errorf("item id: %w", err)
@@ -66,31 +65,31 @@ func (h *InventoryHandler) ListEligibleFEFOLots(ctx context.Context, itemID int6
 	if err != nil {
 		return nil, fmt.Errorf("business date: %w", err)
 	}
-	lots, err := h.service.ListEligibleFEFOLots(ctx, id, on)
+	lots, err := h.service.ListEligibleFEFOLots(handlerContext(), id, on)
 	if err != nil {
 		return nil, fmt.Errorf("list eligible FEFO lots: %w", err)
 	}
 	return mapLots(lots), nil
 }
 
-func (h *InventoryHandler) ListItemLedgerPage(ctx context.Context, req dto.ItemLedgerPageRequest) (dto.LedgerEntryPageResponse, error) {
+func (h *InventoryHandler) ListItemLedgerPage(req dto.ItemLedgerPageRequest) (dto.LedgerEntryPageResponse, error) {
 	input, err := parseItemLedgerPageRequest(req)
 	if err != nil {
 		return dto.LedgerEntryPageResponse{}, err
 	}
-	page, err := h.service.ListItemLedgerPage(ctx, input)
+	page, err := h.service.ListItemLedgerPage(handlerContext(), input)
 	if err != nil {
 		return dto.LedgerEntryPageResponse{}, fmt.Errorf("list item ledger page: %w", err)
 	}
 	return mapLedgerEntryPage(page), nil
 }
 
-func (h *InventoryHandler) ListLineAllocations(ctx context.Context, lineID int64) ([]dto.AllocationResponse, error) {
+func (h *InventoryHandler) ListLineAllocations(lineID int64) ([]dto.AllocationResponse, error) {
 	id, err := domain.NewStockDocumentLineID(lineID)
 	if err != nil {
 		return nil, fmt.Errorf("line id: %w", err)
 	}
-	allocations, err := h.service.ListLineAllocations(ctx, id)
+	allocations, err := h.service.ListLineAllocations(handlerContext(), id)
 	if err != nil {
 		return nil, fmt.Errorf("list line allocations: %w", err)
 	}
