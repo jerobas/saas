@@ -9,6 +9,7 @@ const DatabasePage = lazy(() => import("./pages/DatabasePage"));
 const EnterprisePage = lazy(() => import("./pages/EnterprisePage"));
 const InventoryPage = lazy(() => import("./pages/InventoryPage"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
+const PurchasesPage = lazy(() => import("./pages/PurchasesPage"));
 const RecipesPage = lazy(() => import("./pages/RecipesPage"));
 const SalesPage = lazy(() => import("./pages/SalesPage"));
 
@@ -26,6 +27,7 @@ function App() {
           <Route path="/" element={desktopPage(<DashboardPage />)} />
           <Route path="/inventory" element={desktopPage(<InventoryPage />)} />
           <Route path="/batches" element={desktopPage(<BatchesPage />)} />
+          <Route path="/purchases" element={desktopPage(<PurchasesPage />)} />
           <Route path="/recipes" element={desktopPage(<RecipesPage />)} />
           <Route path="/products" element={desktopPage(<ProductsPage />)} />
           <Route path="/sales" element={desktopPage(<SalesPage />)} />

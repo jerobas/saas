@@ -36,6 +36,12 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     },
     {
       icon: <FileText size={24} />,
+      label: "Compras",
+      id: "purchases",
+      path: "/purchases",
+    },
+    {
+      icon: <FileText size={24} />,
       label: "Receitas",
       id: "recipes",
       path: "/recipes",
