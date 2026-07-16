@@ -1,0 +1,167 @@
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import RecipesPage from "./RecipesPage";
+
+const gatewayMocks = vi.hoisted(() => ({
+  catalogGateway: {
+    listItems: vi.fn(),
+  },
+  recipeGateway: {
+    getRecipe: vi.fn(),
+    listRecipeRevisions: vi.fn(),
+    listRecipes: vi.fn(),
+    createRecipe: vi.fn(),
+    publishRecipeRevision: vi.fn(),
+    archiveRecipe: vi.fn(),
+    restoreRecipe: vi.fn(),
+  },
+}));
+
+vi.mock("../gateways/desktopBridge", () => gatewayMocks);
+
+const outputItem = {
+  id: 10,
+  name: "Bolo",
+  sku: null,
+  description: null,
+  baseUnitCode: "g",
+  capabilities: { purchasable: false, producible: true, sellable: true },
+  defaultSalePrice: null,
+  reorderQuantityAtomic: null,
+  createdAtMs: 1_700_000_000_000,
+  updatedAtMs: 1_700_000_000_000,
+  archivedAtMs: null,
+};
+
+const componentItem = {
+  id: 11,
+  name: "Farinha",
+  sku: null,
+  description: null,
+  baseUnitCode: "g",
+  capabilities: { purchasable: true, producible: false, sellable: false },
+  defaultSalePrice: null,
+  reorderQuantityAtomic: null,
+  createdAtMs: 1_700_000_000_000,
+  updatedAtMs: 1_700_000_000_000,
+  archivedAtMs: null,
+};
+
+const revision = {
+  id: 30,
+  recipeId: 20,
+  number: 1,
+  standardYieldQuantityAtomic: 1000,
+  instructions: "Misture e asse.",
+  preparationTimeMinutes: 45,
+  createdAtMs: 1_700_000_000_100,
+  components: [
+    {
+      id: 31,
+      revisionId: 30,
+      order: 1,
+      itemId: 11,
+      quantityAtomic: 500,
+      enteredUnitCode: "g",
+      conversionNumeratorAtomic: 1000,
+      conversionDenominator: 1,
+      createdAtMs: 1_700_000_000_100,
+    },
+  ],
+};
+
+const createdRecipe = {
+  id: 20,
+  name: "Receita de bolo",
+  outputItemId: 10,
+  createdAtMs: 1_700_000_000_100,
+  updatedAtMs: 1_700_000_000_100,
+  archivedAtMs: null,
+  currentRevision: revision,
+};
+
+const recipeSummary = {
+  id: 20,
+  name: "Receita de bolo",
+  outputItemId: 10,
+  outputItemName: "Bolo",
+  createdAtMs: 1_700_000_000_100,
+  updatedAtMs: 1_700_000_000_100,
+  archivedAtMs: null,
+  currentRevision: {
+    id: 30,
+    number: 1,
+    standardYieldQuantityAtomic: 1000,
+  },
+};
+
+describe("RecipesPage", () => {
+  beforeEach(() => {
+    gatewayMocks.catalogGateway.listItems
+      .mockResolvedValueOnce({ items: [outputItem], next: null })
+      .mockResolvedValueOnce({ items: [outputItem, componentItem], next: null })
+      .mockResolvedValue({ items: [outputItem, componentItem], next: null });
+    gatewayMocks.recipeGateway.listRecipes
+      .mockResolvedValueOnce({ items: [], next: null })
+      .mockResolvedValue({ items: [recipeSummary], next: null });
+    gatewayMocks.recipeGateway.createRecipe.mockResolvedValue(createdRecipe);
+    gatewayMocks.recipeGateway.getRecipe.mockResolvedValue(createdRecipe);
+    gatewayMocks.recipeGateway.listRecipeRevisions.mockResolvedValue([revision]);
+    gatewayMocks.recipeGateway.publishRecipeRevision.mockResolvedValue({
+      ...revision,
+      id: 32,
+      number: 2,
+    });
+    gatewayMocks.recipeGateway.archiveRecipe.mockResolvedValue({
+      ...createdRecipe,
+      archivedAtMs: 1_700_000_000_200,
+    });
+    gatewayMocks.recipeGateway.restoreRecipe.mockResolvedValue(createdRecipe);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("creates a recipe through the V2 gateway", async () => {
+    const user = userEvent.setup();
+
+    render(<RecipesPage />);
+
+    await screen.findByText(
+      "Nenhuma receita cadastrada. Crie um item producivel no Catalogo e use o formulario.",
+    );
+    await user.type(screen.getByLabelText("Nome"), "Receita de bolo");
+    await user.clear(screen.getByLabelText("Rendimento atomico"));
+    await user.type(screen.getByLabelText("Rendimento atomico"), "1000");
+    await user.clear(screen.getByLabelText("Preparo min."));
+    await user.type(screen.getByLabelText("Preparo min."), "45");
+    await user.selectOptions(screen.getByLabelText("Componente"), "11");
+    await user.type(screen.getByLabelText("Quantidade atomica do componente"), "500");
+    await user.type(screen.getByLabelText("Instrucoes"), "Misture e asse.");
+    await user.click(screen.getByRole("button", { name: "Criar" }));
+
+    expect(gatewayMocks.recipeGateway.createRecipe).toHaveBeenCalledWith({
+      name: "Receita de bolo",
+      outputItemId: 10,
+      revision: {
+        standardYieldQuantityAtomic: 1000,
+        instructions: "Misture e asse.",
+        preparationTimeMinutes: 45,
+        components: [
+          {
+            order: 1,
+            itemId: 11,
+            quantityAtomic: 500,
+            sourceType: "UNIT",
+            unitCode: "g",
+          },
+        ],
+      },
+    });
+    expect(await screen.findByText('Receita "Receita de bolo" criada.')).toBeInTheDocument();
+    expect(await screen.findByText("Revisao 1")).toBeInTheDocument();
+  });
+});
