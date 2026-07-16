@@ -16,6 +16,7 @@ const gatewayMocks = vi.hoisted(() => ({
     listEligibleFefoLots: vi.fn(),
   },
   saleGateway: {
+    listSales: vi.fn(),
     postSale: vi.fn(),
   },
 }));
@@ -133,6 +134,9 @@ describe("SalesPage", () => {
     });
     gatewayMocks.inventoryGateway.getInventoryBalance.mockResolvedValue(cakeBalance);
     gatewayMocks.inventoryGateway.listEligibleFefoLots.mockResolvedValue([cakeLot]);
+    gatewayMocks.saleGateway.listSales
+      .mockResolvedValueOnce({ items: [], next: null })
+      .mockResolvedValue({ items: [postedSale], next: null });
     gatewayMocks.saleGateway.postSale.mockResolvedValue(postedSale);
   });
 
@@ -170,7 +174,9 @@ describe("SalesPage", () => {
         ],
       }),
     );
-    expect(await screen.findByText("Venda #90 / seq 3 · 2026-07-18")).toBeInTheDocument();
+    expect(await screen.findByText("#90 / seq 3")).toBeInTheDocument();
+    expect(screen.getByText("2026-07-18")).toBeInTheDocument();
+    expect(gatewayMocks.saleGateway.listSales).toHaveBeenCalledWith({ pageSize: 25 });
     expect(gatewayMocks.inventoryGateway.listEligibleFefoLots).toHaveBeenCalledTimes(2);
     expect(gatewayMocks.inventoryGateway.getInventoryBalance).toHaveBeenCalledTimes(2);
   });

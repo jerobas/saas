@@ -19,6 +19,30 @@ func NewSaleHandler(service *application.SaleService) *SaleHandler {
 	return &SaleHandler{service: service}
 }
 
+func (h *SaleHandler) GetSale(id int64) (dto.SaleDocumentResponse, error) {
+	documentID, err := domain.NewStockDocumentID(id)
+	if err != nil {
+		return dto.SaleDocumentResponse{}, fmt.Errorf("sale id: %w", err)
+	}
+	document, err := h.service.GetSale(handlerContext(), documentID)
+	if err != nil {
+		return dto.SaleDocumentResponse{}, fmt.Errorf("get sale: %w", err)
+	}
+	return mapSaleDocument(document), nil
+}
+
+func (h *SaleHandler) ListSales(req dto.SaleListRequest) (dto.SalePageResponse, error) {
+	input, err := parseSaleListRequest(req)
+	if err != nil {
+		return dto.SalePageResponse{}, err
+	}
+	page, err := h.service.ListSales(handlerContext(), input)
+	if err != nil {
+		return dto.SalePageResponse{}, fmt.Errorf("list sales: %w", err)
+	}
+	return mapSalePage(page), nil
+}
+
 func (h *SaleHandler) PostSale(req dto.SalePostRequest) (dto.SaleDocumentResponse, error) {
 	input, err := parseSalePostRequest(req)
 	if err != nil {
@@ -29,6 +53,26 @@ func (h *SaleHandler) PostSale(req dto.SalePostRequest) (dto.SaleDocumentRespons
 		return dto.SaleDocumentResponse{}, fmt.Errorf("post sale: %w", err)
 	}
 	return mapSaleDocument(posted), nil
+}
+
+func parseSaleListRequest(req dto.SaleListRequest) (application.SaleListInput, error) {
+	pageSize := req.PageSize
+	if pageSize == 0 {
+		pageSize = 50
+	}
+	after := domain.None[application.SaleCursor]()
+	if req.After != nil {
+		postingSequence, err := domain.NewPostingSequence(req.After.PostingSequence)
+		if err != nil {
+			return application.SaleListInput{}, fmt.Errorf("cursor posting sequence: %w", err)
+		}
+		id, err := domain.NewStockDocumentID(req.After.ID)
+		if err != nil {
+			return application.SaleListInput{}, fmt.Errorf("cursor id: %w", err)
+		}
+		after = domain.Some(application.SaleCursor{PostingSequence: postingSequence, ID: id})
+	}
+	return application.SaleListInput{After: after, PageSize: pageSize}, nil
 }
 
 func parseSalePostRequest(req dto.SalePostRequest) (application.SalePostInput, error) {
@@ -142,6 +186,23 @@ func mapSaleDocument(document application.SaleDocument) dto.SaleDocumentResponse
 	}
 	for _, line := range lines {
 		response.Lines = append(response.Lines, mapSaleLine(line))
+	}
+	return response
+}
+
+func mapSalePage(page application.SalePage) dto.SalePageResponse {
+	items := page.Items()
+	response := dto.SalePageResponse{
+		Items: make([]dto.SaleDocumentResponse, 0, len(items)),
+	}
+	for _, item := range items {
+		response.Items = append(response.Items, mapSaleDocument(item))
+	}
+	if cursor, ok := page.Next().Get(); ok {
+		response.Next = &dto.SaleCursorResponse{
+			PostingSequence: cursor.PostingSequence.Int64(),
+			ID:              cursor.ID.Int64(),
+		}
 	}
 	return response
 }

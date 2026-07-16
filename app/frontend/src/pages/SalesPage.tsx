@@ -104,7 +104,7 @@ function SalesPage() {
   const [customers, setCustomers] = useState<CounterpartyResponse[]>([]);
   const [eligibleLots, setEligibleLots] = useState<LotResponse[]>([]);
   const [balance, setBalance] = useState<InventoryBalanceResponse | null>(null);
-  const [latestSale, setLatestSale] = useState<SaleDocumentResponse | null>(null);
+  const [sales, setSales] = useState<SaleDocumentResponse[]>([]);
   const [form, setForm] = useState<SaleFormState>(() => emptyForm());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -117,6 +117,21 @@ function SalesPage() {
       ) ?? [],
     [selectedItem],
   );
+
+  const itemNames = useMemo(
+    () => new Map(items.map((item) => [item.id, item.name] as const)),
+    [items],
+  );
+
+  const customerNames = useMemo(
+    () => new Map(customers.map((customer) => [customer.id, customer.name] as const)),
+    [customers],
+  );
+
+  const loadSales = useCallback(async () => {
+    const salePage = await saleGateway.listSales({ pageSize: 25 });
+    setSales(salePage.items);
+  }, []);
 
   const loadItemContext = useCallback(async (itemId: number, occurredOn: string) => {
     const [detail, lots] = await Promise.all([
@@ -144,7 +159,7 @@ function SalesPage() {
     setLoading(true);
     setMessage(null);
     try {
-      const [itemPage, customerPage] = await Promise.all([
+      const [itemPage, customerPage, salePage] = await Promise.all([
         catalogGateway.listItems({
           archiveFilter: "ACTIVE",
           requireCapabilities: { purchasable: false, producible: false, sellable: true },
@@ -155,9 +170,11 @@ function SalesPage() {
           role: "CUSTOMER",
           pageSize: 100,
         }),
+        saleGateway.listSales({ pageSize: 25 }),
       ]);
       setItems(itemPage.items);
       setCustomers(customerPage.items);
+      setSales(salePage.items);
       const firstItem = itemPage.items[0];
       if (firstItem) {
         await loadItemContext(firstItem.id, todayISO());
@@ -286,7 +303,6 @@ function SalesPage() {
           },
         ],
       });
-      setLatestSale(posted);
       setMessage({ type: "success", text: `Venda ${saleLabel(posted)} postada.` });
       setForm((current) => ({
         ...current,
@@ -299,7 +315,7 @@ function SalesPage() {
           lotId: "",
         },
       }));
-      await refreshSelectedInventory(itemId, form.occurredOn);
+      await Promise.all([refreshSelectedInventory(itemId, form.occurredOn), loadSales()]);
     } catch (error) {
       setMessage({
         type: "error",
@@ -561,8 +577,8 @@ function SalesPage() {
               <p className="mt-2 text-3xl font-bold text-blue-700">{customers.length}</p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-semibold text-slate-500">Lotes elegiveis</p>
-              <p className="mt-2 text-3xl font-bold text-green-700">{eligibleLots.length}</p>
+              <p className="text-sm font-semibold text-slate-500">Vendas recentes</p>
+              <p className="mt-2 text-3xl font-bold text-green-700">{sales.length}</p>
             </div>
           </div>
 
@@ -636,25 +652,74 @@ function SalesPage() {
             )}
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">Ultima venda</h2>
-            {!latestSale ? (
-              <p className="mt-4 text-sm text-slate-500">Nenhuma venda postada nesta sessao.</p>
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 p-6">
+              <h2 className="text-xl font-bold text-slate-950">Vendas postadas</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Historico persistente carregado dos documentos SALE.
+              </p>
+            </div>
+            {loading ? (
+              <p className="p-6 text-sm text-slate-500">Carregando vendas...</p>
+            ) : sales.length === 0 ? (
+              <p className="p-6 text-sm text-slate-500">Nenhuma venda postada ainda.</p>
             ) : (
-              <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                <p className="font-semibold text-slate-950">
-                  Venda {saleLabel(latestSale)} · {latestSale.occurredOn}
-                </p>
-                {latestSale.lines.map((line) => (
-                  <p key={line.id} className="mt-1">
-                    item #{line.itemId}: {line.quantityAtomic} {line.enteredUnitCode} · receita{" "}
-                    {formatMoneyMinor(line.commercialTotalMinor)} · COGS{" "}
-                    {formatInventoryMicro(line.inventoryValueMicro)}
-                  </p>
-                ))}
-                <p className="mt-1 text-xs text-slate-500">
-                  Historico persistente de vendas ainda nao existe nesta fatia.
-                </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-6 py-3 font-semibold">Documento</th>
+                      <th className="px-6 py-3 font-semibold">Data</th>
+                      <th className="px-6 py-3 font-semibold">Cliente</th>
+                      <th className="px-6 py-3 font-semibold">Linhas</th>
+                      <th className="px-6 py-3 font-semibold">Receita</th>
+                      <th className="px-6 py-3 font-semibold">COGS</th>
+                      <th className="px-6 py-3 font-semibold">Razao</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sales.map((sale) => {
+                      const revenue = sale.lines.reduce(
+                        (acc, line) => acc + line.commercialTotalMinor,
+                        0,
+                      );
+                      const cogs = sale.lines.reduce(
+                        (acc, line) => acc + line.inventoryValueMicro,
+                        0,
+                      );
+                      return (
+                        <tr key={sale.id} className="hover:bg-slate-50">
+                          <td className="px-6 py-4">
+                            <p className="font-semibold text-slate-950">{saleLabel(sale)}</p>
+                            <p className="text-xs text-slate-500">{sale.idempotencyKey}</p>
+                          </td>
+                          <td className="px-6 py-4 text-slate-700">{sale.occurredOn}</td>
+                          <td className="px-6 py-4 text-slate-700">
+                            {sale.counterpartyId == null
+                              ? "Sem cliente"
+                              : (customerNames.get(sale.counterpartyId) ??
+                                `cliente #${sale.counterpartyId}`)}
+                          </td>
+                          <td className="px-6 py-4 text-slate-700">
+                            {sale.lines.map((line) => (
+                              <div key={line.id}>
+                                {itemNames.get(line.itemId) ?? `item #${line.itemId}`}:{" "}
+                                {line.quantityAtomic} {line.enteredUnitCode}
+                              </div>
+                            ))}
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-slate-900">
+                            {formatMoneyMinor(revenue)}
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-slate-900">
+                            {formatInventoryMicro(cogs)}
+                          </td>
+                          <td className="px-6 py-4 text-slate-700">{sale.reasonCode ?? "-"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </section>

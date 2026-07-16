@@ -54,3 +54,23 @@ type SaleAllocationResponse struct {
 	LotID          int64 `json:"lotId"`
 	QuantityAtomic int64 `json:"quantityAtomic"`
 }
+
+type SaleCursorRequest struct {
+	PostingSequence int64 `json:"postingSequence"`
+	ID              int64 `json:"id"`
+}
+
+type SaleCursorResponse struct {
+	PostingSequence int64 `json:"postingSequence"`
+	ID              int64 `json:"id"`
+}
+
+type SaleListRequest struct {
+	After    *SaleCursorRequest `json:"after,omitempty"`
+	PageSize int                `json:"pageSize,omitempty"`
+}
+
+type SalePageResponse struct {
+	Items []SaleDocumentResponse `json:"items"`
+	Next  *SaleCursorResponse    `json:"next,omitempty"`
+}

@@ -631,6 +631,26 @@ export interface SaleAllocationResponse {
   quantityAtomic: number;
 }
 
+export interface SaleCursorRequest {
+  postingSequence: number;
+  id: number;
+}
+
+export interface SaleCursorResponse {
+  postingSequence: number;
+  id: number;
+}
+
+export interface SaleListRequest {
+  after?: SaleCursorRequest | null;
+  pageSize?: number;
+}
+
+export interface SalePageResponse {
+  items: SaleDocumentResponse[];
+  next?: SaleCursorResponse | null;
+}
+
 export interface RecipeCursorRequest {
   name: string;
   id: number;
@@ -833,6 +853,9 @@ export const productionGateway = {
 };
 
 export const saleGateway = {
+  getSale: (id: number) => invoke<SaleDocumentResponse>("SaleHandler", "GetSale", id),
+  listSales: (request: SaleListRequest) =>
+    invoke<SalePageResponse>("SaleHandler", "ListSales", request),
   postSale: (request: SalePostRequest) =>
     invoke<SaleDocumentResponse>("SaleHandler", "PostSale", request),
 };

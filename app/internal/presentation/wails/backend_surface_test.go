@@ -662,6 +662,22 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("sale allocations = %#v", sale.Lines[0].Allocations)
 	}
 
+	loadedSale, err := saleHandler.GetSale(sale.ID)
+	if err != nil {
+		t.Fatalf("get sale: %v", err)
+	}
+	if loadedSale.ID != sale.ID || len(loadedSale.Lines) != 1 {
+		t.Fatalf("loaded sale = %#v", loadedSale)
+	}
+
+	salePage, err := saleHandler.ListSales(dto.SaleListRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("list sales: %v", err)
+	}
+	if len(salePage.Items) != 1 || salePage.Items[0].ID != sale.ID {
+		t.Fatalf("sale page = %#v", salePage)
+	}
+
 	soldOutputBalance, err := inventoryHandler.GetInventoryBalance(outputItem.ID)
 	if err != nil {
 		t.Fatalf("get output balance after sale: %v", err)

@@ -97,6 +97,55 @@ func TestSaleStorePostsSaleWithCustomerFEFOCOGSAndBalance(t *testing.T) {
 	}
 }
 
+func TestSaleStoreGetsAndListsPostedSales(t *testing.T) {
+	store := newAdapterTestStore(t, filepath.Join(t.TempDir(), "sale-list.db"), database.DefaultOpenOptions())
+	ctx := context.Background()
+	itemID := createSaleTestItem(t, store, "Listed cake", true)
+	postAdjustmentTestPurchase(t, store, itemID, "sale-list-stock", "LIST-LOT", "2026-12-31", 100, 1_000)
+
+	first, err := store.PostSale(ctx, saleInputFixture(t, itemID, "sale-list-1", 10, 300))
+	if err != nil {
+		t.Fatalf("post first sale: %v", err)
+	}
+	second, err := store.PostSale(ctx, saleInputFixture(t, itemID, "sale-list-2", 15, 450))
+	if err != nil {
+		t.Fatalf("post second sale: %v", err)
+	}
+
+	loaded, err := store.GetPostedSale(ctx, first.ID())
+	if err != nil {
+		t.Fatalf("get posted sale: %v", err)
+	}
+	if loaded.ID() != first.ID() || len(loaded.Lines()) != 1 {
+		t.Fatalf("loaded = %#v, want first sale", loaded)
+	}
+
+	page, err := store.ListPostedSales(ctx, SaleListFilter{PageSize: 1})
+	if err != nil {
+		t.Fatalf("list first page: %v", err)
+	}
+	items := page.Items()
+	if len(items) != 1 || items[0].ID() != second.ID() {
+		t.Fatalf("first page items = %#v, want newest sale", items)
+	}
+	cursor, ok := page.Next().Get()
+	if !ok || cursor.ID != second.ID() || cursor.PostingSequence != second.PostingSequence() {
+		t.Fatalf("first page cursor = %#v", page.Next())
+	}
+
+	nextPage, err := store.ListPostedSales(ctx, SaleListFilter{
+		After:    domain.Some(cursor),
+		PageSize: 1,
+	})
+	if err != nil {
+		t.Fatalf("list second page: %v", err)
+	}
+	nextItems := nextPage.Items()
+	if len(nextItems) != 1 || nextItems[0].ID() != first.ID() || nextPage.Next().IsSome() {
+		t.Fatalf("second page = items %#v next %#v, want first sale and no next", nextItems, nextPage.Next())
+	}
+}
+
 func TestSaleStorePostsPromotionWithoutCustomer(t *testing.T) {
 	store := newAdapterTestStore(t, filepath.Join(t.TempDir(), "sale-promotion.db"), database.DefaultOpenOptions())
 	ctx := context.Background()

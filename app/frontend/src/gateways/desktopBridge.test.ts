@@ -499,10 +499,18 @@ describe("desktop bridge", () => {
         },
       ],
     };
+    const page = {
+      items: [response],
+      next: { postingSequence: 4, id: 43 },
+    };
+    const getSale = vi.fn().mockResolvedValue(response);
+    const listSales = vi.fn().mockResolvedValue(page);
     const postSale = vi.fn().mockResolvedValue(response);
     window.go = {
       service: {
         SaleHandler: {
+          GetSale: getSale,
+          ListSales: listSales,
           PostSale: postSale,
         },
       },
@@ -523,8 +531,13 @@ describe("desktop bridge", () => {
         },
       ],
     };
+    const listRequest = { pageSize: 25 };
 
+    await expect(saleGateway.getSale(response.id)).resolves.toEqual(response);
+    await expect(saleGateway.listSales(listRequest)).resolves.toEqual(page);
     await expect(saleGateway.postSale(request)).resolves.toEqual(response);
+    expect(getSale).toHaveBeenCalledWith(response.id);
+    expect(listSales).toHaveBeenCalledWith(listRequest);
     expect(postSale).toHaveBeenCalledWith(request);
   });
 

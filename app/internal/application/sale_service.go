@@ -8,8 +8,39 @@ import (
 )
 
 type SaleStore interface {
+	GetSale(ctx context.Context, id domain.StockDocumentID) (SaleDocument, error)
+	ListSales(ctx context.Context, input SaleListInput) (SalePage, error)
 	PostSale(ctx context.Context, input salePostStoreInput) (SaleDocument, error)
 }
+
+type SaleCursor struct {
+	PostingSequence domain.PostingSequence
+	ID              domain.StockDocumentID
+}
+
+type SaleListInput struct {
+	After    domain.Option[SaleCursor]
+	PageSize int
+}
+
+type SalePage struct {
+	items []SaleDocument
+	next  domain.Option[SaleCursor]
+}
+
+func NewSalePage(items []SaleDocument, next domain.Option[SaleCursor]) SalePage {
+	cloned := make([]SaleDocument, len(items))
+	copy(cloned, items)
+	return SalePage{items: cloned, next: next}
+}
+
+func (p SalePage) Items() []SaleDocument {
+	items := make([]SaleDocument, len(p.items))
+	copy(items, p.items)
+	return items
+}
+
+func (p SalePage) Next() domain.Option[SaleCursor] { return p.next }
 
 type SaleLineInput struct {
 	ItemID               domain.ItemID
@@ -215,6 +246,22 @@ func NewSaleService(store SaleStore, clock Clock) *SaleService {
 		panic("sale service requires a clock")
 	}
 	return &SaleService{store: store, clock: clock}
+}
+
+func (s *SaleService) GetSale(ctx context.Context, id domain.StockDocumentID) (SaleDocument, error) {
+	document, err := s.store.GetSale(ctx, id)
+	if err != nil {
+		return SaleDocument{}, fmt.Errorf("get sale: %w", err)
+	}
+	return document, nil
+}
+
+func (s *SaleService) ListSales(ctx context.Context, input SaleListInput) (SalePage, error) {
+	page, err := s.store.ListSales(ctx, input)
+	if err != nil {
+		return SalePage{}, fmt.Errorf("list sales: %w", err)
+	}
+	return page, nil
 }
 
 func (s *SaleService) PostSale(ctx context.Context, input SalePostInput) (SaleDocument, error) {

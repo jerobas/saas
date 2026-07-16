@@ -10,6 +10,34 @@ import (
 	"github.com/jerobas/saas/internal/domain"
 )
 
+const (
+	saleDefaultPageSize = 50
+	saleMaximumPageSize = 100
+)
+
+type SaleCursor struct {
+	PostingSequence domain.PostingSequence
+	ID              domain.StockDocumentID
+}
+
+type SaleListFilter struct {
+	After    domain.Option[SaleCursor]
+	PageSize int
+}
+
+type SalePage struct {
+	items []PostedSaleDocument
+	next  domain.Option[SaleCursor]
+}
+
+func (p SalePage) Items() []PostedSaleDocument {
+	items := make([]PostedSaleDocument, len(p.items))
+	copy(items, p.items)
+	return items
+}
+
+func (p SalePage) Next() domain.Option[SaleCursor] { return p.next }
+
 type PostSaleInput struct {
 	IdempotencyKey domain.IdempotencyKey
 	CounterpartyID domain.Option[domain.CounterpartyID]
@@ -147,6 +175,65 @@ func (a SaleAllocation) ID() domain.LotAllocationID      { return a.id }
 func (a SaleAllocation) LotID() domain.InventoryLotID    { return a.lotID }
 func (a SaleAllocation) Quantity() domain.AtomicQuantity { return a.quantity }
 
+func (s *Store) GetPostedSale(ctx context.Context, id domain.StockDocumentID) (PostedSaleDocument, error) {
+	if id.IsZero() {
+		return PostedSaleDocument{}, domain.Invalid("document_id", domain.ViolationRequired, "DOC-001")
+	}
+	var document PostedSaleDocument
+	err := s.database.Read(ctx, func(tx *database.ReadTx) error {
+		value, err := loadPostedSaleDocument(ctx, tx, id.Int64())
+		if err != nil {
+			return err
+		}
+		document = value
+		return nil
+	})
+	if err != nil {
+		return PostedSaleDocument{}, classifyError("get posted sale", err)
+	}
+	return document, nil
+}
+
+func (s *Store) ListPostedSales(ctx context.Context, filter SaleListFilter) (SalePage, error) {
+	pageSize, err := salePageSize(filter.PageSize)
+	if err != nil {
+		return SalePage{}, err
+	}
+	var page SalePage
+	err = s.database.Read(ctx, func(tx *database.ReadTx) error {
+		documentIDs, err := listPostedSaleIDs(ctx, tx, filter.After, pageSize+1)
+		if err != nil {
+			return err
+		}
+		hasMore := len(documentIDs) > pageSize
+		if hasMore {
+			documentIDs = documentIDs[:pageSize]
+		}
+		items := make([]PostedSaleDocument, 0, len(documentIDs))
+		for _, id := range documentIDs {
+			document, err := loadPostedSaleDocument(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			items = append(items, document)
+		}
+		next := domain.None[SaleCursor]()
+		if hasMore && len(items) > 0 {
+			last := items[len(items)-1]
+			next = domain.Some(SaleCursor{
+				PostingSequence: last.PostingSequence(),
+				ID:              last.ID(),
+			})
+		}
+		page = SalePage{items: items, next: next}
+		return nil
+	})
+	if err != nil {
+		return SalePage{}, classifyError("list posted sales", err)
+	}
+	return page, nil
+}
+
 func (s *Store) PostSale(ctx context.Context, input PostSaleInput) (PostedSaleDocument, error) {
 	var posted PostedSaleDocument
 	err := s.database.Write(ctx, func(tx *database.WriteTx) error {
@@ -161,6 +248,64 @@ func (s *Store) PostSale(ctx context.Context, input PostSaleInput) (PostedSaleDo
 		return PostedSaleDocument{}, classifyError("post sale", err)
 	}
 	return posted, nil
+}
+
+func salePageSize(requested int) (int, error) {
+	if requested == 0 {
+		return saleDefaultPageSize, nil
+	}
+	if requested < 1 || requested > saleMaximumPageSize {
+		return 0, domain.Invalid("page_size", domain.ViolationOutOfRange, "")
+	}
+	return requested, nil
+}
+
+func listPostedSaleIDs(
+	ctx context.Context,
+	tx databaseWriteTx,
+	after domain.Option[SaleCursor],
+	limit int,
+) ([]int64, error) {
+	args := []any{limit}
+	query := `
+		SELECT id
+		FROM stock_documents
+		WHERE kind = 'SALE'
+		ORDER BY posting_sequence DESC, id DESC
+		LIMIT ?
+	`
+	if cursor, ok := after.Get(); ok {
+		if cursor.PostingSequence.IsZero() || cursor.ID.IsZero() {
+			return nil, domain.Invalid("cursor", domain.ViolationInvalidFormat, "")
+		}
+		args = []any{cursor.PostingSequence.Int64(), cursor.PostingSequence.Int64(), cursor.ID.Int64(), limit}
+		query = `
+			SELECT id
+			FROM stock_documents
+			WHERE kind = 'SALE'
+			  AND (posting_sequence < ? OR (posting_sequence = ? AND id < ?))
+			ORDER BY posting_sequence DESC, id DESC
+			LIMIT ?
+		`
+	}
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 func postSaleTx(ctx context.Context, tx databaseWriteTx, input PostSaleInput) (PostedSaleDocument, error) {
