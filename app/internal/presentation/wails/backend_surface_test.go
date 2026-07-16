@@ -43,6 +43,10 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		application.NewSQLiteReversalStore(store),
 		clock,
 	))
+	productionHandler := NewProductionHandler(application.NewProductionService(
+		application.NewSQLiteProductionStore(store),
+		clock,
+	))
 	recipeHandler := NewRecipeHandler(application.NewRecipeService(
 		application.NewSQLiteRecipeStore(store),
 		clock,
@@ -563,6 +567,62 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 	if restoredBalance.QuantityAtomic != 1_000 || restoredBalance.InventoryValueMicro != 5_000_000 {
 		t.Fatalf("restored balance = %#v", restoredBalance)
+	}
+
+	clock.now = must(domain.UTCInstantFromUnixMilli(18_000))
+	outputExpiresOn := "2026-07-20"
+	production, err := productionHandler.PostProduction(dto.ProductionPostRequest{
+		IdempotencyKey:   "produce-cake-1",
+		RecipeRevisionID: recipeValue.CurrentRevision.ID,
+		OccurredOn:       "2026-07-17",
+		DirectCostMicro:  500_000,
+		Output: dto.ProductionOutputRequest{
+			QuantityAtomic:            100,
+			EnteredUnitCode:           "g",
+			ConversionNumeratorAtomic: 1_000,
+			ConversionDenominator:     1,
+			LotCode:                   stringPointer("CAKE-1"),
+			ExpiresOn:                 &outputExpiresOn,
+		},
+		Inputs: []dto.ProductionComponentRequest{
+			{
+				ItemID:                    restoredItem.ID,
+				QuantityAtomic:            500,
+				EnteredUnitCode:           "g",
+				ConversionNumeratorAtomic: 1_000,
+				ConversionDenominator:     1,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post production: %v", err)
+	}
+	if production.ID == 0 || production.PostingSequence != 4 || production.RecipeRevisionID != recipeValue.CurrentRevision.ID ||
+		production.OutputItemID != outputItem.ID || production.PostedAtMs != clock.now.UnixMilli() {
+		t.Fatalf("production = %#v", production)
+	}
+	if len(production.InputLines) != 1 || production.InputLines[0].Direction != "OUT" ||
+		production.InputLines[0].InventoryValueMicro != 2_500_000 ||
+		len(production.InputLines[0].Allocations) != 1 ||
+		production.InputLines[0].Allocations[0].QuantityAtomic != 500 {
+		t.Fatalf("production input lines = %#v", production.InputLines)
+	}
+	if production.OutputLine.Direction != "IN" || production.OutputLine.ItemID != outputItem.ID ||
+		production.OutputLine.InventoryValueMicro != 3_000_000 || production.OutputLine.LotID == nil {
+		t.Fatalf("production output line = %#v", production.OutputLine)
+	}
+
+	componentBalance, err := inventoryHandler.GetInventoryBalance(restoredItem.ID)
+	if err != nil {
+		t.Fatalf("get component balance after production: %v", err)
+	}
+	outputBalance, err := inventoryHandler.GetInventoryBalance(outputItem.ID)
+	if err != nil {
+		t.Fatalf("get output balance after production: %v", err)
+	}
+	if componentBalance.QuantityAtomic != 500 || componentBalance.InventoryValueMicro != 2_500_000 ||
+		outputBalance.QuantityAtomic != 100 || outputBalance.InventoryValueMicro != 3_000_000 {
+		t.Fatalf("production balances component=%#v output=%#v", componentBalance, outputBalance)
 	}
 }
 

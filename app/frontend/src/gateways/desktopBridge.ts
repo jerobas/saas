@@ -504,6 +504,76 @@ export interface ReversalAllocationResponse {
   restoresAllocationId?: number | null;
 }
 
+export interface ProductionPostRequest {
+  idempotencyKey: string;
+  recipeRevisionId: number;
+  occurredOn: string;
+  directCostMicro: number;
+  notes?: string | null;
+  output: ProductionOutputRequest;
+  inputs: ProductionComponentRequest[];
+}
+
+export interface ProductionOutputRequest {
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  lotCode?: string | null;
+  expiresOn?: string | null;
+}
+
+export interface ProductionComponentRequest {
+  itemId: number;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  lotId?: number | null;
+}
+
+export interface ProductionDocumentResponse {
+  id: number;
+  idempotencyKey: string;
+  postingSequence: number;
+  recipeRevisionId: number;
+  outputItemId: number;
+  occurredOn: string;
+  postedAtMs: number;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  directCostMicro: number;
+  notes?: string | null;
+  outputLine: ProductionLineResponse;
+  inputLines: ProductionLineResponse[];
+}
+
+export interface ProductionLineResponse {
+  id: number;
+  lineOrder: number;
+  itemId: number;
+  direction: StockDirection;
+  quantityAtomic: number;
+  enteredUnitCode: string;
+  enteredPackagingName?: string | null;
+  conversionNumeratorAtomic: number;
+  conversionDenominator: number;
+  inventoryValueMicro: number;
+  lotId?: number | null;
+  lotCode?: string | null;
+  originatedOn?: string | null;
+  expiresOn?: string | null;
+  allocations: ProductionAllocationResponse[];
+}
+
+export interface ProductionAllocationResponse {
+  id: number;
+  lotId: number;
+  quantityAtomic: number;
+}
+
 export interface RecipeCursorRequest {
   name: string;
   id: number;
@@ -698,6 +768,11 @@ export const adjustmentGateway = {
 export const reversalGateway = {
   postReversal: (request: ReversalPostRequest) =>
     invoke<ReversalDocumentResponse>("ReversalHandler", "PostReversal", request),
+};
+
+export const productionGateway = {
+  postProduction: (request: ProductionPostRequest) =>
+    invoke<ProductionDocumentResponse>("ProductionHandler", "PostProduction", request),
 };
 
 export const recipeGateway = {
