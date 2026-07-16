@@ -234,6 +234,26 @@ export interface PurchaseDocumentResponse {
   lines: PurchaseLineResponse[];
 }
 
+export interface PurchaseCursorRequest {
+  postingSequence: number;
+  id: number;
+}
+
+export interface PurchaseCursorResponse {
+  postingSequence: number;
+  id: number;
+}
+
+export interface PurchaseListRequest {
+  after?: PurchaseCursorRequest | null;
+  pageSize?: number;
+}
+
+export interface PurchasePageResponse {
+  items: PurchaseDocumentResponse[];
+  next?: PurchaseCursorResponse | null;
+}
+
 export interface PurchaseLineResponse {
   id: number;
   lineOrder: number;
@@ -438,6 +458,10 @@ export const counterpartyGateway = {
 };
 
 export const purchaseGateway = {
+  getPurchase: (id: number) =>
+    invoke<PurchaseDocumentResponse>("PurchaseHandler", "GetPurchase", id),
+  listPurchases: (request: PurchaseListRequest) =>
+    invoke<PurchasePageResponse>("PurchaseHandler", "ListPurchases", request),
   postPurchase: (request: PurchasePostRequest) =>
     invoke<PurchaseDocumentResponse>("PurchaseHandler", "PostPurchase", request),
 };

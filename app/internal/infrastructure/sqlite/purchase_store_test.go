@@ -92,6 +92,60 @@ func TestPurchaseStorePostsInboundPurchaseLotAndBalance(t *testing.T) {
 	if replayed.ID() != posted.ID() || !replayed.PostedAt().Equal(posted.PostedAt()) {
 		t.Fatalf("replayed = %#v, want original %#v", replayed, posted)
 	}
+
+	loaded, err := store.GetPostedPurchase(ctx, posted.ID())
+	if err != nil {
+		t.Fatalf("get posted purchase: %v", err)
+	}
+	if loaded.ID() != posted.ID() || len(loaded.Lines()) != 1 {
+		t.Fatalf("loaded purchase = %#v", loaded)
+	}
+
+	second, err := store.PostPurchase(ctx, PostPurchaseInput{
+		IdempotencyKey: mustPurchaseIdempotencyKey(t, "purchase-2"),
+		OccurredOn:     mustPurchaseDate(t, "2026-07-16"),
+		PostedAt:       mustCatalogInstant(t, 4_000),
+		Lines: []PostPurchaseLineInput{
+			{
+				ItemID:          item.Item().ID(),
+				Quantity:        mustPurchaseQuantity(t, 500),
+				EnteredUnit:     mustCatalogUnitCode(t, "g"),
+				Conversion:      mustCatalogConversion(t, 500, 1),
+				CommercialTotal: mustPurchaseMinorAmount(t, 250),
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post second purchase: %v", err)
+	}
+
+	firstPage, err := store.ListPostedPurchases(ctx, PurchaseListFilter{PageSize: 1})
+	if err != nil {
+		t.Fatalf("list first purchase page: %v", err)
+	}
+	firstItems := firstPage.Items()
+	if len(firstItems) != 1 || firstItems[0].ID() != second.ID() {
+		t.Fatalf("first page = %#v, want second purchase first", firstItems)
+	}
+	cursor, ok := firstPage.Next().Get()
+	if !ok || cursor.ID != second.ID() || cursor.PostingSequence != second.PostingSequence() {
+		t.Fatalf("first page cursor = %#v", firstPage.Next())
+	}
+
+	secondPage, err := store.ListPostedPurchases(ctx, PurchaseListFilter{
+		After:    firstPage.Next(),
+		PageSize: 1,
+	})
+	if err != nil {
+		t.Fatalf("list second purchase page: %v", err)
+	}
+	secondItems := secondPage.Items()
+	if len(secondItems) != 1 || secondItems[0].ID() != posted.ID() {
+		t.Fatalf("second page = %#v, want original purchase", secondItems)
+	}
+	if _, ok := secondPage.Next().Get(); ok {
+		t.Fatalf("second page next = %#v, want none", secondPage.Next())
+	}
 }
 
 func mustPurchaseIdempotencyKey(t *testing.T, raw string) domain.IdempotencyKey {

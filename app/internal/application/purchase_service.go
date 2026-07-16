@@ -8,8 +8,39 @@ import (
 )
 
 type PurchaseStore interface {
+	GetPurchase(ctx context.Context, id domain.StockDocumentID) (PurchaseDocument, error)
+	ListPurchases(ctx context.Context, input PurchaseListInput) (PurchasePage, error)
 	PostPurchase(ctx context.Context, input purchasePostStoreInput) (PurchaseDocument, error)
 }
+
+type PurchaseCursor struct {
+	PostingSequence domain.PostingSequence
+	ID              domain.StockDocumentID
+}
+
+type PurchaseListInput struct {
+	After    domain.Option[PurchaseCursor]
+	PageSize int
+}
+
+type PurchasePage struct {
+	items []PurchaseDocument
+	next  domain.Option[PurchaseCursor]
+}
+
+func NewPurchasePage(items []PurchaseDocument, next domain.Option[PurchaseCursor]) PurchasePage {
+	cloned := make([]PurchaseDocument, len(items))
+	copy(cloned, items)
+	return PurchasePage{items: cloned, next: next}
+}
+
+func (p PurchasePage) Items() []PurchaseDocument {
+	items := make([]PurchaseDocument, len(p.items))
+	copy(items, p.items)
+	return items
+}
+
+func (p PurchasePage) Next() domain.Option[PurchaseCursor] { return p.next }
 
 type PurchaseLineInput struct {
 	ItemID               domain.ItemID
@@ -210,6 +241,22 @@ func NewPurchaseService(store PurchaseStore, clock Clock) *PurchaseService {
 		panic("purchase service requires a clock")
 	}
 	return &PurchaseService{store: store, clock: clock}
+}
+
+func (s *PurchaseService) GetPurchase(ctx context.Context, id domain.StockDocumentID) (PurchaseDocument, error) {
+	document, err := s.store.GetPurchase(ctx, id)
+	if err != nil {
+		return PurchaseDocument{}, fmt.Errorf("get purchase: %w", err)
+	}
+	return document, nil
+}
+
+func (s *PurchaseService) ListPurchases(ctx context.Context, input PurchaseListInput) (PurchasePage, error) {
+	page, err := s.store.ListPurchases(ctx, input)
+	if err != nil {
+		return PurchasePage{}, fmt.Errorf("list purchases: %w", err)
+	}
+	return page, nil
 }
 
 func (s *PurchaseService) PostPurchase(ctx context.Context, input PurchasePostInput) (PurchaseDocument, error) {

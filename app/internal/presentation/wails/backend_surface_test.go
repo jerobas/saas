@@ -316,6 +316,22 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("purchase lines = %#v", purchase.Lines)
 	}
 
+	loadedPurchase, err := purchaseHandler.GetPurchase(purchase.ID)
+	if err != nil {
+		t.Fatalf("get purchase: %v", err)
+	}
+	if loadedPurchase.ID != purchase.ID || len(loadedPurchase.Lines) != 1 {
+		t.Fatalf("loaded purchase = %#v", loadedPurchase)
+	}
+
+	purchasePage, err := purchaseHandler.ListPurchases(dto.PurchaseListRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("list purchases: %v", err)
+	}
+	if len(purchasePage.Items) != 1 || purchasePage.Items[0].ID != purchase.ID {
+		t.Fatalf("purchase page = %#v", purchasePage)
+	}
+
 	balance, err := inventoryHandler.GetInventoryBalance(restoredItem.ID)
 	if err != nil {
 		t.Fatalf("get inventory balance: %v", err)

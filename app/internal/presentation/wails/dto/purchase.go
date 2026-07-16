@@ -51,3 +51,23 @@ type PurchaseLineResponse struct {
 	OriginatedOn              string  `json:"originatedOn"`
 	ExpiresOn                 *string `json:"expiresOn,omitempty"`
 }
+
+type PurchaseCursorRequest struct {
+	PostingSequence int64 `json:"postingSequence"`
+	ID              int64 `json:"id"`
+}
+
+type PurchaseCursorResponse struct {
+	PostingSequence int64 `json:"postingSequence"`
+	ID              int64 `json:"id"`
+}
+
+type PurchaseListRequest struct {
+	After    *PurchaseCursorRequest `json:"after,omitempty"`
+	PageSize int                    `json:"pageSize,omitempty"`
+}
+
+type PurchasePageResponse struct {
+	Items []PurchaseDocumentResponse `json:"items"`
+	Next  *PurchaseCursorResponse    `json:"next,omitempty"`
+}

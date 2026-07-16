@@ -19,6 +19,30 @@ func NewPurchaseHandler(service *application.PurchaseService) *PurchaseHandler {
 	return &PurchaseHandler{service: service}
 }
 
+func (h *PurchaseHandler) GetPurchase(id int64) (dto.PurchaseDocumentResponse, error) {
+	documentID, err := domain.NewStockDocumentID(id)
+	if err != nil {
+		return dto.PurchaseDocumentResponse{}, fmt.Errorf("purchase id: %w", err)
+	}
+	document, err := h.service.GetPurchase(handlerContext(), documentID)
+	if err != nil {
+		return dto.PurchaseDocumentResponse{}, fmt.Errorf("get purchase: %w", err)
+	}
+	return mapPurchaseDocument(document), nil
+}
+
+func (h *PurchaseHandler) ListPurchases(req dto.PurchaseListRequest) (dto.PurchasePageResponse, error) {
+	input, err := parsePurchaseListRequest(req)
+	if err != nil {
+		return dto.PurchasePageResponse{}, err
+	}
+	page, err := h.service.ListPurchases(handlerContext(), input)
+	if err != nil {
+		return dto.PurchasePageResponse{}, fmt.Errorf("list purchases: %w", err)
+	}
+	return mapPurchasePage(page), nil
+}
+
 func (h *PurchaseHandler) PostPurchase(req dto.PurchasePostRequest) (dto.PurchaseDocumentResponse, error) {
 	input, err := parsePurchasePostRequest(req)
 	if err != nil {
@@ -72,6 +96,26 @@ func parsePurchasePostRequest(req dto.PurchasePostRequest) (application.Purchase
 		Notes:          notes,
 		Lines:          lines,
 	}, nil
+}
+
+func parsePurchaseListRequest(req dto.PurchaseListRequest) (application.PurchaseListInput, error) {
+	pageSize := req.PageSize
+	if pageSize == 0 {
+		pageSize = 50
+	}
+	after := domain.None[application.PurchaseCursor]()
+	if req.After != nil {
+		postingSequence, err := domain.NewPostingSequence(req.After.PostingSequence)
+		if err != nil {
+			return application.PurchaseListInput{}, fmt.Errorf("cursor posting sequence: %w", err)
+		}
+		id, err := domain.NewStockDocumentID(req.After.ID)
+		if err != nil {
+			return application.PurchaseListInput{}, fmt.Errorf("cursor id: %w", err)
+		}
+		after = domain.Some(application.PurchaseCursor{PostingSequence: postingSequence, ID: id})
+	}
+	return application.PurchaseListInput{After: after, PageSize: pageSize}, nil
 }
 
 func parsePurchaseLineRequest(req dto.PurchaseLineRequest) (application.PurchaseLineInput, error) {
@@ -157,6 +201,23 @@ func mapPurchaseDocument(document application.PurchaseDocument) dto.PurchaseDocu
 	}
 	for _, line := range lines {
 		response.Lines = append(response.Lines, mapPurchaseLine(line))
+	}
+	return response
+}
+
+func mapPurchasePage(page application.PurchasePage) dto.PurchasePageResponse {
+	items := page.Items()
+	response := dto.PurchasePageResponse{
+		Items: make([]dto.PurchaseDocumentResponse, 0, len(items)),
+	}
+	for _, item := range items {
+		response.Items = append(response.Items, mapPurchaseDocument(item))
+	}
+	if cursor, ok := page.Next().Get(); ok {
+		response.Next = &dto.PurchaseCursorResponse{
+			PostingSequence: cursor.PostingSequence.Int64(),
+			ID:              cursor.ID.Int64(),
+		}
 	}
 	return response
 }

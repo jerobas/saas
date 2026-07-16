@@ -294,7 +294,7 @@ describe("desktop bridge", () => {
     expect(updateCounterparty).toHaveBeenCalledWith(counterparty.id, updateRequest);
   });
 
-  it("forwards purchase posting calls to the V2 purchase handler", async () => {
+  it("forwards purchase read and posting calls to the V2 purchase handler", async () => {
     const response = {
       id: 40,
       idempotencyKey: "purchase-1",
@@ -320,10 +320,18 @@ describe("desktop bridge", () => {
         },
       ],
     };
+    const page = {
+      items: [response],
+      next: { postingSequence: 1, id: 40 },
+    };
+    const getPurchase = vi.fn().mockResolvedValue(response);
+    const listPurchases = vi.fn().mockResolvedValue(page);
     const postPurchase = vi.fn().mockResolvedValue(response);
     window.go = {
       service: {
         PurchaseHandler: {
+          GetPurchase: getPurchase,
+          ListPurchases: listPurchases,
           PostPurchase: postPurchase,
         },
       },
@@ -344,8 +352,13 @@ describe("desktop bridge", () => {
         },
       ],
     };
+    const listRequest = { pageSize: 25 };
 
+    await expect(purchaseGateway.getPurchase(response.id)).resolves.toEqual(response);
+    await expect(purchaseGateway.listPurchases(listRequest)).resolves.toEqual(page);
     await expect(purchaseGateway.postPurchase(request)).resolves.toEqual(response);
+    expect(getPurchase).toHaveBeenCalledWith(response.id);
+    expect(listPurchases).toHaveBeenCalledWith(listRequest);
     expect(postPurchase).toHaveBeenCalledWith(request);
   });
 

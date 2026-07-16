@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 
+	"github.com/jerobas/saas/internal/domain"
 	"github.com/jerobas/saas/internal/infrastructure/sqlite"
 )
 
@@ -15,6 +16,48 @@ func NewSQLitePurchaseStore(store *sqlite.Store) PurchaseStore {
 		panic("sqlite purchase store requires a store")
 	}
 	return &sqlitePurchaseStore{store: store}
+}
+
+func (s *sqlitePurchaseStore) GetPurchase(ctx context.Context, id domain.StockDocumentID) (PurchaseDocument, error) {
+	posted, err := s.store.GetPostedPurchase(ctx, id)
+	if err != nil {
+		return PurchaseDocument{}, err
+	}
+	return mapSQLitePostedPurchase(posted)
+}
+
+func (s *sqlitePurchaseStore) ListPurchases(ctx context.Context, input PurchaseListInput) (PurchasePage, error) {
+	after := domain.None[sqlite.PurchaseCursor]()
+	if cursor, ok := input.After.Get(); ok {
+		after = domain.Some(sqlite.PurchaseCursor{
+			PostingSequence: cursor.PostingSequence,
+			ID:              cursor.ID,
+		})
+	}
+	page, err := s.store.ListPostedPurchases(ctx, sqlite.PurchaseListFilter{
+		After:    after,
+		PageSize: input.PageSize,
+	})
+	if err != nil {
+		return PurchasePage{}, err
+	}
+	sourceItems := page.Items()
+	items := make([]PurchaseDocument, 0, len(sourceItems))
+	for _, posted := range sourceItems {
+		mapped, err := mapSQLitePostedPurchase(posted)
+		if err != nil {
+			return PurchasePage{}, err
+		}
+		items = append(items, mapped)
+	}
+	next := domain.None[PurchaseCursor]()
+	if cursor, ok := page.Next().Get(); ok {
+		next = domain.Some(PurchaseCursor{
+			PostingSequence: cursor.PostingSequence,
+			ID:              cursor.ID,
+		})
+	}
+	return NewPurchasePage(items, next), nil
 }
 
 func (s *sqlitePurchaseStore) PostPurchase(ctx context.Context, input purchasePostStoreInput) (PurchaseDocument, error) {
