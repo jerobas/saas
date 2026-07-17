@@ -209,6 +209,152 @@ func (q *Queries) GetSalesReportTotals(ctx context.Context, arg GetSalesReportTo
 	return i, err
 }
 
+const listAdjustmentReasonMetrics = `-- name: ListAdjustmentReasonMetrics :many
+WITH active_adjustment_lines AS (
+    SELECT
+        document.id AS document_id,
+        document.reason_code,
+        line.direction,
+        line.quantity_atomic,
+        line.inventory_value_micro
+    FROM stock_documents document
+    JOIN stock_document_lines line ON line.document_id = document.id
+    WHERE document.kind = 'ADJUSTMENT'
+      AND document.occurred_on >= CAST(?1 AS TEXT)
+      AND document.occurred_on <= CAST(?2 AS TEXT)
+      AND line.direction = CAST(?3 AS TEXT)
+      AND NOT EXISTS (
+          SELECT 1
+          FROM stock_documents reversal
+          WHERE reversal.kind = 'REVERSAL'
+            AND reversal.reverses_document_id = document.id
+      )
+)
+SELECT
+    CAST(reason_code AS TEXT) AS reason_code,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(quantity_atomic), 0) AS INTEGER) AS quantity_atomic,
+    CAST(COALESCE(SUM(inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro
+FROM active_adjustment_lines
+GROUP BY reason_code
+ORDER BY inventory_value_micro DESC, quantity_atomic DESC, reason_code
+`
+
+type ListAdjustmentReasonMetricsParams struct {
+	FromOccurredOn string
+	ToOccurredOn   string
+	Direction      string
+}
+
+type ListAdjustmentReasonMetricsRow struct {
+	ReasonCode          string
+	DocumentCount       int64
+	QuantityAtomic      int64
+	InventoryValueMicro int64
+}
+
+func (q *Queries) ListAdjustmentReasonMetrics(ctx context.Context, arg ListAdjustmentReasonMetricsParams) ([]ListAdjustmentReasonMetricsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAdjustmentReasonMetrics, arg.FromOccurredOn, arg.ToOccurredOn, arg.Direction)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAdjustmentReasonMetricsRow{}
+	for rows.Next() {
+		var i ListAdjustmentReasonMetricsRow
+		if err := rows.Scan(
+			&i.ReasonCode,
+			&i.DocumentCount,
+			&i.QuantityAtomic,
+			&i.InventoryValueMicro,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExactReversalSeries = `-- name: ListExactReversalSeries :many
+WITH exact_reversal_lines AS (
+    SELECT
+        document.id AS document_id,
+        CAST(
+            CASE
+                WHEN CAST(?1 AS TEXT) = 'DAY'
+                    THEN document.occurred_on
+                ELSE substr(document.occurred_on, 1, 7)
+            END AS TEXT
+        ) AS bucket,
+        line.quantity_atomic,
+        line.inventory_value_micro
+    FROM stock_documents document
+    JOIN stock_document_lines line ON line.document_id = document.id
+    WHERE document.kind = 'REVERSAL'
+      AND document.reason_code = 'EXACT_REVERSAL'
+      AND document.occurred_on >= CAST(?2 AS TEXT)
+      AND document.occurred_on <= CAST(?3 AS TEXT)
+)
+SELECT
+    CAST(bucket AS TEXT) AS bucket,
+    CAST(bucket AS TEXT) AS label,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(quantity_atomic), 0) AS INTEGER) AS quantity_atomic,
+    CAST(COALESCE(SUM(inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro
+FROM exact_reversal_lines
+GROUP BY bucket
+ORDER BY bucket
+`
+
+type ListExactReversalSeriesParams struct {
+	Granularity    string
+	FromOccurredOn string
+	ToOccurredOn   string
+}
+
+type ListExactReversalSeriesRow struct {
+	Bucket              string
+	Label               string
+	DocumentCount       int64
+	QuantityAtomic      int64
+	InventoryValueMicro int64
+}
+
+func (q *Queries) ListExactReversalSeries(ctx context.Context, arg ListExactReversalSeriesParams) ([]ListExactReversalSeriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listExactReversalSeries, arg.Granularity, arg.FromOccurredOn, arg.ToOccurredOn)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListExactReversalSeriesRow{}
+	for rows.Next() {
+		var i ListExactReversalSeriesRow
+		if err := rows.Scan(
+			&i.Bucket,
+			&i.Label,
+			&i.DocumentCount,
+			&i.QuantityAtomic,
+			&i.InventoryValueMicro,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExpiredLotsWithStock = `-- name: ListExpiredLotsWithStock :many
 WITH lot_facts AS (
     SELECT

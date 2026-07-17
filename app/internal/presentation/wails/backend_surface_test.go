@@ -764,6 +764,23 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("purchase report = %#v", purchaseReport)
 	}
 
+	adjustmentReport, err := reportingHandler.GetAdjustmentReport(dto.ReportingPeriodRequest{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-31",
+		Granularity:    "MONTH",
+	})
+	if err != nil {
+		t.Fatalf("get adjustment report: %v", err)
+	}
+	if len(adjustmentReport.NegativeByReason) != 0 ||
+		len(adjustmentReport.PositiveByReason) != 0 ||
+		len(adjustmentReport.ExactReversals) != 1 ||
+		adjustmentReport.ExactReversals[0].DocumentCount != 1 ||
+		adjustmentReport.ExactReversals[0].QuantityAtomic != 250 ||
+		adjustmentReport.ExactReversals[0].InventoryValueMicro != 1_250_000 {
+		t.Fatalf("adjustment report = %#v", adjustmentReport)
+	}
+
 	categoryMix, err := reportingHandler.GetCategoryMixReport(dto.ReportingPeriodRequest{
 		FromOccurredOn: "2026-07-01",
 		ToOccurredOn:   "2026-07-31",

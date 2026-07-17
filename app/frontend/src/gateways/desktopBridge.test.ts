@@ -878,10 +878,40 @@ describe("desktop bridge", () => {
       ],
       yieldVariance: [],
     };
+    const adjustmentReport = {
+      period: request,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      negativeByReason: [
+        {
+          reasonCode: "WASTE",
+          documentCount: 1,
+          quantityAtomic: 10,
+          revenueMinor: 0,
+          inventoryValueMicro: 1_000_000,
+        },
+      ],
+      positiveByReason: [],
+      exactReversals: [
+        {
+          bucket: "2026-07",
+          label: "2026-07",
+          documentCount: 1,
+          salesCount: 0,
+          quantityAtomic: 5,
+          revenueMinor: 0,
+          spendMinor: 0,
+          inventoryValueMicro: 500_000,
+          directCostMicro: 0,
+          grossMarginMicro: 0,
+        },
+      ],
+    };
     const getSalesReport = vi.fn().mockResolvedValue(salesReport);
     const getInventoryReport = vi.fn().mockResolvedValue(inventoryReport);
     const getPurchaseReport = vi.fn().mockResolvedValue(purchaseReport);
     const getProductionReport = vi.fn().mockResolvedValue(productionReport);
+    const getAdjustmentReport = vi.fn().mockResolvedValue(adjustmentReport);
     const getCategoryMixReport = vi.fn().mockResolvedValue(categoryMix);
     window.go = {
       service: {
@@ -890,6 +920,7 @@ describe("desktop bridge", () => {
           GetInventoryReport: getInventoryReport,
           GetPurchaseReport: getPurchaseReport,
           GetProductionReport: getProductionReport,
+          GetAdjustmentReport: getAdjustmentReport,
           GetCategoryMixReport: getCategoryMixReport,
         },
       },
@@ -899,11 +930,13 @@ describe("desktop bridge", () => {
     await expect(reportingGateway.getInventoryReport(request)).resolves.toEqual(inventoryReport);
     await expect(reportingGateway.getPurchaseReport(request)).resolves.toEqual(purchaseReport);
     await expect(reportingGateway.getProductionReport(request)).resolves.toEqual(productionReport);
+    await expect(reportingGateway.getAdjustmentReport(request)).resolves.toEqual(adjustmentReport);
     await expect(reportingGateway.getCategoryMixReport(request)).resolves.toEqual(categoryMix);
     expect(getSalesReport).toHaveBeenCalledWith(request);
     expect(getInventoryReport).toHaveBeenCalledWith(request);
     expect(getPurchaseReport).toHaveBeenCalledWith(request);
     expect(getProductionReport).toHaveBeenCalledWith(request);
+    expect(getAdjustmentReport).toHaveBeenCalledWith(request);
     expect(getCategoryMixReport).toHaveBeenCalledWith(request);
   });
 });

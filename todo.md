@@ -126,9 +126,10 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - custo direto de producao por periodo;
   - variacao simples de yield;
   - exclusao de producoes revertidas.
-- [ ] Implementar queries restantes:
+- [x] Implementar `GetAdjustmentReport` real:
   - ajustes positivos/negativos por motivo;
   - documentos revertidos/correcoes exatas;
+- [ ] Implementar queries restantes:
   - dashboard vazio sem documentos.
 - [x] Garantir que SALE revertida nao entra nos agregados.
 
@@ -139,6 +140,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
 - [x] Expandir `ReportingStore` read-only para inventario/lotes.
 - [x] Expandir `ReportingStore` read-only para compras.
 - [x] Expandir `ReportingStore` read-only para producao.
+- [x] Expandir `ReportingStore` read-only para ajustes/correcoes.
 - [ ] Criar testes de store com banco temporario:
   - dashboard vazio;
   - compras sem vendas;
@@ -147,7 +149,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - estoque valorizado;
   - baixo estoque.
 - [x] Criar `ReportingService` fino, sem regra de escrita, para `GetSalesReport`.
-- [ ] Expandir `ReportingService` para ajustes/correcoes.
+- [x] Expandir `ReportingService` para ajustes/correcoes.
 - [ ] Adicionar teste de application para periodo invalido e periodo padrao.
 
 ### 5.7.3 — Wails/gateway
@@ -163,7 +165,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - `GetCategoryMixReport`.
 - [x] Registrar handler no app Wails.
 - [x] Adicionar `reportingGateway` tipado no frontend.
-- [x] Cobrir gateway/handler em testes de superficie para vendas, inventario, compras, producao e placeholder de categorias.
+- [x] Cobrir gateway/handler em testes de superficie para vendas, inventario, compras, producao, ajustes e placeholder de categorias.
 
 ### 5.7.4 — Dashboard real minimo
 

@@ -196,8 +196,15 @@ func mapProductionReport(report application.ProductionReport) dto.ProductionRepo
 	}
 }
 
-func mapAdjustmentReport(application.AdjustmentReport) dto.AdjustmentReportResponse {
-	return dto.AdjustmentReportResponse{}
+func mapAdjustmentReport(report application.AdjustmentReport) dto.AdjustmentReportResponse {
+	return dto.AdjustmentReportResponse{
+		Period:              mapReportingPeriod(report.Period),
+		CurrencyCode:        report.Currency.Code().String(),
+		CurrencyMinorDigits: int64(report.Currency.MinorDigits().Int()),
+		NegativeByReason:    mapReportingReasonMetrics(report.NegativeByReason),
+		PositiveByReason:    mapReportingReasonMetrics(report.PositiveByReason),
+		ExactReversals:      mapReportingSeries(report.ExactReversals),
+	}
 }
 
 func mapCategoryMixReport(report application.CategoryMixReport) dto.CategoryMixReportResponse {
@@ -302,6 +309,14 @@ func mapReportingReasonMetric(item application.ReportingReasonMetric) dto.Report
 		RevenueMinor:        item.RevenueMinor,
 		InventoryValueMicro: item.InventoryValueMicro,
 	}
+}
+
+func mapReportingReasonMetrics(items []application.ReportingReasonMetric) []dto.ReportingReasonMetricResponse {
+	response := make([]dto.ReportingReasonMetricResponse, 0, len(items))
+	for _, item := range items {
+		response = append(response, mapReportingReasonMetric(item))
+	}
+	return response
 }
 
 func optionalString(value string) *string {

@@ -109,7 +109,13 @@ type ProductionReport struct {
 	YieldVariance             []ReportingItemMetric
 }
 
-type AdjustmentReport struct{}
+type AdjustmentReport struct {
+	Period           ReportingPeriodInput
+	Currency         domain.Currency
+	NegativeByReason []ReportingReasonMetric
+	PositiveByReason []ReportingReasonMetric
+	ExactReversals   []ReportingSeries
+}
 
 type CategoryMixReport struct {
 	Period            ReportingPeriodInput
@@ -130,6 +136,7 @@ type ReportingStore interface {
 	GetInventoryReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (InventoryReportData, error)
 	GetPurchaseReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (PurchaseReportData, error)
 	GetProductionReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (ProductionReportData, error)
+	GetAdjustmentReportData(ctx context.Context, input ReportingPeriodInput) (AdjustmentReportData, error)
 }
 
 type SalesReportData struct {
@@ -176,6 +183,13 @@ type ProductionReportData struct {
 	ProductionByRecipeProduct []ReportingItemMetric
 	DirectCostSeries          []ReportingSeries
 	YieldVariance             []ReportingItemMetric
+}
+
+type AdjustmentReportData struct {
+	Currency         domain.Currency
+	NegativeByReason []ReportingReasonMetric
+	PositiveByReason []ReportingReasonMetric
+	ExactReversals   []ReportingSeries
 }
 
 type ReportingSeries struct {
@@ -332,8 +346,18 @@ func (s *ReportingService) GetProductionReport(ctx context.Context, input Report
 	}, nil
 }
 
-func (s *ReportingService) GetAdjustmentReport(context.Context, ReportingPeriodInput) (AdjustmentReport, error) {
-	return AdjustmentReport{}, ErrReportingEndpointNotImplemented
+func (s *ReportingService) GetAdjustmentReport(ctx context.Context, input ReportingPeriodInput) (AdjustmentReport, error) {
+	data, err := s.store.GetAdjustmentReportData(ctx, input)
+	if err != nil {
+		return AdjustmentReport{}, err
+	}
+	return AdjustmentReport{
+		Period:           input,
+		Currency:         data.Currency,
+		NegativeByReason: data.NegativeByReason,
+		PositiveByReason: data.PositiveByReason,
+		ExactReversals:   data.ExactReversals,
+	}, nil
 }
 
 func (s *ReportingService) GetCategoryMixReport(_ context.Context, input ReportingPeriodInput) (CategoryMixReport, error) {

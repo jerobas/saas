@@ -607,3 +607,63 @@ FROM active_production_runs
 GROUP BY recipe_id, recipe_name, item_id, item_name, base_unit_code
 ORDER BY ABS(variance_atomic) DESC, recipe_name, recipe_id
 LIMIT sqlc.arg(limit_count);
+
+-- name: ListAdjustmentReasonMetrics :many
+WITH active_adjustment_lines AS (
+    SELECT
+        document.id AS document_id,
+        document.reason_code,
+        line.direction,
+        line.quantity_atomic,
+        line.inventory_value_micro
+    FROM stock_documents document
+    JOIN stock_document_lines line ON line.document_id = document.id
+    WHERE document.kind = 'ADJUSTMENT'
+      AND document.occurred_on >= CAST(sqlc.arg(from_occurred_on) AS TEXT)
+      AND document.occurred_on <= CAST(sqlc.arg(to_occurred_on) AS TEXT)
+      AND line.direction = CAST(sqlc.arg(direction) AS TEXT)
+      AND NOT EXISTS (
+          SELECT 1
+          FROM stock_documents reversal
+          WHERE reversal.kind = 'REVERSAL'
+            AND reversal.reverses_document_id = document.id
+      )
+)
+SELECT
+    CAST(reason_code AS TEXT) AS reason_code,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(quantity_atomic), 0) AS INTEGER) AS quantity_atomic,
+    CAST(COALESCE(SUM(inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro
+FROM active_adjustment_lines
+GROUP BY reason_code
+ORDER BY inventory_value_micro DESC, quantity_atomic DESC, reason_code;
+
+-- name: ListExactReversalSeries :many
+WITH exact_reversal_lines AS (
+    SELECT
+        document.id AS document_id,
+        CAST(
+            CASE
+                WHEN CAST(sqlc.arg(granularity) AS TEXT) = 'DAY'
+                    THEN document.occurred_on
+                ELSE substr(document.occurred_on, 1, 7)
+            END AS TEXT
+        ) AS bucket,
+        line.quantity_atomic,
+        line.inventory_value_micro
+    FROM stock_documents document
+    JOIN stock_document_lines line ON line.document_id = document.id
+    WHERE document.kind = 'REVERSAL'
+      AND document.reason_code = 'EXACT_REVERSAL'
+      AND document.occurred_on >= CAST(sqlc.arg(from_occurred_on) AS TEXT)
+      AND document.occurred_on <= CAST(sqlc.arg(to_occurred_on) AS TEXT)
+)
+SELECT
+    CAST(bucket AS TEXT) AS bucket,
+    CAST(bucket AS TEXT) AS label,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(quantity_atomic), 0) AS INTEGER) AS quantity_atomic,
+    CAST(COALESCE(SUM(inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro
+FROM exact_reversal_lines
+GROUP BY bucket
+ORDER BY bucket;

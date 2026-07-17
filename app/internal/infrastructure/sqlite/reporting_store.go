@@ -53,6 +53,13 @@ type ProductionReportData struct {
 	YieldVariance             []ReportingItemMetric
 }
 
+type AdjustmentReportData struct {
+	Currency         domain.Currency
+	NegativeByReason []ReportingReasonMetric
+	PositiveByReason []ReportingReasonMetric
+	ExactReversals   []ReportingSeries
+}
+
 type SalesReportTotals struct {
 	SalesCount     int64
 	QuantityAtomic int64
@@ -110,11 +117,12 @@ type ReportingCounterpartyMetric struct {
 }
 
 type ReportingReasonMetric struct {
-	ReasonCode     string
-	DocumentCount  int64
-	QuantityAtomic int64
-	RevenueMinor   int64
-	COGSMicro      int64
+	ReasonCode          string
+	DocumentCount       int64
+	QuantityAtomic      int64
+	RevenueMinor        int64
+	InventoryValueMicro int64
+	COGSMicro           int64
 }
 
 func (s *Store) GetSalesReportData(
@@ -359,6 +367,47 @@ func (s *Store) GetProductionReportData(
 	return data, nil
 }
 
+func (s *Store) GetAdjustmentReportData(
+	ctx context.Context,
+	filter ReportingPeriodFilter,
+) (AdjustmentReportData, error) {
+	var data AdjustmentReportData
+	err := s.withReadQueries(ctx, "get adjustment report data", func(queries *sqlcgen.Queries) error {
+		currencyRow, err := queries.GetReportingCurrency(ctx)
+		if err != nil {
+			return err
+		}
+		currency, err := domain.RestoreCurrency(currencyRow.CurrencyCode, int(currencyRow.CurrencyMinorDigits))
+		if err != nil {
+			return err
+		}
+		negative, err := queries.ListAdjustmentReasonMetrics(ctx, adjustmentReasonMetricsParams(filter, domain.DirectionOut))
+		if err != nil {
+			return err
+		}
+		positive, err := queries.ListAdjustmentReasonMetrics(ctx, adjustmentReasonMetricsParams(filter, domain.DirectionIn))
+		if err != nil {
+			return err
+		}
+		reversals, err := queries.ListExactReversalSeries(ctx, exactReversalSeriesParams(filter))
+		if err != nil {
+			return err
+		}
+
+		data = AdjustmentReportData{
+			Currency:         currency,
+			NegativeByReason: mapAdjustmentReasonMetricRows(negative),
+			PositiveByReason: mapAdjustmentReasonMetricRows(positive),
+			ExactReversals:   mapExactReversalSeriesRows(reversals),
+		}
+		return nil
+	})
+	if err != nil {
+		return AdjustmentReportData{}, err
+	}
+	return data, nil
+}
+
 func salesTotalsParams(filter ReportingPeriodFilter) sqlcgen.GetSalesReportTotalsParams {
 	return sqlcgen.GetSalesReportTotalsParams{
 		FromOccurredOn: filter.FromOccurredOn,
@@ -460,6 +509,22 @@ func productionYieldVarianceParams(filter ReportingPeriodFilter, limit int) sqlc
 	}
 }
 
+func adjustmentReasonMetricsParams(filter ReportingPeriodFilter, direction domain.Direction) sqlcgen.ListAdjustmentReasonMetricsParams {
+	return sqlcgen.ListAdjustmentReasonMetricsParams{
+		FromOccurredOn: filter.FromOccurredOn,
+		ToOccurredOn:   filter.ToOccurredOn,
+		Direction:      direction.String(),
+	}
+}
+
+func exactReversalSeriesParams(filter ReportingPeriodFilter) sqlcgen.ListExactReversalSeriesParams {
+	return sqlcgen.ListExactReversalSeriesParams{
+		Granularity:    filter.Granularity,
+		FromOccurredOn: filter.FromOccurredOn,
+		ToOccurredOn:   filter.ToOccurredOn,
+	}
+}
+
 func mapSalesTotalsRow(row sqlcgen.GetSalesReportTotalsRow) SalesReportTotals {
 	return SalesReportTotals{
 		SalesCount:     row.SalesCount,
@@ -528,6 +593,20 @@ func mapProductionDirectCostSeriesRows(rows []sqlcgen.ListProductionDirectCostSe
 			QuantityAtomic:      row.QuantityAtomic,
 			InventoryValueMicro: row.InventoryValueMicro,
 			DirectCostMicro:     row.DirectCostMicro,
+		})
+	}
+	return items
+}
+
+func mapExactReversalSeriesRows(rows []sqlcgen.ListExactReversalSeriesRow) []ReportingSeries {
+	items := make([]ReportingSeries, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, ReportingSeries{
+			Bucket:              row.Bucket,
+			Label:               row.Label,
+			DocumentCount:       row.DocumentCount,
+			QuantityAtomic:      row.QuantityAtomic,
+			InventoryValueMicro: row.InventoryValueMicro,
 		})
 	}
 	return items
@@ -725,12 +804,26 @@ func optionBusinessDate(value sql.NullString) domain.Option[domain.BusinessDate]
 
 func mapFreeSalesTotals(row sqlcgen.GetFreeSalesTotalsRow) ReportingReasonMetric {
 	return ReportingReasonMetric{
-		ReasonCode:     "FREE_SALES",
-		DocumentCount:  row.DocumentCount,
-		QuantityAtomic: row.QuantityAtomic,
-		RevenueMinor:   row.RevenueMinor,
-		COGSMicro:      row.CogsMicro,
+		ReasonCode:          "FREE_SALES",
+		DocumentCount:       row.DocumentCount,
+		QuantityAtomic:      row.QuantityAtomic,
+		RevenueMinor:        row.RevenueMinor,
+		InventoryValueMicro: row.CogsMicro,
+		COGSMicro:           row.CogsMicro,
 	}
+}
+
+func mapAdjustmentReasonMetricRows(rows []sqlcgen.ListAdjustmentReasonMetricsRow) []ReportingReasonMetric {
+	items := make([]ReportingReasonMetric, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, ReportingReasonMetric{
+			ReasonCode:          row.ReasonCode,
+			DocumentCount:       row.DocumentCount,
+			QuantityAtomic:      row.QuantityAtomic,
+			InventoryValueMicro: row.InventoryValueMicro,
+		})
+	}
+	return items
 }
 
 func mapSalesByCustomerRows(rows []sqlcgen.ListSalesByCustomerRow) []ReportingCounterpartyMetric {

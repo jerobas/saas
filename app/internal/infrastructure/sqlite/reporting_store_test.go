@@ -307,6 +307,56 @@ func TestReportingStoreProductionReportAggregatesRunsYieldAndExcludesReversedDoc
 	}
 }
 
+func TestReportingStoreAdjustmentReportAggregatesReasonsAndExactReversals(t *testing.T) {
+	store := newAdapterTestStore(t, filepath.Join(t.TempDir(), "reporting-adjustments.db"), database.DefaultOpenOptions())
+	ctx := context.Background()
+	itemID := createReportingItem(t, store, "Reported butter", false, domain.None[domain.AtomicQuantity]())
+	postAdjustmentTestPurchase(t, store, itemID, "reporting-adjustment-stock", "RPT-BUTTER", "2026-12-31", 100, 1_000)
+
+	postReportingAdjustment(t, store, "report-positive-adjustment", "2026-07-05", 2_000, domain.ReasonOpeningBalance, itemID, domain.DirectionIn, 20, domain.Some(mustInventoryValue(t, 2_000_000)))
+	postReportingAdjustment(t, store, "report-negative-adjustment", "2026-07-06", 3_000, domain.ReasonWaste, itemID, domain.DirectionOut, 10, domain.None[domain.InventoryValue]())
+	reversed := postReportingAdjustment(t, store, "report-reversed-adjustment", "2026-07-07", 4_000, domain.ReasonDamage, itemID, domain.DirectionOut, 5, domain.None[domain.InventoryValue]())
+	if _, err := store.PostReversal(ctx, PostReversalInput{
+		IdempotencyKey:   mustPurchaseIdempotencyKey(t, "reverse-report-adjustment"),
+		TargetDocumentID: reversed.ID(),
+		OccurredOn:       mustPurchaseDate(t, "2026-07-08"),
+		PostedAt:         mustCatalogInstant(t, 5_000),
+	}); err != nil {
+		t.Fatalf("reverse adjustment: %v", err)
+	}
+
+	report, err := store.GetAdjustmentReportData(ctx, ReportingPeriodFilter{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-31",
+		Granularity:    "MONTH",
+	})
+	if err != nil {
+		t.Fatalf("get adjustment report data: %v", err)
+	}
+
+	if len(report.PositiveByReason) != 1 ||
+		report.PositiveByReason[0].ReasonCode != domain.ReasonOpeningBalance.String() ||
+		report.PositiveByReason[0].DocumentCount != 1 ||
+		report.PositiveByReason[0].QuantityAtomic != 20 ||
+		report.PositiveByReason[0].InventoryValueMicro != 2_000_000 {
+		t.Fatalf("positive adjustments = %#v", report.PositiveByReason)
+	}
+	if len(report.NegativeByReason) != 1 ||
+		report.NegativeByReason[0].ReasonCode != domain.ReasonWaste.String() ||
+		report.NegativeByReason[0].DocumentCount != 1 ||
+		report.NegativeByReason[0].QuantityAtomic != 10 ||
+		report.NegativeByReason[0].InventoryValueMicro != 1_000_000 {
+		t.Fatalf("negative adjustments = %#v", report.NegativeByReason)
+	}
+	if len(report.ExactReversals) != 1 ||
+		report.ExactReversals[0].Bucket != "2026-07" ||
+		report.ExactReversals[0].DocumentCount != 1 ||
+		report.ExactReversals[0].QuantityAtomic != 5 ||
+		report.ExactReversals[0].InventoryValueMicro != 500_000 {
+		t.Fatalf("exact reversals = %#v", report.ExactReversals)
+	}
+}
+
 func reportSaleInput(
 	t *testing.T,
 	itemID domain.ItemID,
@@ -334,6 +384,43 @@ func reportSaleInput(
 			},
 		},
 	}
+}
+
+func postReportingAdjustment(
+	t *testing.T,
+	store *Store,
+	idempotencyKey string,
+	occurredOn string,
+	postedAtMS int64,
+	reason domain.DocumentReason,
+	itemID domain.ItemID,
+	direction domain.Direction,
+	quantityAtomic int64,
+	inventoryValue domain.Option[domain.InventoryValue],
+) PostedAdjustmentDocument {
+	t.Helper()
+	posted, err := store.PostAdjustment(context.Background(), PostAdjustmentInput{
+		IdempotencyKey: mustPurchaseIdempotencyKey(t, idempotencyKey),
+		OccurredOn:     mustPurchaseDate(t, occurredOn),
+		PostedAt:       mustCatalogInstant(t, postedAtMS),
+		Reason:         reason,
+		Lines: []PostAdjustmentLineInput{
+			{
+				ItemID:         itemID,
+				Direction:      direction,
+				Quantity:       mustPurchaseQuantity(t, quantityAtomic),
+				EnteredUnit:    mustCatalogUnitCode(t, "g"),
+				Conversion:     mustCatalogConversion(t, 1_000, 1),
+				InventoryValue: inventoryValue,
+				LotCode:        domain.Some(counterpartyText(t, idempotencyKey+"-lot")),
+				ExpiresOn:      domain.Some(mustPurchaseDate(t, "2026-12-31")),
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post reporting adjustment: %v", err)
+	}
+	return posted
 }
 
 func createReportingItem(

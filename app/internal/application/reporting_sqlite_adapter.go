@@ -117,6 +117,26 @@ func (s *sqliteReportingStore) GetProductionReportData(
 	}, nil
 }
 
+func (s *sqliteReportingStore) GetAdjustmentReportData(
+	ctx context.Context,
+	input ReportingPeriodInput,
+) (AdjustmentReportData, error) {
+	data, err := s.store.GetAdjustmentReportData(ctx, sqlite.ReportingPeriodFilter{
+		FromOccurredOn: input.FromOccurredOn.String(),
+		ToOccurredOn:   input.ToOccurredOn.String(),
+		Granularity:    string(input.Granularity),
+	})
+	if err != nil {
+		return AdjustmentReportData{}, err
+	}
+	return AdjustmentReportData{
+		Currency:         data.Currency,
+		NegativeByReason: mapReportingReasonMetrics(data.NegativeByReason),
+		PositiveByReason: mapReportingReasonMetrics(data.PositiveByReason),
+		ExactReversals:   mapReportingSeries(data.ExactReversals),
+	}, nil
+}
+
 func mapSalesReportTotals(value sqlite.SalesReportTotals) SalesReportTotals {
 	return SalesReportTotals{
 		SalesCount:     value.SalesCount,
@@ -197,8 +217,23 @@ func mapReportingReasonMetric(item sqlite.ReportingReasonMetric) ReportingReason
 		DocumentCount:       item.DocumentCount,
 		QuantityAtomic:      item.QuantityAtomic,
 		RevenueMinor:        item.RevenueMinor,
-		InventoryValueMicro: item.COGSMicro,
+		InventoryValueMicro: reportingReasonInventoryValueMicro(item),
 	}
+}
+
+func mapReportingReasonMetrics(items []sqlite.ReportingReasonMetric) []ReportingReasonMetric {
+	mapped := make([]ReportingReasonMetric, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, mapReportingReasonMetric(item))
+	}
+	return mapped
+}
+
+func reportingReasonInventoryValueMicro(item sqlite.ReportingReasonMetric) int64 {
+	if item.InventoryValueMicro != 0 {
+		return item.InventoryValueMicro
+	}
+	return item.COGSMicro
 }
 
 func mapReportingCounterpartyMetrics(items []sqlite.ReportingCounterpartyMetric) []ReportingCounterpartyMetric {
