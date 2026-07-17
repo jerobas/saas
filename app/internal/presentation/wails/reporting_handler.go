@@ -135,8 +135,27 @@ func mapDashboardReport(application.DashboardReport) dto.DashboardReportResponse
 	return dto.DashboardReportResponse{}
 }
 
-func mapSalesReport(application.SalesReport) dto.SalesReportResponse {
-	return dto.SalesReportResponse{}
+func mapSalesReport(report application.SalesReport) dto.SalesReportResponse {
+	return dto.SalesReportResponse{
+		Period:                 mapReportingPeriod(report.Period),
+		CurrencyCode:           report.Currency.Code().String(),
+		CurrencyMinorDigits:    int64(report.Currency.MinorDigits().Int()),
+		TotalSalesCount:        report.TotalSalesCount,
+		TotalRevenueMinor:      report.TotalRevenueMinor,
+		COGSMicro:              report.COGSMicro,
+		GrossMarginMicro:       report.GrossMarginMicro,
+		GrossMarginBasisPoints: optionalInt64(report.GrossMarginBasisPoints),
+		AverageTicketMinor:     optionalInt64(report.AverageTicketMinor),
+		GrowthBasisPoints:      optionalInt64(report.GrowthBasisPoints),
+		SalesRevenueSeries:     mapReportingSeries(report.SalesRevenueSeries),
+		MonthlyRevenueSeries:   mapReportingSeries(report.MonthlyRevenueSeries),
+		MonthlySalesSeries:     mapReportingSeries(report.MonthlySalesSeries),
+		TopProductsByQuantity:  mapReportingItemMetrics(report.TopProductsByQuantity),
+		TopProductsByRevenue:   mapReportingItemMetrics(report.TopProductsByRevenue),
+		FreeSales:              mapReportingReasonMetric(report.FreeSales),
+		SalesByCustomer:        mapReportingCounterpartyMetrics(report.SalesByCustomer),
+		AnonymousSales:         mapReportingCounterpartyMetric(report.AnonymousSales),
+	}
 }
 
 func mapInventoryReport(application.InventoryReport) dto.InventoryReportResponse {
@@ -173,9 +192,117 @@ func mapCategoryMixReport(report application.CategoryMixReport) dto.CategoryMixR
 	}
 }
 
+func mapReportingSeries(items []application.ReportingSeries) []dto.ReportingSeriesResponse {
+	response := make([]dto.ReportingSeriesResponse, 0, len(items))
+	for _, item := range items {
+		response = append(response, dto.ReportingSeriesResponse{
+			Bucket:              item.Bucket,
+			Label:               item.Label,
+			SalesCount:          item.SalesCount,
+			QuantityAtomic:      item.QuantityAtomic,
+			RevenueMinor:        item.RevenueMinor,
+			InventoryValueMicro: item.COGSMicro,
+			GrossMarginMicro:    item.GrossMarginMicro,
+		})
+	}
+	return response
+}
+
+func mapReportingItemMetrics(items []application.ReportingItemMetric) []dto.ReportingItemMetricResponse {
+	response := make([]dto.ReportingItemMetricResponse, 0, len(items))
+	for _, item := range items {
+		response = append(response, dto.ReportingItemMetricResponse{
+			ItemID:              optionalItemID(item.ItemID),
+			ItemName:            item.ItemName,
+			RecipeID:            optionalRecipeID(item.RecipeID),
+			RecipeName:          optionalStringOption(item.RecipeName),
+			BaseUnitCode:        optionalUnitCode(item.BaseUnitCode),
+			QuantityAtomic:      item.QuantityAtomic,
+			RevenueMinor:        item.RevenueMinor,
+			InventoryValueMicro: item.InventoryValueMicro,
+			DirectCostMicro:     item.DirectCostMicro,
+			StandardYieldAtomic: optionalInt64(item.StandardYieldAtomic),
+			ActualYieldAtomic:   optionalInt64(item.ActualYieldAtomic),
+			VarianceAtomic:      optionalInt64(item.VarianceAtomic),
+		})
+	}
+	return response
+}
+
+func mapReportingCounterpartyMetrics(items []application.ReportingCounterpartyMetric) []dto.ReportingCounterpartyMetricResponse {
+	response := make([]dto.ReportingCounterpartyMetricResponse, 0, len(items))
+	for _, item := range items {
+		response = append(response, mapReportingCounterpartyMetric(item))
+	}
+	return response
+}
+
+func mapReportingCounterpartyMetric(item application.ReportingCounterpartyMetric) dto.ReportingCounterpartyMetricResponse {
+	return dto.ReportingCounterpartyMetricResponse{
+		CounterpartyID:   optionalCounterpartyIDValue(item.CounterpartyID),
+		CounterpartyName: optionalStringOption(item.CounterpartyName),
+		DocumentCount:    item.DocumentCount,
+		RevenueMinor:     item.RevenueMinor,
+		SpendMinor:       item.SpendMinor,
+	}
+}
+
+func mapReportingReasonMetric(item application.ReportingReasonMetric) dto.ReportingReasonMetricResponse {
+	return dto.ReportingReasonMetricResponse{
+		ReasonCode:          item.ReasonCode,
+		DocumentCount:       item.DocumentCount,
+		QuantityAtomic:      item.QuantityAtomic,
+		RevenueMinor:        item.RevenueMinor,
+		InventoryValueMicro: item.InventoryValueMicro,
+	}
+}
+
 func optionalString(value string) *string {
 	if value == "" {
 		return nil
 	}
 	return &value
+}
+
+func optionalStringOption(value domain.Option[string]) *string {
+	raw, ok := value.Get()
+	if !ok {
+		return nil
+	}
+	return &raw
+}
+
+func optionalInt64(value domain.Option[int64]) *int64 {
+	raw, ok := value.Get()
+	if !ok {
+		return nil
+	}
+	return &raw
+}
+
+func optionalItemID(value domain.Option[domain.ItemID]) *int64 {
+	id, ok := value.Get()
+	if !ok {
+		return nil
+	}
+	raw := id.Int64()
+	return &raw
+}
+
+func optionalRecipeID(value domain.Option[domain.RecipeID]) *int64 {
+	id, ok := value.Get()
+	if !ok {
+		return nil
+	}
+	raw := id.Int64()
+	return &raw
+}
+
+func optionalUnitCode(value domain.Option[domain.UnitCode]) *string {
+	code, ok := value.Get()
+	if !ok {
+		return nil
+	}
+	raw := code.String()
+	return &raw
 }

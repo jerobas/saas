@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/jerobas/saas/internal/domain"
 )
@@ -49,12 +50,35 @@ func NewReportingPeriodInput(from, to domain.BusinessDate, granularity Reporting
 	if granularity == "" {
 		granularity = ReportingGranularityMonth
 	}
+	switch granularity {
+	case ReportingGranularityDay, ReportingGranularityMonth:
+	default:
+		return ReportingPeriodInput{}, domain.Invalid("granularity", domain.ViolationInvalidEnum, "RPT-001")
+	}
 	return ReportingPeriodInput{FromOccurredOn: from, ToOccurredOn: to, Granularity: granularity}, nil
 }
 
 type DashboardReport struct{}
 
-type SalesReport struct{}
+type SalesReport struct {
+	Period                 ReportingPeriodInput
+	Currency               domain.Currency
+	TotalSalesCount        int64
+	TotalRevenueMinor      int64
+	COGSMicro              int64
+	GrossMarginMicro       int64
+	GrossMarginBasisPoints domain.Option[int64]
+	AverageTicketMinor     domain.Option[int64]
+	GrowthBasisPoints      domain.Option[int64]
+	SalesRevenueSeries     []ReportingSeries
+	MonthlyRevenueSeries   []ReportingSeries
+	MonthlySalesSeries     []ReportingSeries
+	TopProductsByQuantity  []ReportingItemMetric
+	TopProductsByRevenue   []ReportingItemMetric
+	FreeSales              ReportingReasonMetric
+	SalesByCustomer        []ReportingCounterpartyMetric
+	AnonymousSales         ReportingCounterpartyMetric
+}
 
 type InventoryReport struct{}
 
@@ -78,18 +102,119 @@ type CategoryMixRow struct {
 	ShareBasisPoints int64
 }
 
-type ReportingService struct{}
+type ReportingStore interface {
+	GetSalesReportData(ctx context.Context, current ReportingPeriodInput, previous ReportingPeriodInput, topLimit int) (SalesReportData, error)
+}
 
-func NewReportingService() *ReportingService {
-	return &ReportingService{}
+type SalesReportData struct {
+	Currency              domain.Currency
+	CurrentTotals         SalesReportTotals
+	PreviousTotals        SalesReportTotals
+	SalesRevenueSeries    []ReportingSeries
+	MonthlySeries         []ReportingSeries
+	TopProductsByQuantity []ReportingItemMetric
+	TopProductsByRevenue  []ReportingItemMetric
+	FreeSales             ReportingReasonMetric
+	SalesByCustomer       []ReportingCounterpartyMetric
+	AnonymousSales        ReportingCounterpartyMetric
+}
+
+type SalesReportTotals struct {
+	SalesCount     int64
+	QuantityAtomic int64
+	RevenueMinor   int64
+	COGSMicro      int64
+}
+
+type ReportingSeries struct {
+	Bucket           string
+	Label            string
+	SalesCount       int64
+	QuantityAtomic   int64
+	RevenueMinor     int64
+	COGSMicro        int64
+	GrossMarginMicro int64
+}
+
+type ReportingItemMetric struct {
+	ItemID              domain.Option[domain.ItemID]
+	ItemName            string
+	RecipeID            domain.Option[domain.RecipeID]
+	RecipeName          domain.Option[string]
+	BaseUnitCode        domain.Option[domain.UnitCode]
+	QuantityAtomic      int64
+	RevenueMinor        int64
+	InventoryValueMicro int64
+	DirectCostMicro     int64
+	StandardYieldAtomic domain.Option[int64]
+	ActualYieldAtomic   domain.Option[int64]
+	VarianceAtomic      domain.Option[int64]
+}
+
+type ReportingCounterpartyMetric struct {
+	CounterpartyID   domain.Option[domain.CounterpartyID]
+	CounterpartyName domain.Option[string]
+	DocumentCount    int64
+	RevenueMinor     int64
+	SpendMinor       int64
+}
+
+type ReportingReasonMetric struct {
+	ReasonCode          string
+	DocumentCount       int64
+	QuantityAtomic      int64
+	RevenueMinor        int64
+	InventoryValueMicro int64
+}
+
+type ReportingService struct {
+	store ReportingStore
+}
+
+func NewReportingService(store ReportingStore) *ReportingService {
+	if store == nil {
+		panic("reporting service requires a store")
+	}
+	return &ReportingService{store: store}
 }
 
 func (s *ReportingService) GetDashboardReport(context.Context, ReportingPeriodInput) (DashboardReport, error) {
 	return DashboardReport{}, ErrReportingEndpointNotImplemented
 }
 
-func (s *ReportingService) GetSalesReport(context.Context, ReportingPeriodInput) (SalesReport, error) {
-	return SalesReport{}, ErrReportingEndpointNotImplemented
+func (s *ReportingService) GetSalesReport(ctx context.Context, input ReportingPeriodInput) (SalesReport, error) {
+	previous, err := previousReportingPeriod(input)
+	if err != nil {
+		return SalesReport{}, err
+	}
+	data, err := s.store.GetSalesReportData(ctx, input, previous, 5)
+	if err != nil {
+		return SalesReport{}, err
+	}
+	revenueMicro, err := minorToMicro(data.CurrentTotals.RevenueMinor, data.Currency)
+	if err != nil {
+		return SalesReport{}, err
+	}
+	grossMarginMicro := revenueMicro - data.CurrentTotals.COGSMicro
+	return SalesReport{
+		Period:                 input,
+		Currency:               data.Currency,
+		TotalSalesCount:        data.CurrentTotals.SalesCount,
+		TotalRevenueMinor:      data.CurrentTotals.RevenueMinor,
+		COGSMicro:              data.CurrentTotals.COGSMicro,
+		GrossMarginMicro:       grossMarginMicro,
+		GrossMarginBasisPoints: ratioBasisPoints(grossMarginMicro, revenueMicro),
+		AverageTicketMinor:     averageMinor(data.CurrentTotals.RevenueMinor, data.CurrentTotals.SalesCount),
+		GrowthBasisPoints:      growthBasisPoints(data.CurrentTotals.RevenueMinor, data.PreviousTotals.RevenueMinor),
+		SalesRevenueSeries:     enrichSeries(data.SalesRevenueSeries, data.Currency),
+		MonthlyRevenueSeries:   enrichSeries(data.MonthlySeries, data.Currency),
+		MonthlySalesSeries:     enrichSeries(data.MonthlySeries, data.Currency),
+		TopProductsByQuantity:  data.TopProductsByQuantity,
+		TopProductsByRevenue:   data.TopProductsByRevenue,
+		FreeSales:              data.FreeSales,
+		SalesByCustomer:        data.SalesByCustomer,
+		AnonymousSales:         data.AnonymousSales,
+	}, nil
 }
 
 func (s *ReportingService) GetInventoryReport(context.Context, ReportingPeriodInput) (InventoryReport, error) {
@@ -115,4 +240,72 @@ func (s *ReportingService) GetCategoryMixReport(_ context.Context, input Reporti
 		UnavailableReason: "Catalog categories/tags are not modeled in V2 yet.",
 		Rows:              []CategoryMixRow{},
 	}, nil
+}
+
+func previousReportingPeriod(input ReportingPeriodInput) (ReportingPeriodInput, error) {
+	from, err := time.Parse("2006-01-02", input.FromOccurredOn.String())
+	if err != nil {
+		return ReportingPeriodInput{}, err
+	}
+	to, err := time.Parse("2006-01-02", input.ToOccurredOn.String())
+	if err != nil {
+		return ReportingPeriodInput{}, err
+	}
+	days := int(to.Sub(from).Hours()/24) + 1
+	previousTo := from.AddDate(0, 0, -1)
+	previousFrom := previousTo.AddDate(0, 0, -days+1)
+	parsedFrom, err := domain.ParseBusinessDate(previousFrom.Format("2006-01-02"))
+	if err != nil {
+		return ReportingPeriodInput{}, err
+	}
+	parsedTo, err := domain.ParseBusinessDate(previousTo.Format("2006-01-02"))
+	if err != nil {
+		return ReportingPeriodInput{}, err
+	}
+	return NewReportingPeriodInput(parsedFrom, parsedTo, input.Granularity)
+}
+
+func minorToMicro(value int64, currency domain.Currency) (int64, error) {
+	amount, err := domain.NewMinorAmount(value)
+	if err != nil {
+		return 0, err
+	}
+	converted, err := amount.ToInventoryValue(currency)
+	if err != nil {
+		return 0, err
+	}
+	return converted.Int64(), nil
+}
+
+func enrichSeries(items []ReportingSeries, currency domain.Currency) []ReportingSeries {
+	enriched := make([]ReportingSeries, 0, len(items))
+	for _, item := range items {
+		revenueMicro, err := minorToMicro(item.RevenueMinor, currency)
+		if err == nil {
+			item.GrossMarginMicro = revenueMicro - item.COGSMicro
+		}
+		enriched = append(enriched, item)
+	}
+	return enriched
+}
+
+func averageMinor(totalMinor, count int64) domain.Option[int64] {
+	if count <= 0 {
+		return domain.None[int64]()
+	}
+	return domain.Some(totalMinor / count)
+}
+
+func growthBasisPoints(current, previous int64) domain.Option[int64] {
+	if previous == 0 {
+		return domain.None[int64]()
+	}
+	return domain.Some(((current - previous) * 10_000) / previous)
+}
+
+func ratioBasisPoints(numerator, denominator int64) domain.Option[int64] {
+	if denominator == 0 {
+		return domain.None[int64]()
+	}
+	return domain.Some((numerator * 10_000) / denominator)
 }

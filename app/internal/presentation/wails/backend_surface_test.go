@@ -58,7 +58,9 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	inventoryHandler := NewInventoryHandler(application.NewInventoryService(
 		application.NewSQLiteInventoryStore(store),
 	))
-	reportingHandler := NewReportingHandler(application.NewReportingService())
+	reportingHandler := NewReportingHandler(application.NewReportingService(
+		application.NewSQLiteReportingStore(store),
+	))
 
 	settingsValue, err := settingsHandler.GetSettings()
 	if err != nil {
@@ -685,6 +687,25 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 	if soldOutputBalance.QuantityAtomic != 80 || soldOutputBalance.InventoryValueMicro != 2_400_000 {
 		t.Fatalf("sold output balance = %#v", soldOutputBalance)
+	}
+
+	salesReport, err := reportingHandler.GetSalesReport(dto.ReportingPeriodRequest{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-31",
+		Granularity:    "MONTH",
+	})
+	if err != nil {
+		t.Fatalf("get sales report: %v", err)
+	}
+	if salesReport.TotalSalesCount != 1 ||
+		salesReport.TotalRevenueMinor != 1_000 ||
+		salesReport.COGSMicro != 600_000 ||
+		salesReport.GrossMarginMicro != 9_400_000 ||
+		salesReport.AverageTicketMinor == nil ||
+		*salesReport.AverageTicketMinor != 1_000 ||
+		len(salesReport.TopProductsByQuantity) != 1 ||
+		salesReport.TopProductsByQuantity[0].QuantityAtomic != 20 {
+		t.Fatalf("sales report = %#v", salesReport)
 	}
 
 	categoryMix, err := reportingHandler.GetCategoryMixReport(dto.ReportingPeriodRequest{

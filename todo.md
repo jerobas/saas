@@ -92,8 +92,22 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
 
 ### 5.7.1 — Queries read-only de reporting
 
-- [ ] Criar `app/internal/infrastructure/sqlite/queries/reporting.sql`.
-- [ ] Gerar sqlc para reporting.
+- [x] Criar `app/internal/infrastructure/sqlite/queries/reporting.sql`.
+- [x] Gerar sqlc para reporting.
+- [x] Implementar `GetSalesReport` real:
+  - total de vendas;
+  - receita;
+  - COGS;
+  - margem bruta;
+  - percentual de margem bruta;
+  - crescimento versus periodo anterior;
+  - ticket medio;
+  - series por dia/mes;
+  - top produtos por quantidade e receita;
+  - vendas gratis/promocao/amostra;
+  - vendas por cliente;
+  - vendas anonimas;
+  - exclusao de vendas revertidas.
 - [ ] Implementar queries:
   - total de vendas no periodo;
   - receita no periodo;
@@ -120,11 +134,12 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - documentos revertidos/correcoes exatas;
   - mix por categoria vazio/placeholder;
   - dashboard vazio sem documentos.
-- [ ] Garantir que SALE revertida nao entra nos agregados.
+- [x] Garantir que SALE revertida nao entra nos agregados.
 
 ### 5.7.2 — Store/application
 
 - [ ] Criar `ReportingStore` read-only em SQLite.
+- [x] Criar primeiro `ReportingStore` read-only para vendas.
 - [ ] Criar testes de store com banco temporario:
   - dashboard vazio;
   - compras sem vendas;
@@ -132,7 +147,8 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - venda revertida excluida;
   - estoque valorizado;
   - baixo estoque.
-- [ ] Criar `ReportingService` fino, sem regra de escrita, apenas validacao de periodo e composicao do report.
+- [x] Criar `ReportingService` fino, sem regra de escrita, para `GetSalesReport`.
+- [ ] Expandir `ReportingService` para os demais grupos de endpoint.
 - [ ] Adicionar teste de application para periodo invalido e periodo padrao.
 
 ### 5.7.3 — Wails/gateway
@@ -148,7 +164,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - `GetCategoryMixReport`.
 - [x] Registrar handler no app Wails.
 - [x] Adicionar `reportingGateway` tipado no frontend.
-- [ ] Cobrir gateway/handler em testes de superficie.
+- [x] Cobrir gateway/handler em testes de superficie para o primeiro endpoint real de vendas e placeholder de categorias.
 
 ### 5.7.4 — Dashboard real minimo
 

@@ -778,16 +778,49 @@ describe("desktop bridge", () => {
       unavailableReason: "Catalog categories/tags are not modeled in V2 yet.",
       rows: [],
     };
+    const salesReport = {
+      period: request,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      totalSalesCount: 1,
+      totalRevenueMinor: 1_000,
+      cogsMicro: 600_000,
+      grossMarginMicro: 9_400_000,
+      grossMarginBasisPoints: 9_400,
+      averageTicketMinor: 1_000,
+      salesRevenueSeries: [],
+      monthlyRevenueSeries: [],
+      monthlySalesSeries: [],
+      topProductsByQuantity: [],
+      topProductsByRevenue: [],
+      freeSales: {
+        reasonCode: "FREE_SALES",
+        documentCount: 0,
+        quantityAtomic: 0,
+        revenueMinor: 0,
+        inventoryValueMicro: 0,
+      },
+      salesByCustomer: [],
+      anonymousSales: {
+        documentCount: 0,
+        revenueMinor: 0,
+        spendMinor: 0,
+      },
+    };
+    const getSalesReport = vi.fn().mockResolvedValue(salesReport);
     const getCategoryMixReport = vi.fn().mockResolvedValue(categoryMix);
     window.go = {
       service: {
         ReportingHandler: {
+          GetSalesReport: getSalesReport,
           GetCategoryMixReport: getCategoryMixReport,
         },
       },
     };
 
+    await expect(reportingGateway.getSalesReport(request)).resolves.toEqual(salesReport);
     await expect(reportingGateway.getCategoryMixReport(request)).resolves.toEqual(categoryMix);
+    expect(getSalesReport).toHaveBeenCalledWith(request);
     expect(getCategoryMixReport).toHaveBeenCalledWith(request);
   });
 });
