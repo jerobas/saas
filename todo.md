@@ -18,6 +18,60 @@
 
 Objetivo: trocar o Dashboard demo por dados locais reais sem transformar reporting em fonte de verdade. Reporting le os documentos, linhas, lotes e projecoes existentes; nunca escreve e nunca substitui stores operacionais.
 
+### 5.7.-1 — Escolha de metricas e graficos
+
+Antes de implementar 5.7.0, escolher quais metricas entram no contrato de reporting. Todos os itens abaixo ficam como checkboxes de produto. Se uma quantidade grande for selecionada, implementar primeiro os endpoints/read-model fields para todas as selecionadas, mas limitar o primeiro frontend real a aproximadamente 3 visualizacoes novas alem dos cards/graficos `FAKE ATUAL` selecionados.
+
+Regra visual: metricas marcadas como `FAKE ATUAL` ja existem na tela com dados falsos; se forem selecionadas, manter o mesmo tipo de card/grafico e ligar em dados reais. Graficos novos devem usar a mesma stack visual atual: Recharts, Motion, Tailwind e o mesmo estilo de cards.
+
+#### Cards/KPIs principais
+
+- [ ] Receita total do periodo. `FAKE ATUAL: card Receita Total e linha Receita`
+- [ ] Numero de vendas no periodo. `FAKE ATUAL: card Vendas e linha/barra Vendas`
+- [ ] Produtos ativos/cadastrados. `FAKE ATUAL: card Produtos`
+- [ ] Crescimento versus periodo anterior. `FAKE ATUAL: card Crescimento`
+- [ ] Ticket medio de venda.
+- [ ] COGS/custo da mercadoria vendida no periodo.
+- [ ] Margem bruta do periodo.
+- [ ] Percentual de margem bruta.
+- [ ] Valor total em estoque.
+- [ ] Quantidade de itens abaixo do ponto de reposicao.
+- [ ] Quantidade de itens zerados que ainda sao vendaveis.
+
+#### Series e graficos de vendas
+
+- [ ] Serie vendas e receita por dia/mes. `FAKE ATUAL: grafico linha Vendas e Receita`
+- [ ] Receita mensal. `FAKE ATUAL: aba Receita`
+- [ ] Vendas mensais. `FAKE ATUAL: aba Vendas`
+- [ ] Top produtos vendidos por quantidade. `FAKE ATUAL: Produtos Mais Vendidos`
+- [ ] Top produtos vendidos por receita.
+- [ ] Vendas gratis/promocao/amostra por quantidade e valor comercial zerado.
+- [ ] Vendas por cliente, quando houver cliente informado.
+- [ ] Vendas sem cliente/anonimas.
+
+#### Estoque, lotes e compras
+
+- [ ] Baixo estoque por item, com saldo atual e ponto de reposicao.
+- [ ] Lotes vencendo em 7/30 dias.
+- [ ] Lotes vencidos ainda com saldo.
+- [ ] Valor de estoque por item.
+- [ ] Compras/spend por periodo.
+- [ ] Top fornecedores por gasto.
+- [ ] Entradas gratis (`FREE_STOCK`) por periodo.
+
+#### Producao, ajustes e qualidade operacional
+
+- [ ] Producao por receita/produto.
+- [ ] Custo direto de producao por periodo.
+- [ ] Variacao simples de yield: rendimento real versus rendimento padrao.
+- [ ] Ajustes negativos por motivo: perda, vencimento, dano, amostra, correcao.
+- [ ] Ajustes positivos por motivo: saldo inicial, brinde/estoque gratis, contagem fisica.
+- [ ] Documentos revertidos/correcoes exatas por periodo.
+
+#### Futuro / depende de dimensao nova
+
+- [ ] Mix por categoria. `FAKE ATUAL: grafico pizza Categorias; depende de categoria/tag de catalogo que ainda nao existe`
+
 ### 5.7.0 — Contrato e decisoes de numeros
 
 - [ ] Definir contrato `DashboardReport` com `currencyCode`, `currencyMinorDigits`, periodo, cards, series e tabelas.
