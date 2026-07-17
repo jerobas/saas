@@ -1,0 +1,123 @@
+# Reporting and dashboard read models
+
+Reporting is a read-only surface derived from posted V2 state. It never writes
+business data and never becomes stock truth. Operational stores keep owning
+documents, lines, lots, allocations, recipes, and `inventory_balances`.
+
+## Common rules
+
+- All endpoints receive an inclusive `fromOccurredOn` / `toOccurredOn` period
+  unless documented otherwise.
+- Document dates use `stock_documents.occurred_on`, not posting time.
+- Revenue and commercial totals use minor currency units
+  (`commercialTotalMinor`).
+- COGS, inventory valuation, production direct cost, and gross margin use
+  microcurrency (`inventoryValueMicro`).
+- Responses include `currencyCode` and `currencyMinorDigits` when monetary
+  values are present.
+- Operational dashboard aggregates exclude documents that have been exactly
+  reversed. Reversal documents are reported separately for audit/correction
+  visibility.
+- Empty databases return zero values and empty series/tables, not errors.
+
+## Endpoint surface
+
+### `GetDashboardReport`
+
+Aggregated endpoint used by the current dashboard page. The first real frontend
+implementation should keep the existing visual layout and connect only the
+current fake cards/charts to real data.
+
+Fields:
+
+- total revenue for the period;
+- number of sales for the period;
+- active/cataloged products;
+- growth versus the previous comparable period;
+- sales and revenue series by day/month;
+- monthly revenue series;
+- monthly sales series;
+- top products by quantity sold;
+- category mix placeholder.
+
+### `GetSalesReport`
+
+Sales-focused endpoint for future dashboard/report tabs.
+
+Fields:
+
+- total sales count;
+- total revenue;
+- COGS;
+- gross margin value;
+- gross margin percentage;
+- average ticket;
+- growth versus previous period;
+- sales and revenue series by day/month;
+- monthly revenue;
+- monthly sales count;
+- top products by quantity sold;
+- top products by revenue;
+- free sales/promotions/samples count and commercial-zero totals;
+- sales by customer;
+- anonymous sales.
+
+### `GetInventoryReport`
+
+Current stock and lot-risk endpoint.
+
+Fields:
+
+- total inventory value;
+- low-stock item count;
+- sellable zero-stock item count;
+- low-stock items with current balance and reorder point;
+- lots expiring in 7 days;
+- lots expiring in 30 days;
+- expired lots that still have remaining quantity;
+- inventory value by item.
+
+### `GetPurchaseReport`
+
+Inbound/commercial purchasing endpoint.
+
+Fields:
+
+- purchase spend by period;
+- top suppliers by spend;
+- free-stock inbound entries using reason `FREE_STOCK`.
+
+### `GetProductionReport`
+
+Production and costing endpoint.
+
+Fields:
+
+- production quantity by recipe/product;
+- direct production cost by period;
+- simple yield variance: actual output versus recipe standard yield.
+
+### `GetAdjustmentReport`
+
+Operational quality and correction endpoint.
+
+Fields:
+
+- negative adjustments by reason, including waste, expiry, damage, sample, and
+  documented correction;
+- positive adjustments by reason, including opening balance, free stock, and
+  physical count;
+- exactly reversed documents/corrections by period.
+
+### `GetCategoryMixReport`
+
+Placeholder endpoint for the existing pie chart. V2 has no catalog category/tag
+dimension yet, so this endpoint returns an explicit unavailable/empty response
+until a real category dimension exists.
+
+Fields:
+
+- `available: false`;
+- empty category rows;
+- reason explaining that catalog categories/tags are not modeled yet.
+

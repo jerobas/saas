@@ -90,6 +90,9 @@ does not automatically restore food to usable stock.
 
 ## Reports built after operational flows
 
+Detailed dashboard/reporting endpoint planning lives in
+[`reporting.md`](./reporting.md).
+
 - Current inventory quantity and valuation.
 - Expiring and expired lots.
 - Purchase history and spend.

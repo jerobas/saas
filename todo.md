@@ -18,69 +18,77 @@
 
 Objetivo: trocar o Dashboard demo por dados locais reais sem transformar reporting em fonte de verdade. Reporting le os documentos, linhas, lotes e projecoes existentes; nunca escreve e nunca substitui stores operacionais.
 
-### 5.7.-1 — Escolha de metricas e graficos
+### 5.7.-1 — Selecao de metricas e endpoints
 
-Antes de implementar 5.7.0, escolher quais metricas entram no contrato de reporting. Todos os itens abaixo ficam como checkboxes de produto. Se uma quantidade grande for selecionada, implementar primeiro os endpoints/read-model fields para todas as selecionadas, mas limitar o primeiro frontend real a aproximadamente 3 visualizacoes novas alem dos cards/graficos `FAKE ATUAL` selecionados.
+Antes de implementar 5.7.0, escolher quais metricas entram no contrato de reporting. Decisao atual: todas as metricas abaixo entram como endpoints/read-model fields de backend. Nesta subsecao, `[x]` significa "selecionado para a superficie de reporting", nao "ja implementado".
 
-Regra visual: metricas marcadas como `FAKE ATUAL` ja existem na tela com dados falsos; se forem selecionadas, manter o mesmo tipo de card/grafico e ligar em dados reais. Graficos novos devem usar a mesma stack visual atual: Recharts, Motion, Tailwind e o mesmo estilo de cards.
+Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos marcados como `FAKE ATUAL`, mantendo o mesmo tipo de card/grafico e ligando em dados reais. Os demais endpoints ficam funcionando e documentados para uso futuro. Graficos novos, quando forem adicionados, devem usar a mesma stack visual atual: Recharts, Motion, Tailwind e o mesmo estilo de cards.
 
 #### Cards/KPIs principais
 
-- [ ] Receita total do periodo. `FAKE ATUAL: card Receita Total e linha Receita`
-- [ ] Numero de vendas no periodo. `FAKE ATUAL: card Vendas e linha/barra Vendas`
-- [ ] Produtos ativos/cadastrados. `FAKE ATUAL: card Produtos`
-- [ ] Crescimento versus periodo anterior. `FAKE ATUAL: card Crescimento`
-- [ ] Ticket medio de venda.
-- [ ] COGS/custo da mercadoria vendida no periodo.
-- [ ] Margem bruta do periodo.
-- [ ] Percentual de margem bruta.
-- [ ] Valor total em estoque.
-- [ ] Quantidade de itens abaixo do ponto de reposicao.
-- [ ] Quantidade de itens zerados que ainda sao vendaveis.
+- [x] Receita total do periodo. `FAKE ATUAL: card Receita Total e linha Receita`
+- [x] Numero de vendas no periodo. `FAKE ATUAL: card Vendas e linha/barra Vendas`
+- [x] Produtos ativos/cadastrados. `FAKE ATUAL: card Produtos`
+- [x] Crescimento versus periodo anterior. `FAKE ATUAL: card Crescimento`
+- [x] Ticket medio de venda.
+- [x] COGS/custo da mercadoria vendida no periodo.
+- [x] Margem bruta do periodo.
+- [x] Percentual de margem bruta.
+- [x] Valor total em estoque.
+- [x] Quantidade de itens abaixo do ponto de reposicao.
+- [x] Quantidade de itens zerados que ainda sao vendaveis.
 
 #### Series e graficos de vendas
 
-- [ ] Serie vendas e receita por dia/mes. `FAKE ATUAL: grafico linha Vendas e Receita`
-- [ ] Receita mensal. `FAKE ATUAL: aba Receita`
-- [ ] Vendas mensais. `FAKE ATUAL: aba Vendas`
-- [ ] Top produtos vendidos por quantidade. `FAKE ATUAL: Produtos Mais Vendidos`
-- [ ] Top produtos vendidos por receita.
-- [ ] Vendas gratis/promocao/amostra por quantidade e valor comercial zerado.
-- [ ] Vendas por cliente, quando houver cliente informado.
-- [ ] Vendas sem cliente/anonimas.
+- [x] Serie vendas e receita por dia/mes. `FAKE ATUAL: grafico linha Vendas e Receita`
+- [x] Receita mensal. `FAKE ATUAL: aba Receita`
+- [x] Vendas mensais. `FAKE ATUAL: aba Vendas`
+- [x] Top produtos vendidos por quantidade. `FAKE ATUAL: Produtos Mais Vendidos`
+- [x] Top produtos vendidos por receita.
+- [x] Vendas gratis/promocao/amostra por quantidade e valor comercial zerado.
+- [x] Vendas por cliente, quando houver cliente informado.
+- [x] Vendas sem cliente/anonimas.
 
 #### Estoque, lotes e compras
 
-- [ ] Baixo estoque por item, com saldo atual e ponto de reposicao.
-- [ ] Lotes vencendo em 7/30 dias.
-- [ ] Lotes vencidos ainda com saldo.
-- [ ] Valor de estoque por item.
-- [ ] Compras/spend por periodo.
-- [ ] Top fornecedores por gasto.
-- [ ] Entradas gratis (`FREE_STOCK`) por periodo.
+- [x] Baixo estoque por item, com saldo atual e ponto de reposicao.
+- [x] Lotes vencendo em 7/30 dias.
+- [x] Lotes vencidos ainda com saldo.
+- [x] Valor de estoque por item.
+- [x] Compras/spend por periodo.
+- [x] Top fornecedores por gasto.
+- [x] Entradas gratis (`FREE_STOCK`) por periodo.
 
 #### Producao, ajustes e qualidade operacional
 
-- [ ] Producao por receita/produto.
-- [ ] Custo direto de producao por periodo.
-- [ ] Variacao simples de yield: rendimento real versus rendimento padrao.
-- [ ] Ajustes negativos por motivo: perda, vencimento, dano, amostra, correcao.
-- [ ] Ajustes positivos por motivo: saldo inicial, brinde/estoque gratis, contagem fisica.
-- [ ] Documentos revertidos/correcoes exatas por periodo.
+- [x] Producao por receita/produto.
+- [x] Custo direto de producao por periodo.
+- [x] Variacao simples de yield: rendimento real versus rendimento padrao.
+- [x] Ajustes negativos por motivo: perda, vencimento, dano, amostra, correcao.
+- [x] Ajustes positivos por motivo: saldo inicial, brinde/estoque gratis, contagem fisica.
+- [x] Documentos revertidos/correcoes exatas por periodo.
 
 #### Futuro / depende de dimensao nova
 
-- [ ] Mix por categoria. `FAKE ATUAL: grafico pizza Categorias; depende de categoria/tag de catalogo que ainda nao existe`
+- [x] Mix por categoria. `FAKE ATUAL: grafico pizza Categorias; endpoint placeholder ate existir categoria/tag de catalogo`
 
-### 5.7.0 — Contrato e decisoes de numeros
+### 5.7.0 — Contratos e decisoes de numeros
 
-- [ ] Definir contrato `DashboardReport` com `currencyCode`, `currencyMinorDigits`, periodo, cards, series e tabelas.
+- [x] Documentar a superficie completa de endpoints/read-model fields em `docs/domain/reporting.md`.
+- [ ] Definir contratos de reporting com `currencyCode`, `currencyMinorDigits`, periodo, cards, series e tabelas para todas as metricas selecionadas em 5.7.-1.
+- [ ] Manter `GetDashboardReport` como endpoint agregado para a tela atual e expor endpoints agrupados por dominio para uso futuro:
+  - vendas;
+  - estoque/lotes;
+  - compras;
+  - producao;
+  - ajustes/correcoes;
+  - categorias placeholder.
 - [ ] Padronizar valores monetarios no contrato:
   - receita/comercial em `commercialTotalMinor`;
   - estoque/COGS/margem em `inventoryValueMicro`;
   - frontend formata cada escala explicitamente.
 - [ ] Decidir regra de reversao para dashboard operacional: documentos revertidos por `REVERSAL` saem dos agregados; documentos `REVERSAL` ficam fora do dashboard e entram futuramente em auditoria.
-- [ ] Comecar sem categorias reais; remover/ocultar grafico de categorias ate existir uma dimensao de catalogo equivalente.
+- [ ] Comecar sem categorias reais no dominio; o endpoint de categorias retorna vazio/indisponivel com motivo explicito, mas o grafico pizza pode continuar na tela como estado vazio.
 
 ### 5.7.1 — Queries read-only de reporting
 
@@ -91,10 +99,26 @@ Regra visual: metricas marcadas como `FAKE ATUAL` ja existem na tela com dados f
   - receita no periodo;
   - COGS no periodo;
   - margem bruta no periodo;
+  - crescimento versus periodo anterior;
+  - ticket medio;
   - serie por mes/dia usando `occurred_on`;
   - produtos mais vendidos por quantidade e receita;
+  - vendas gratis/promocao/amostra;
+  - vendas por cliente e vendas anonimas;
   - valor total em estoque via `inventory_balances`;
   - itens abaixo do ponto de reposicao via `reorder_quantity_atomic`;
+  - itens zerados vendaveis;
+  - lotes vencendo e vencidos com saldo;
+  - valor de estoque por item;
+  - compras/spend por periodo;
+  - top fornecedores por gasto;
+  - entradas gratis `FREE_STOCK`;
+  - producao por receita/produto;
+  - custo direto de producao;
+  - variacao simples de yield;
+  - ajustes positivos/negativos por motivo;
+  - documentos revertidos/correcoes exatas;
+  - mix por categoria vazio/placeholder;
   - dashboard vazio sem documentos.
 - [ ] Garantir que SALE revertida nao entra nos agregados.
 
@@ -115,6 +139,13 @@ Regra visual: metricas marcadas como `FAKE ATUAL` ja existem na tela com dados f
 
 - [ ] Criar DTOs de reporting em `internal/presentation/wails/dto`.
 - [ ] Criar `ReportingHandler.GetDashboardReport(request)`.
+- [ ] Criar endpoints agrupados para as metricas completas:
+  - `GetSalesReport`;
+  - `GetInventoryReport`;
+  - `GetPurchaseReport`;
+  - `GetProductionReport`;
+  - `GetAdjustmentReport`;
+  - `GetCategoryMixReport`.
 - [ ] Registrar handler no app Wails.
 - [ ] Adicionar `reportingGateway` tipado no frontend.
 - [ ] Cobrir gateway/handler em testes de superficie.
@@ -128,12 +159,15 @@ Regra visual: metricas marcadas como `FAKE ATUAL` ja existem na tela com dados f
 - [ ] Manter o layout visual antigo, mas trocar os cards para:
   - receita do periodo;
   - numero de vendas;
-  - valor em estoque;
-  - margem bruta quando houver venda.
+  - produtos ativos/cadastrados;
+  - crescimento versus periodo anterior.
 - [ ] Trocar graficos para:
   - vendas/receita por periodo;
   - top produtos vendidos;
-  - baixo estoque.
+  - receita mensal;
+  - vendas mensais;
+  - mix por categoria em estado vazio/placeholder ate existir categoria real.
+- [ ] Nao renderizar ainda os endpoints novos sem grafico atual; eles ficam prontos no gateway para uso futuro.
 
 ### 5.7.5 — Testes e docs
 
