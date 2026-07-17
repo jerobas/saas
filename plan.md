@@ -186,6 +186,15 @@ Build each capability fully before moving to the next:
 7. Reporting and dashboard queries.
 8. Validated backup and restore.
 
+Phase 5.7 is a read-model vertical, not another operational store. It should
+derive a dashboard from posted documents, document lines, lot allocations, and
+`inventory_balances` without writing any business state. Its first useful slice
+is a real empty/loading/error dashboard plus period totals for sales, revenue,
+COGS, gross margin, inventory value, low stock, and top products. Exact
+reversals are correction/audit events: operational dashboard aggregates exclude
+documents that have been exactly reversed, and reversal documents themselves are
+reserved for audit reporting.
+
 Every slice follows the same order:
 
 ```text
