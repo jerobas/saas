@@ -75,8 +75,8 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
 ### 5.7.0 — Contratos e decisoes de numeros
 
 - [x] Documentar a superficie completa de endpoints/read-model fields em `docs/domain/reporting.md`.
-- [ ] Definir contratos de reporting com `currencyCode`, `currencyMinorDigits`, periodo, cards, series e tabelas para todas as metricas selecionadas em 5.7.-1.
-- [ ] Manter `GetDashboardReport` como endpoint agregado para a tela atual e expor endpoints agrupados por dominio para uso futuro:
+- [x] Definir contratos de reporting com `currencyCode`, `currencyMinorDigits`, periodo, cards, series e tabelas para todas as metricas selecionadas em 5.7.-1.
+- [x] Manter `GetDashboardReport` como endpoint agregado para a tela atual e expor endpoints agrupados por dominio para uso futuro:
   - vendas;
   - estoque/lotes;
   - compras;
@@ -88,7 +88,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - estoque/COGS/margem em `inventoryValueMicro`;
   - frontend formata cada escala explicitamente.
 - [ ] Decidir regra de reversao para dashboard operacional: documentos revertidos por `REVERSAL` saem dos agregados; documentos `REVERSAL` ficam fora do dashboard e entram futuramente em auditoria.
-- [ ] Comecar sem categorias reais no dominio; o endpoint de categorias retorna vazio/indisponivel com motivo explicito, mas o grafico pizza pode continuar na tela como estado vazio.
+- [x] Comecar sem categorias reais no dominio; o endpoint de categorias retorna vazio/indisponivel com motivo explicito, mas o grafico pizza pode continuar na tela como estado vazio.
 
 ### 5.7.1 — Queries read-only de reporting
 
@@ -137,17 +137,17 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
 
 ### 5.7.3 — Wails/gateway
 
-- [ ] Criar DTOs de reporting em `internal/presentation/wails/dto`.
-- [ ] Criar `ReportingHandler.GetDashboardReport(request)`.
-- [ ] Criar endpoints agrupados para as metricas completas:
+- [x] Criar DTOs de reporting em `internal/presentation/wails/dto`.
+- [x] Criar `ReportingHandler.GetDashboardReport(request)`.
+- [x] Criar endpoints agrupados para as metricas completas:
   - `GetSalesReport`;
   - `GetInventoryReport`;
   - `GetPurchaseReport`;
   - `GetProductionReport`;
   - `GetAdjustmentReport`;
   - `GetCategoryMixReport`.
-- [ ] Registrar handler no app Wails.
-- [ ] Adicionar `reportingGateway` tipado no frontend.
+- [x] Registrar handler no app Wails.
+- [x] Adicionar `reportingGateway` tipado no frontend.
 - [ ] Cobrir gateway/handler em testes de superficie.
 
 ### 5.7.4 — Dashboard real minimo

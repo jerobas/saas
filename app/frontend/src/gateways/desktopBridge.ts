@@ -761,6 +761,168 @@ export interface RecipeComponentResponse {
   createdAtMs: number;
 }
 
+export type ReportingGranularity = "DAY" | "MONTH";
+
+export interface ReportingPeriodRequest {
+  fromOccurredOn: string;
+  toOccurredOn: string;
+  granularity?: ReportingGranularity;
+}
+
+export interface ReportingPeriodResponse {
+  fromOccurredOn: string;
+  toOccurredOn: string;
+  granularity: ReportingGranularity;
+}
+
+export interface DashboardReportResponse {
+  period: ReportingPeriodResponse;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  cards: DashboardCardsResponse;
+  salesRevenueSeries: ReportingSeriesResponse[];
+  monthlyRevenueSeries: ReportingSeriesResponse[];
+  monthlySalesSeries: ReportingSeriesResponse[];
+  topProductsByQuantity: ReportingItemMetricResponse[];
+  categoryMix: CategoryMixReportResponse;
+}
+
+export interface DashboardCardsResponse {
+  totalRevenueMinor: number;
+  salesCount: number;
+  productCount: number;
+  growthBasisPoints?: number | null;
+}
+
+export interface SalesReportResponse {
+  period: ReportingPeriodResponse;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  totalSalesCount: number;
+  totalRevenueMinor: number;
+  cogsMicro: number;
+  grossMarginMicro: number;
+  grossMarginBasisPoints?: number | null;
+  averageTicketMinor?: number | null;
+  growthBasisPoints?: number | null;
+  salesRevenueSeries: ReportingSeriesResponse[];
+  monthlyRevenueSeries: ReportingSeriesResponse[];
+  monthlySalesSeries: ReportingSeriesResponse[];
+  topProductsByQuantity: ReportingItemMetricResponse[];
+  topProductsByRevenue: ReportingItemMetricResponse[];
+  freeSales: ReportingReasonMetricResponse;
+  salesByCustomer: ReportingCounterpartyMetricResponse[];
+  anonymousSales: ReportingCounterpartyMetricResponse;
+}
+
+export interface InventoryReportResponse {
+  period: ReportingPeriodResponse;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  totalInventoryValueMicro: number;
+  lowStockItemCount: number;
+  zeroStockSellableCount: number;
+  lowStockItems: ReportingItemMetricResponse[];
+  expiringLots7Days: ReportingLotMetricResponse[];
+  expiringLots30Days: ReportingLotMetricResponse[];
+  expiredLotsWithStock: ReportingLotMetricResponse[];
+  inventoryValueByItem: ReportingItemMetricResponse[];
+}
+
+export interface PurchaseReportResponse {
+  period: ReportingPeriodResponse;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  purchaseSpendSeries: ReportingSeriesResponse[];
+  topSuppliersBySpend: ReportingCounterpartyMetricResponse[];
+  freeStockEntries: ReportingSeriesResponse[];
+}
+
+export interface ProductionReportResponse {
+  period: ReportingPeriodResponse;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  productionByRecipeProduct: ReportingItemMetricResponse[];
+  directCostSeries: ReportingSeriesResponse[];
+  yieldVariance: ReportingItemMetricResponse[];
+}
+
+export interface AdjustmentReportResponse {
+  period: ReportingPeriodResponse;
+  currencyCode: string;
+  currencyMinorDigits: number;
+  negativeByReason: ReportingReasonMetricResponse[];
+  positiveByReason: ReportingReasonMetricResponse[];
+  exactReversals: ReportingSeriesResponse[];
+}
+
+export interface CategoryMixReportResponse {
+  period: ReportingPeriodResponse;
+  available: boolean;
+  unavailableReason?: string | null;
+  rows: CategoryMixRowResponse[];
+}
+
+export interface CategoryMixRowResponse {
+  categoryName: string;
+  quantityAtomic: number;
+  revenueMinor: number;
+  shareBasisPoints: number;
+}
+
+export interface ReportingSeriesResponse {
+  bucket: string;
+  label: string;
+  salesCount: number;
+  quantityAtomic: number;
+  revenueMinor: number;
+  inventoryValueMicro: number;
+  directCostMicro: number;
+  grossMarginMicro: number;
+}
+
+export interface ReportingItemMetricResponse {
+  itemId?: number | null;
+  itemName: string;
+  recipeId?: number | null;
+  recipeName?: string | null;
+  baseUnitCode?: string | null;
+  quantityAtomic: number;
+  revenueMinor: number;
+  inventoryValueMicro: number;
+  directCostMicro: number;
+  reorderQuantityAtomic?: number | null;
+  standardYieldAtomic?: number | null;
+  actualYieldAtomic?: number | null;
+  varianceAtomic?: number | null;
+}
+
+export interface ReportingCounterpartyMetricResponse {
+  counterpartyId?: number | null;
+  counterpartyName?: string | null;
+  documentCount: number;
+  revenueMinor: number;
+  spendMinor: number;
+}
+
+export interface ReportingReasonMetricResponse {
+  reasonCode: string;
+  documentCount: number;
+  quantityAtomic: number;
+  revenueMinor: number;
+  inventoryValueMicro: number;
+}
+
+export interface ReportingLotMetricResponse {
+  lotId: number;
+  itemId: number;
+  itemName: string;
+  lotCode?: string | null;
+  expiresOn?: string | null;
+  availableQuantityAtomic: number;
+  inventoryValueMicro: number;
+}
+
 async function invoke<T>(service: string, method: string, ...args: unknown[]): Promise<T> {
   const bridgeMethod =
     window.go?.service?.[service]?.[method] ??
@@ -893,6 +1055,23 @@ export const inventoryGateway = {
     invoke<LedgerEntryPageResponse>("InventoryHandler", "ListItemLedgerPage", request),
   listLineAllocations: (lineId: number) =>
     invoke<AllocationResponse[]>("InventoryHandler", "ListLineAllocations", lineId),
+};
+
+export const reportingGateway = {
+  getDashboardReport: (request: ReportingPeriodRequest) =>
+    invoke<DashboardReportResponse>("ReportingHandler", "GetDashboardReport", request),
+  getSalesReport: (request: ReportingPeriodRequest) =>
+    invoke<SalesReportResponse>("ReportingHandler", "GetSalesReport", request),
+  getInventoryReport: (request: ReportingPeriodRequest) =>
+    invoke<InventoryReportResponse>("ReportingHandler", "GetInventoryReport", request),
+  getPurchaseReport: (request: ReportingPeriodRequest) =>
+    invoke<PurchaseReportResponse>("ReportingHandler", "GetPurchaseReport", request),
+  getProductionReport: (request: ReportingPeriodRequest) =>
+    invoke<ProductionReportResponse>("ReportingHandler", "GetProductionReport", request),
+  getAdjustmentReport: (request: ReportingPeriodRequest) =>
+    invoke<AdjustmentReportResponse>("ReportingHandler", "GetAdjustmentReport", request),
+  getCategoryMixReport: (request: ReportingPeriodRequest) =>
+    invoke<CategoryMixReportResponse>("ReportingHandler", "GetCategoryMixReport", request),
 };
 
 export const ExportDatabase = () => invoke<void>("DatabaseService", "Export");

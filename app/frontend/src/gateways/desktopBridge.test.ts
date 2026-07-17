@@ -7,6 +7,7 @@ import {
   purchaseGateway,
   referenceDataGateway,
   recipeGateway,
+  reportingGateway,
   reversalGateway,
   saleGateway,
   settingsGateway,
@@ -763,5 +764,30 @@ describe("desktop bridge", () => {
     expect(listItemLotFacts).toHaveBeenCalledWith(10);
     expect(listEligibleFEFOLots).toHaveBeenCalledWith(10, "2026-07-15");
     expect(listItemLedgerPage).toHaveBeenCalledWith({ itemId: 10, pageSize: 10 });
+  });
+
+  it("forwards reporting calls to the V2 reporting handler", async () => {
+    const request = {
+      fromOccurredOn: "2026-07-01",
+      toOccurredOn: "2026-07-31",
+      granularity: "MONTH" as const,
+    };
+    const categoryMix = {
+      period: request,
+      available: false,
+      unavailableReason: "Catalog categories/tags are not modeled in V2 yet.",
+      rows: [],
+    };
+    const getCategoryMixReport = vi.fn().mockResolvedValue(categoryMix);
+    window.go = {
+      service: {
+        ReportingHandler: {
+          GetCategoryMixReport: getCategoryMixReport,
+        },
+      },
+    };
+
+    await expect(reportingGateway.getCategoryMixReport(request)).resolves.toEqual(categoryMix);
+    expect(getCategoryMixReport).toHaveBeenCalledWith(request);
   });
 });

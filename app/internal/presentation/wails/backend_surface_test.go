@@ -58,6 +58,7 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	inventoryHandler := NewInventoryHandler(application.NewInventoryService(
 		application.NewSQLiteInventoryStore(store),
 	))
+	reportingHandler := NewReportingHandler(application.NewReportingService())
 
 	settingsValue, err := settingsHandler.GetSettings()
 	if err != nil {
@@ -684,6 +685,18 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 	if soldOutputBalance.QuantityAtomic != 80 || soldOutputBalance.InventoryValueMicro != 2_400_000 {
 		t.Fatalf("sold output balance = %#v", soldOutputBalance)
+	}
+
+	categoryMix, err := reportingHandler.GetCategoryMixReport(dto.ReportingPeriodRequest{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-31",
+		Granularity:    "MONTH",
+	})
+	if err != nil {
+		t.Fatalf("get category mix report: %v", err)
+	}
+	if categoryMix.Available || categoryMix.UnavailableReason == nil || len(categoryMix.Rows) != 0 {
+		t.Fatalf("category mix = %#v", categoryMix)
 	}
 }
 

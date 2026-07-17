@@ -111,6 +111,7 @@ func main() {
 	inventoryHandler := presentationwails.NewInventoryHandler(application.NewInventoryService(
 		application.NewSQLiteInventoryStore(sqliteStore),
 	))
+	reportingHandler := presentationwails.NewReportingHandler(application.NewReportingService())
 
 	err := wails.Run(&options.App{
 		Title:  "app",
@@ -134,6 +135,7 @@ func main() {
 			saleHandler,
 			recipeHandler,
 			inventoryHandler,
+			reportingHandler,
 		},
 	})
 
