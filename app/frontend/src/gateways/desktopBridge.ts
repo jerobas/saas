@@ -873,9 +873,11 @@ export interface CategoryMixRowResponse {
 export interface ReportingSeriesResponse {
   bucket: string;
   label: string;
+  documentCount: number;
   salesCount: number;
   quantityAtomic: number;
   revenueMinor: number;
+  spendMinor: number;
   inventoryValueMicro: number;
   directCostMicro: number;
   grossMarginMicro: number;

@@ -110,9 +110,11 @@ type CategoryMixRowResponse struct {
 type ReportingSeriesResponse struct {
 	Bucket              string `json:"bucket"`
 	Label               string `json:"label"`
+	DocumentCount       int64  `json:"documentCount"`
 	SalesCount          int64  `json:"salesCount"`
 	QuantityAtomic      int64  `json:"quantityAtomic"`
 	RevenueMinor        int64  `json:"revenueMinor"`
+	SpendMinor          int64  `json:"spendMinor"`
 	InventoryValueMicro int64  `json:"inventoryValueMicro"`
 	DirectCostMicro     int64  `json:"directCostMicro"`
 	GrossMarginMicro    int64  `json:"grossMarginMicro"`

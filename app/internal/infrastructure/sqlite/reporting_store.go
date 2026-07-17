@@ -39,6 +39,13 @@ type InventoryReportData struct {
 	InventoryValueByItem     []ReportingItemMetric
 }
 
+type PurchaseReportData struct {
+	Currency             domain.Currency
+	PurchaseSpendSeries  []ReportingSeries
+	TopSuppliersBySpend  []ReportingCounterpartyMetric
+	FreeStockEntrySeries []ReportingSeries
+}
+
 type SalesReportTotals struct {
 	SalesCount     int64
 	QuantityAtomic int64
@@ -47,12 +54,16 @@ type SalesReportTotals struct {
 }
 
 type ReportingSeries struct {
-	Bucket         string
-	Label          string
-	SalesCount     int64
-	QuantityAtomic int64
-	RevenueMinor   int64
-	COGSMicro      int64
+	Bucket              string
+	Label               string
+	DocumentCount       int64
+	SalesCount          int64
+	QuantityAtomic      int64
+	RevenueMinor        int64
+	SpendMinor          int64
+	InventoryValueMicro int64
+	DirectCostMicro     int64
+	COGSMicro           int64
 }
 
 type ReportingItemMetric struct {
@@ -244,6 +255,51 @@ func (s *Store) GetInventoryReportData(
 	return data, nil
 }
 
+func (s *Store) GetPurchaseReportData(
+	ctx context.Context,
+	filter ReportingPeriodFilter,
+	rowLimit int,
+) (PurchaseReportData, error) {
+	if rowLimit <= 0 {
+		rowLimit = 10
+	}
+	var data PurchaseReportData
+	err := s.withReadQueries(ctx, "get purchase report data", func(queries *sqlcgen.Queries) error {
+		currencyRow, err := queries.GetReportingCurrency(ctx)
+		if err != nil {
+			return err
+		}
+		currency, err := domain.RestoreCurrency(currencyRow.CurrencyCode, int(currencyRow.CurrencyMinorDigits))
+		if err != nil {
+			return err
+		}
+		spendSeries, err := queries.ListPurchaseSpendSeries(ctx, purchaseSeriesParams(filter))
+		if err != nil {
+			return err
+		}
+		topSuppliers, err := queries.ListTopSuppliersBySpend(ctx, topSuppliersBySpendParams(filter, rowLimit))
+		if err != nil {
+			return err
+		}
+		freeStock, err := queries.ListFreeStockEntrySeries(ctx, freeStockEntrySeriesParams(filter))
+		if err != nil {
+			return err
+		}
+
+		data = PurchaseReportData{
+			Currency:             currency,
+			PurchaseSpendSeries:  mapPurchaseSpendSeriesRows(spendSeries),
+			TopSuppliersBySpend:  mapTopSuppliersBySpendRows(topSuppliers),
+			FreeStockEntrySeries: mapFreeStockEntrySeriesRows(freeStock),
+		}
+		return nil
+	})
+	if err != nil {
+		return PurchaseReportData{}, err
+	}
+	return data, nil
+}
+
 func salesTotalsParams(filter ReportingPeriodFilter) sqlcgen.GetSalesReportTotalsParams {
 	return sqlcgen.GetSalesReportTotalsParams{
 		FromOccurredOn: filter.FromOccurredOn,
@@ -297,6 +353,30 @@ func anonymousSalesParams(filter ReportingPeriodFilter) sqlcgen.GetAnonymousSale
 	}
 }
 
+func purchaseSeriesParams(filter ReportingPeriodFilter) sqlcgen.ListPurchaseSpendSeriesParams {
+	return sqlcgen.ListPurchaseSpendSeriesParams{
+		Granularity:    filter.Granularity,
+		FromOccurredOn: filter.FromOccurredOn,
+		ToOccurredOn:   filter.ToOccurredOn,
+	}
+}
+
+func topSuppliersBySpendParams(filter ReportingPeriodFilter, limit int) sqlcgen.ListTopSuppliersBySpendParams {
+	return sqlcgen.ListTopSuppliersBySpendParams{
+		LimitCount:     int64(limit),
+		FromOccurredOn: filter.FromOccurredOn,
+		ToOccurredOn:   filter.ToOccurredOn,
+	}
+}
+
+func freeStockEntrySeriesParams(filter ReportingPeriodFilter) sqlcgen.ListFreeStockEntrySeriesParams {
+	return sqlcgen.ListFreeStockEntrySeriesParams{
+		Granularity:    filter.Granularity,
+		FromOccurredOn: filter.FromOccurredOn,
+		ToOccurredOn:   filter.ToOccurredOn,
+	}
+}
+
 func mapSalesTotalsRow(row sqlcgen.GetSalesReportTotalsRow) SalesReportTotals {
 	return SalesReportTotals{
 		SalesCount:     row.SalesCount,
@@ -310,12 +390,46 @@ func mapSalesSeriesRows(rows []sqlcgen.ListSalesRevenueSeriesRow) []ReportingSer
 	items := make([]ReportingSeries, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, ReportingSeries{
-			Bucket:         row.Bucket,
-			Label:          row.Label,
-			SalesCount:     row.SalesCount,
-			QuantityAtomic: row.QuantityAtomic,
-			RevenueMinor:   row.RevenueMinor,
-			COGSMicro:      row.CogsMicro,
+			Bucket:              row.Bucket,
+			Label:               row.Label,
+			DocumentCount:       row.SalesCount,
+			SalesCount:          row.SalesCount,
+			QuantityAtomic:      row.QuantityAtomic,
+			RevenueMinor:        row.RevenueMinor,
+			InventoryValueMicro: row.CogsMicro,
+			COGSMicro:           row.CogsMicro,
+		})
+	}
+	return items
+}
+
+func mapPurchaseSpendSeriesRows(rows []sqlcgen.ListPurchaseSpendSeriesRow) []ReportingSeries {
+	items := make([]ReportingSeries, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, ReportingSeries{
+			Bucket:              row.Bucket,
+			Label:               row.Label,
+			DocumentCount:       row.DocumentCount,
+			QuantityAtomic:      row.QuantityAtomic,
+			RevenueMinor:        row.SpendMinor,
+			SpendMinor:          row.SpendMinor,
+			InventoryValueMicro: row.InventoryValueMicro,
+		})
+	}
+	return items
+}
+
+func mapFreeStockEntrySeriesRows(rows []sqlcgen.ListFreeStockEntrySeriesRow) []ReportingSeries {
+	items := make([]ReportingSeries, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, ReportingSeries{
+			Bucket:              row.Bucket,
+			Label:               row.Label,
+			DocumentCount:       row.DocumentCount,
+			QuantityAtomic:      row.QuantityAtomic,
+			RevenueMinor:        row.SpendMinor,
+			SpendMinor:          row.SpendMinor,
+			InventoryValueMicro: row.InventoryValueMicro,
 		})
 	}
 	return items
@@ -464,6 +578,25 @@ func mapSalesByCustomerRows(rows []sqlcgen.ListSalesByCustomerRow) []ReportingCo
 			CounterpartyName: domain.Some(row.CounterpartyName),
 			DocumentCount:    row.DocumentCount,
 			RevenueMinor:     row.RevenueMinor,
+		})
+	}
+	return items
+}
+
+func mapTopSuppliersBySpendRows(rows []sqlcgen.ListTopSuppliersBySpendRow) []ReportingCounterpartyMetric {
+	items := make([]ReportingCounterpartyMetric, 0, len(rows))
+	for _, row := range rows {
+		counterpartyID := domain.None[domain.CounterpartyID]()
+		if row.CounterpartyID.Valid {
+			if id, err := domain.NewCounterpartyID(row.CounterpartyID.Int64); err == nil {
+				counterpartyID = domain.Some(id)
+			}
+		}
+		items = append(items, ReportingCounterpartyMetric{
+			CounterpartyID:   counterpartyID,
+			CounterpartyName: domain.Some(row.CounterpartyName),
+			DocumentCount:    row.DocumentCount,
+			SpendMinor:       row.SpendMinor,
 		})
 	}
 	return items

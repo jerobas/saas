@@ -174,8 +174,15 @@ func mapInventoryReport(report application.InventoryReport) dto.InventoryReportR
 	}
 }
 
-func mapPurchaseReport(application.PurchaseReport) dto.PurchaseReportResponse {
-	return dto.PurchaseReportResponse{}
+func mapPurchaseReport(report application.PurchaseReport) dto.PurchaseReportResponse {
+	return dto.PurchaseReportResponse{
+		Period:              mapReportingPeriod(report.Period),
+		CurrencyCode:        report.Currency.Code().String(),
+		CurrencyMinorDigits: int64(report.Currency.MinorDigits().Int()),
+		PurchaseSpendSeries: mapReportingSeries(report.PurchaseSpendSeries),
+		TopSuppliersBySpend: mapReportingCounterpartyMetrics(report.TopSuppliersBySpend),
+		FreeStockEntries:    mapReportingSeries(report.FreeStockEntries),
+	}
 }
 
 func mapProductionReport(application.ProductionReport) dto.ProductionReportResponse {
@@ -210,10 +217,13 @@ func mapReportingSeries(items []application.ReportingSeries) []dto.ReportingSeri
 		response = append(response, dto.ReportingSeriesResponse{
 			Bucket:              item.Bucket,
 			Label:               item.Label,
+			DocumentCount:       item.DocumentCount,
 			SalesCount:          item.SalesCount,
 			QuantityAtomic:      item.QuantityAtomic,
 			RevenueMinor:        item.RevenueMinor,
-			InventoryValueMicro: item.COGSMicro,
+			SpendMinor:          item.SpendMinor,
+			InventoryValueMicro: item.InventoryValueMicro,
+			DirectCostMicro:     item.DirectCostMicro,
 			GrossMarginMicro:    item.GrossMarginMicro,
 		})
 	}

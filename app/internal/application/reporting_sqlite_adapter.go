@@ -75,6 +75,27 @@ func (s *sqliteReportingStore) GetInventoryReportData(
 	}, nil
 }
 
+func (s *sqliteReportingStore) GetPurchaseReportData(
+	ctx context.Context,
+	input ReportingPeriodInput,
+	rowLimit int,
+) (PurchaseReportData, error) {
+	data, err := s.store.GetPurchaseReportData(ctx, sqlite.ReportingPeriodFilter{
+		FromOccurredOn: input.FromOccurredOn.String(),
+		ToOccurredOn:   input.ToOccurredOn.String(),
+		Granularity:    string(input.Granularity),
+	}, rowLimit)
+	if err != nil {
+		return PurchaseReportData{}, err
+	}
+	return PurchaseReportData{
+		Currency:             data.Currency,
+		PurchaseSpendSeries:  mapReportingSeries(data.PurchaseSpendSeries),
+		TopSuppliersBySpend:  mapReportingCounterpartyMetrics(data.TopSuppliersBySpend),
+		FreeStockEntrySeries: mapReportingSeries(data.FreeStockEntrySeries),
+	}, nil
+}
+
 func mapSalesReportTotals(value sqlite.SalesReportTotals) SalesReportTotals {
 	return SalesReportTotals{
 		SalesCount:     value.SalesCount,
@@ -88,12 +109,16 @@ func mapReportingSeries(items []sqlite.ReportingSeries) []ReportingSeries {
 	mapped := make([]ReportingSeries, 0, len(items))
 	for _, item := range items {
 		mapped = append(mapped, ReportingSeries{
-			Bucket:         item.Bucket,
-			Label:          item.Label,
-			SalesCount:     item.SalesCount,
-			QuantityAtomic: item.QuantityAtomic,
-			RevenueMinor:   item.RevenueMinor,
-			COGSMicro:      item.COGSMicro,
+			Bucket:              item.Bucket,
+			Label:               item.Label,
+			DocumentCount:       item.DocumentCount,
+			SalesCount:          item.SalesCount,
+			QuantityAtomic:      item.QuantityAtomic,
+			RevenueMinor:        item.RevenueMinor,
+			SpendMinor:          item.SpendMinor,
+			InventoryValueMicro: item.InventoryValueMicro,
+			DirectCostMicro:     item.DirectCostMicro,
+			COGSMicro:           item.COGSMicro,
 		})
 	}
 	return mapped

@@ -820,14 +820,37 @@ describe("desktop bridge", () => {
       expiredLotsWithStock: [],
       inventoryValueByItem: [],
     };
+    const purchaseReport = {
+      period: request,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      purchaseSpendSeries: [
+        {
+          bucket: "2026-07",
+          label: "2026-07",
+          documentCount: 1,
+          salesCount: 0,
+          quantityAtomic: 1_000,
+          revenueMinor: 500,
+          spendMinor: 500,
+          inventoryValueMicro: 5_000_000,
+          directCostMicro: 0,
+          grossMarginMicro: 0,
+        },
+      ],
+      topSuppliersBySpend: [],
+      freeStockEntries: [],
+    };
     const getSalesReport = vi.fn().mockResolvedValue(salesReport);
     const getInventoryReport = vi.fn().mockResolvedValue(inventoryReport);
+    const getPurchaseReport = vi.fn().mockResolvedValue(purchaseReport);
     const getCategoryMixReport = vi.fn().mockResolvedValue(categoryMix);
     window.go = {
       service: {
         ReportingHandler: {
           GetSalesReport: getSalesReport,
           GetInventoryReport: getInventoryReport,
+          GetPurchaseReport: getPurchaseReport,
           GetCategoryMixReport: getCategoryMixReport,
         },
       },
@@ -835,9 +858,11 @@ describe("desktop bridge", () => {
 
     await expect(reportingGateway.getSalesReport(request)).resolves.toEqual(salesReport);
     await expect(reportingGateway.getInventoryReport(request)).resolves.toEqual(inventoryReport);
+    await expect(reportingGateway.getPurchaseReport(request)).resolves.toEqual(purchaseReport);
     await expect(reportingGateway.getCategoryMixReport(request)).resolves.toEqual(categoryMix);
     expect(getSalesReport).toHaveBeenCalledWith(request);
     expect(getInventoryReport).toHaveBeenCalledWith(request);
+    expect(getPurchaseReport).toHaveBeenCalledWith(request);
     expect(getCategoryMixReport).toHaveBeenCalledWith(request);
   });
 });

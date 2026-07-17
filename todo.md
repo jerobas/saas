@@ -116,6 +116,11 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - lotes vencendo em 7/30 dias;
   - lotes vencidos ainda com saldo;
   - valor de estoque por item.
+- [x] Implementar `GetPurchaseReport` real:
+  - compras/spend por periodo;
+  - top fornecedores por gasto;
+  - entradas gratis `FREE_STOCK`;
+  - exclusao de compras revertidas.
 - [ ] Implementar queries:
   - total de vendas no periodo;
   - receita no periodo;
@@ -149,6 +154,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
 - [ ] Criar `ReportingStore` read-only em SQLite.
 - [x] Criar primeiro `ReportingStore` read-only para vendas.
 - [x] Expandir `ReportingStore` read-only para inventario/lotes.
+- [x] Expandir `ReportingStore` read-only para compras.
 - [ ] Criar testes de store com banco temporario:
   - dashboard vazio;
   - compras sem vendas;
@@ -157,7 +163,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - estoque valorizado;
   - baixo estoque.
 - [x] Criar `ReportingService` fino, sem regra de escrita, para `GetSalesReport`.
-- [ ] Expandir `ReportingService` para compras, producao e ajustes/correcoes.
+- [ ] Expandir `ReportingService` para producao e ajustes/correcoes.
 - [ ] Adicionar teste de application para periodo invalido e periodo padrao.
 
 ### 5.7.3 — Wails/gateway
@@ -173,7 +179,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - `GetCategoryMixReport`.
 - [x] Registrar handler no app Wails.
 - [x] Adicionar `reportingGateway` tipado no frontend.
-- [x] Cobrir gateway/handler em testes de superficie para o primeiro endpoint real de vendas e placeholder de categorias.
+- [x] Cobrir gateway/handler em testes de superficie para vendas, inventario, compras e placeholder de categorias.
 
 ### 5.7.4 — Dashboard real minimo
 

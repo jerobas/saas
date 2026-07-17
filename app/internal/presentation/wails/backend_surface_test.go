@@ -723,6 +723,24 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("inventory report = %#v", inventoryReport)
 	}
 
+	purchaseReport, err := reportingHandler.GetPurchaseReport(dto.ReportingPeriodRequest{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-31",
+		Granularity:    "MONTH",
+	})
+	if err != nil {
+		t.Fatalf("get purchase report: %v", err)
+	}
+	if len(purchaseReport.PurchaseSpendSeries) != 1 ||
+		purchaseReport.PurchaseSpendSeries[0].DocumentCount != 1 ||
+		purchaseReport.PurchaseSpendSeries[0].SpendMinor != 500 ||
+		purchaseReport.PurchaseSpendSeries[0].InventoryValueMicro != 5_000_000 ||
+		len(purchaseReport.TopSuppliersBySpend) != 1 ||
+		purchaseReport.TopSuppliersBySpend[0].SpendMinor != 500 ||
+		len(purchaseReport.FreeStockEntries) != 0 {
+		t.Fatalf("purchase report = %#v", purchaseReport)
+	}
+
 	categoryMix, err := reportingHandler.GetCategoryMixReport(dto.ReportingPeriodRequest{
 		FromOccurredOn: "2026-07-01",
 		ToOccurredOn:   "2026-07-31",

@@ -155,6 +155,61 @@ func TestReportingStoreInventoryReportSummarizesBalancesLowStockAndLotRisk(t *te
 	}
 }
 
+func TestReportingStorePurchaseReportAggregatesSpendAndExcludesReversedDocuments(t *testing.T) {
+	store := newAdapterTestStore(t, filepath.Join(t.TempDir(), "reporting-purchases.db"), database.DefaultOpenOptions())
+	ctx := context.Background()
+	itemID := createReportingItem(t, store, "Reported cocoa", false, domain.None[domain.AtomicQuantity]())
+	supplierA := createReportingSupplier(t, store, "Supplier A")
+	supplierB := createReportingSupplier(t, store, "Supplier B")
+
+	postReportingPurchase(t, store, itemID, "report-purchase-a", "2026-07-05", 2_000, domain.Some(supplierA), domain.None[domain.DocumentReason](), 100, 1_000)
+	postReportingPurchase(t, store, itemID, "report-purchase-b", "2026-07-20", 3_000, domain.Some(supplierB), domain.None[domain.DocumentReason](), 50, 250)
+	postReportingPurchase(t, store, itemID, "report-free-stock", "2026-07-20", 4_000, domain.None[domain.CounterpartyID](), domain.Some(domain.ReasonFreeStock), 10, 0)
+	reversed := postReportingPurchase(t, store, itemID, "report-reversed-purchase", "2026-07-21", 5_000, domain.Some(supplierA), domain.None[domain.DocumentReason](), 20, 999)
+	if _, err := store.PostReversal(ctx, PostReversalInput{
+		IdempotencyKey:   mustPurchaseIdempotencyKey(t, "reverse-report-purchase"),
+		TargetDocumentID: reversed.ID(),
+		OccurredOn:       mustPurchaseDate(t, "2026-07-21"),
+		PostedAt:         mustCatalogInstant(t, 6_000),
+	}); err != nil {
+		t.Fatalf("reverse purchase: %v", err)
+	}
+
+	report, err := store.GetPurchaseReportData(ctx, ReportingPeriodFilter{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-31",
+		Granularity:    "DAY",
+	}, 10)
+	if err != nil {
+		t.Fatalf("get purchase report data: %v", err)
+	}
+
+	if len(report.PurchaseSpendSeries) != 2 ||
+		report.PurchaseSpendSeries[0].Bucket != "2026-07-05" ||
+		report.PurchaseSpendSeries[0].DocumentCount != 1 ||
+		report.PurchaseSpendSeries[0].SpendMinor != 1_000 ||
+		report.PurchaseSpendSeries[0].InventoryValueMicro != 10_000_000 ||
+		report.PurchaseSpendSeries[1].Bucket != "2026-07-20" ||
+		report.PurchaseSpendSeries[1].DocumentCount != 2 ||
+		report.PurchaseSpendSeries[1].QuantityAtomic != 60 ||
+		report.PurchaseSpendSeries[1].SpendMinor != 250 {
+		t.Fatalf("purchase spend series = %#v", report.PurchaseSpendSeries)
+	}
+	if len(report.TopSuppliersBySpend) != 2 ||
+		report.TopSuppliersBySpend[0].CounterpartyName.IsNone() ||
+		report.TopSuppliersBySpend[0].SpendMinor != 1_000 ||
+		report.TopSuppliersBySpend[1].SpendMinor != 250 {
+		t.Fatalf("top suppliers = %#v", report.TopSuppliersBySpend)
+	}
+	if len(report.FreeStockEntrySeries) != 1 ||
+		report.FreeStockEntrySeries[0].Bucket != "2026-07-20" ||
+		report.FreeStockEntrySeries[0].DocumentCount != 1 ||
+		report.FreeStockEntrySeries[0].QuantityAtomic != 10 ||
+		report.FreeStockEntrySeries[0].SpendMinor != 0 {
+		t.Fatalf("free stock entries = %#v", report.FreeStockEntrySeries)
+	}
+}
+
 func reportSaleInput(
 	t *testing.T,
 	itemID domain.ItemID,
@@ -201,4 +256,54 @@ func createReportingItem(
 		UpdatedAt:       mustCatalogInstant(t, 1_000),
 	})
 	return created.Item().ID()
+}
+
+func createReportingSupplier(t *testing.T, store *Store, name string) domain.CounterpartyID {
+	t.Helper()
+	created, err := store.CreateCounterparty(context.Background(), CreateCounterpartyInput{
+		Name:      counterpartyName(t, name),
+		Roles:     counterpartyRoles(t, domain.RoleSupplier),
+		CreatedAt: counterpartyInstant(t, 1_000),
+	})
+	if err != nil {
+		t.Fatalf("create reporting supplier: %v", err)
+	}
+	return created.ID()
+}
+
+func postReportingPurchase(
+	t *testing.T,
+	store *Store,
+	itemID domain.ItemID,
+	idempotencyKey string,
+	occurredOn string,
+	postedAtMS int64,
+	counterpartyID domain.Option[domain.CounterpartyID],
+	reason domain.Option[domain.DocumentReason],
+	quantityAtomic int64,
+	commercialTotalMinor int64,
+) PostedPurchaseDocument {
+	t.Helper()
+	posted, err := store.PostPurchase(context.Background(), PostPurchaseInput{
+		IdempotencyKey: mustPurchaseIdempotencyKey(t, idempotencyKey),
+		CounterpartyID: counterpartyID,
+		OccurredOn:     mustPurchaseDate(t, occurredOn),
+		PostedAt:       mustCatalogInstant(t, postedAtMS),
+		Reason:         reason,
+		Lines: []PostPurchaseLineInput{
+			{
+				ItemID:          itemID,
+				Quantity:        mustPurchaseQuantity(t, quantityAtomic),
+				EnteredUnit:     mustCatalogUnitCode(t, "g"),
+				Conversion:      mustCatalogConversion(t, 1_000, 1),
+				CommercialTotal: mustPurchaseMinorAmount(t, commercialTotalMinor),
+				LotCode:         domain.Some(counterpartyText(t, idempotencyKey+"-lot")),
+				ExpiresOn:       domain.Some(mustPurchaseDate(t, "2026-12-31")),
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post reporting purchase: %v", err)
+	}
+	return posted
 }

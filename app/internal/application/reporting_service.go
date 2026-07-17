@@ -93,7 +93,13 @@ type InventoryReport struct {
 	InventoryValueByItem     []ReportingItemMetric
 }
 
-type PurchaseReport struct{}
+type PurchaseReport struct {
+	Period              ReportingPeriodInput
+	Currency            domain.Currency
+	PurchaseSpendSeries []ReportingSeries
+	TopSuppliersBySpend []ReportingCounterpartyMetric
+	FreeStockEntries    []ReportingSeries
+}
 
 type ProductionReport struct{}
 
@@ -116,6 +122,7 @@ type CategoryMixRow struct {
 type ReportingStore interface {
 	GetSalesReportData(ctx context.Context, current ReportingPeriodInput, previous ReportingPeriodInput, topLimit int) (SalesReportData, error)
 	GetInventoryReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (InventoryReportData, error)
+	GetPurchaseReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (PurchaseReportData, error)
 }
 
 type SalesReportData struct {
@@ -150,14 +157,25 @@ type InventoryReportData struct {
 	InventoryValueByItem     []ReportingItemMetric
 }
 
+type PurchaseReportData struct {
+	Currency             domain.Currency
+	PurchaseSpendSeries  []ReportingSeries
+	TopSuppliersBySpend  []ReportingCounterpartyMetric
+	FreeStockEntrySeries []ReportingSeries
+}
+
 type ReportingSeries struct {
-	Bucket           string
-	Label            string
-	SalesCount       int64
-	QuantityAtomic   int64
-	RevenueMinor     int64
-	COGSMicro        int64
-	GrossMarginMicro int64
+	Bucket              string
+	Label               string
+	DocumentCount       int64
+	SalesCount          int64
+	QuantityAtomic      int64
+	RevenueMinor        int64
+	SpendMinor          int64
+	InventoryValueMicro int64
+	DirectCostMicro     int64
+	COGSMicro           int64
+	GrossMarginMicro    int64
 }
 
 type ReportingItemMetric struct {
@@ -271,8 +289,18 @@ func (s *ReportingService) GetInventoryReport(ctx context.Context, input Reporti
 	}, nil
 }
 
-func (s *ReportingService) GetPurchaseReport(context.Context, ReportingPeriodInput) (PurchaseReport, error) {
-	return PurchaseReport{}, ErrReportingEndpointNotImplemented
+func (s *ReportingService) GetPurchaseReport(ctx context.Context, input ReportingPeriodInput) (PurchaseReport, error) {
+	data, err := s.store.GetPurchaseReportData(ctx, input, 10)
+	if err != nil {
+		return PurchaseReport{}, err
+	}
+	return PurchaseReport{
+		Period:              input,
+		Currency:            data.Currency,
+		PurchaseSpendSeries: data.PurchaseSpendSeries,
+		TopSuppliersBySpend: data.TopSuppliersBySpend,
+		FreeStockEntries:    data.FreeStockEntrySeries,
+	}, nil
 }
 
 func (s *ReportingService) GetProductionReport(context.Context, ReportingPeriodInput) (ProductionReport, error) {

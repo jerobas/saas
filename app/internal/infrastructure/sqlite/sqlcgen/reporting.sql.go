@@ -400,6 +400,90 @@ func (q *Queries) ListExpiringLots(ctx context.Context, arg ListExpiringLotsPara
 	return items, nil
 }
 
+const listFreeStockEntrySeries = `-- name: ListFreeStockEntrySeries :many
+WITH free_stock_lines AS (
+    SELECT
+        document.id AS document_id,
+        CAST(
+            CASE
+                WHEN CAST(?1 AS TEXT) = 'DAY'
+                    THEN document.occurred_on
+                ELSE substr(document.occurred_on, 1, 7)
+            END AS TEXT
+        ) AS bucket,
+        line.quantity_atomic,
+        line.commercial_total_minor,
+        line.inventory_value_micro
+    FROM stock_documents document
+    JOIN stock_document_lines line ON line.document_id = document.id
+    WHERE document.kind = 'PURCHASE'
+      AND document.reason_code = 'FREE_STOCK'
+      AND document.occurred_on >= CAST(?2 AS TEXT)
+      AND document.occurred_on <= CAST(?3 AS TEXT)
+      AND NOT EXISTS (
+          SELECT 1
+          FROM stock_documents reversal
+          WHERE reversal.kind = 'REVERSAL'
+            AND reversal.reverses_document_id = document.id
+      )
+)
+SELECT
+    CAST(bucket AS TEXT) AS bucket,
+    CAST(bucket AS TEXT) AS label,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(quantity_atomic), 0) AS INTEGER) AS quantity_atomic,
+    CAST(COALESCE(SUM(commercial_total_minor), 0) AS INTEGER) AS spend_minor,
+    CAST(COALESCE(SUM(inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro
+FROM free_stock_lines
+GROUP BY bucket
+ORDER BY bucket
+`
+
+type ListFreeStockEntrySeriesParams struct {
+	Granularity    string
+	FromOccurredOn string
+	ToOccurredOn   string
+}
+
+type ListFreeStockEntrySeriesRow struct {
+	Bucket              string
+	Label               string
+	DocumentCount       int64
+	QuantityAtomic      int64
+	SpendMinor          int64
+	InventoryValueMicro int64
+}
+
+func (q *Queries) ListFreeStockEntrySeries(ctx context.Context, arg ListFreeStockEntrySeriesParams) ([]ListFreeStockEntrySeriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFreeStockEntrySeries, arg.Granularity, arg.FromOccurredOn, arg.ToOccurredOn)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFreeStockEntrySeriesRow{}
+	for rows.Next() {
+		var i ListFreeStockEntrySeriesRow
+		if err := rows.Scan(
+			&i.Bucket,
+			&i.Label,
+			&i.DocumentCount,
+			&i.QuantityAtomic,
+			&i.SpendMinor,
+			&i.InventoryValueMicro,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInventoryValueByItem = `-- name: ListInventoryValueByItem :many
 SELECT
     item.id AS item_id,
@@ -494,6 +578,89 @@ func (q *Queries) ListLowStockItems(ctx context.Context, limitCount int64) ([]Li
 			&i.QuantityAtomic,
 			&i.InventoryValueMicro,
 			&i.ReorderQuantityAtomic,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPurchaseSpendSeries = `-- name: ListPurchaseSpendSeries :many
+WITH active_purchase_lines AS (
+    SELECT
+        document.id AS document_id,
+        CAST(
+            CASE
+                WHEN CAST(?1 AS TEXT) = 'DAY'
+                    THEN document.occurred_on
+                ELSE substr(document.occurred_on, 1, 7)
+            END AS TEXT
+        ) AS bucket,
+        line.quantity_atomic,
+        line.commercial_total_minor,
+        line.inventory_value_micro
+    FROM stock_documents document
+    JOIN stock_document_lines line ON line.document_id = document.id
+    WHERE document.kind = 'PURCHASE'
+      AND document.occurred_on >= CAST(?2 AS TEXT)
+      AND document.occurred_on <= CAST(?3 AS TEXT)
+      AND NOT EXISTS (
+          SELECT 1
+          FROM stock_documents reversal
+          WHERE reversal.kind = 'REVERSAL'
+            AND reversal.reverses_document_id = document.id
+      )
+)
+SELECT
+    CAST(bucket AS TEXT) AS bucket,
+    CAST(bucket AS TEXT) AS label,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(quantity_atomic), 0) AS INTEGER) AS quantity_atomic,
+    CAST(COALESCE(SUM(commercial_total_minor), 0) AS INTEGER) AS spend_minor,
+    CAST(COALESCE(SUM(inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro
+FROM active_purchase_lines
+GROUP BY bucket
+ORDER BY bucket
+`
+
+type ListPurchaseSpendSeriesParams struct {
+	Granularity    string
+	FromOccurredOn string
+	ToOccurredOn   string
+}
+
+type ListPurchaseSpendSeriesRow struct {
+	Bucket              string
+	Label               string
+	DocumentCount       int64
+	QuantityAtomic      int64
+	SpendMinor          int64
+	InventoryValueMicro int64
+}
+
+func (q *Queries) ListPurchaseSpendSeries(ctx context.Context, arg ListPurchaseSpendSeriesParams) ([]ListPurchaseSpendSeriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPurchaseSpendSeries, arg.Granularity, arg.FromOccurredOn, arg.ToOccurredOn)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPurchaseSpendSeriesRow{}
+	for rows.Next() {
+		var i ListPurchaseSpendSeriesRow
+		if err := rows.Scan(
+			&i.Bucket,
+			&i.Label,
+			&i.DocumentCount,
+			&i.QuantityAtomic,
+			&i.SpendMinor,
+			&i.InventoryValueMicro,
 		); err != nil {
 			return nil, err
 		}
@@ -810,6 +977,79 @@ func (q *Queries) ListTopSalesProductsByRevenue(ctx context.Context, arg ListTop
 			&i.QuantityAtomic,
 			&i.RevenueMinor,
 			&i.CogsMicro,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopSuppliersBySpend = `-- name: ListTopSuppliersBySpend :many
+WITH active_purchase_lines AS (
+    SELECT
+        document.id AS document_id,
+        document.counterparty_id,
+        counterparty.name AS counterparty_name,
+        line.commercial_total_minor
+    FROM stock_documents document
+    JOIN stock_document_lines line ON line.document_id = document.id
+    JOIN counterparties counterparty ON counterparty.id = document.counterparty_id
+    WHERE document.kind = 'PURCHASE'
+      AND document.counterparty_id IS NOT NULL
+      AND document.occurred_on >= CAST(?2 AS TEXT)
+      AND document.occurred_on <= CAST(?3 AS TEXT)
+      AND NOT EXISTS (
+          SELECT 1
+          FROM stock_documents reversal
+          WHERE reversal.kind = 'REVERSAL'
+            AND reversal.reverses_document_id = document.id
+      )
+)
+SELECT
+    counterparty_id,
+    counterparty_name,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(commercial_total_minor), 0) AS INTEGER) AS spend_minor
+FROM active_purchase_lines
+GROUP BY counterparty_id, counterparty_name
+ORDER BY spend_minor DESC, document_count DESC, counterparty_name, counterparty_id
+LIMIT ?1
+`
+
+type ListTopSuppliersBySpendParams struct {
+	LimitCount     int64
+	FromOccurredOn string
+	ToOccurredOn   string
+}
+
+type ListTopSuppliersBySpendRow struct {
+	CounterpartyID   sql.NullInt64
+	CounterpartyName string
+	DocumentCount    int64
+	SpendMinor       int64
+}
+
+func (q *Queries) ListTopSuppliersBySpend(ctx context.Context, arg ListTopSuppliersBySpendParams) ([]ListTopSuppliersBySpendRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopSuppliersBySpend, arg.LimitCount, arg.FromOccurredOn, arg.ToOccurredOn)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTopSuppliersBySpendRow{}
+	for rows.Next() {
+		var i ListTopSuppliersBySpendRow
+		if err := rows.Scan(
+			&i.CounterpartyID,
+			&i.CounterpartyName,
+			&i.DocumentCount,
+			&i.SpendMinor,
 		); err != nil {
 			return nil, err
 		}
