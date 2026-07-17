@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LineChart,
   Line,
@@ -16,9 +16,88 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ArrowUpRight, Package, ShoppingCart, CurrencyDollar } from "@phosphor-icons/react";
+import { reportingGateway } from "../gateways/desktopBridge";
+
+const businessDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const defaultReportingPeriod = () => {
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  return {
+    fromOccurredOn: businessDate(firstDayOfMonth),
+    toOccurredOn: businessDate(today),
+    granularity: "MONTH",
+  };
+};
+
+const loadHiddenReportingDump = async (period) => {
+  const endpoints = [
+    ["salesReport", () => reportingGateway.getSalesReport(period)],
+    ["inventoryReport", () => reportingGateway.getInventoryReport(period)],
+    ["purchaseReport", () => reportingGateway.getPurchaseReport(period)],
+    ["productionReport", () => reportingGateway.getProductionReport(period)],
+    ["adjustmentReport", () => reportingGateway.getAdjustmentReport(period)],
+    ["categoryMixReport", () => reportingGateway.getCategoryMixReport(period)],
+  ];
+
+  const entries = await Promise.all(
+    endpoints.map(async ([name, load]) => {
+      try {
+        return [name, { status: "fulfilled", value: await load() }];
+      } catch (error) {
+        return [
+          name,
+          {
+            status: "rejected",
+            reason: error instanceof Error ? error.message : String(error),
+          },
+        ];
+      }
+    }),
+  );
+
+  return Object.fromEntries(entries);
+};
 
 const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const [hiddenReportingDump, setHiddenReportingDump] = useState(() => ({
+    status: "idle",
+    period: null,
+    endpoints: {},
+  }));
+
+  useEffect(() => {
+    let cancelled = false;
+    const period = defaultReportingPeriod();
+
+    setHiddenReportingDump({
+      status: "loading",
+      period,
+      endpoints: {},
+    });
+
+    loadHiddenReportingDump(period).then((endpoints) => {
+      if (cancelled) {
+        return;
+      }
+      setHiddenReportingDump({
+        status: "loaded",
+        period,
+        endpoints,
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Preview data kept intentionally until the real V2 dashboard queries exist.
   const salesdData = [
     { month: "Jan", sales: 4000, revenue: 2400 },
@@ -79,6 +158,15 @@ const DashboardPage = () => {
 
   return (
     <>
+      <section
+        aria-hidden="true"
+        data-testid="dashboard-hidden-reporting-wire"
+        style={{ display: "none" }}
+      >
+        <h2>Hidden reporting endpoint dump</h2>
+        <pre>{JSON.stringify(hiddenReportingDump, null, 2)}</pre>
+      </section>
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-8">

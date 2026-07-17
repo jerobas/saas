@@ -171,7 +171,13 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
 
 - [ ] Converter `DashboardPage.jsx` para `DashboardPage.tsx`.
 - [ ] Remover arrays demo (`salesdData`, `topProductsData`, `categoriesData`) ou isolar apenas como fallback visual claramente inativo.
-- [ ] Carregar report real no mount.
+- [x] Carregar endpoints reais no mount em uma area oculta (`display: none`) para wiring:
+  - vendas;
+  - estoque;
+  - compras;
+  - producao;
+  - ajustes;
+  - mix de categorias placeholder.
 - [ ] Implementar states loading, empty e error.
 - [ ] Manter o layout visual antigo, mas trocar os cards para:
   - receita do periodo;
