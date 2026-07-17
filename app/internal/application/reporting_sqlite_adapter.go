@@ -96,6 +96,27 @@ func (s *sqliteReportingStore) GetPurchaseReportData(
 	}, nil
 }
 
+func (s *sqliteReportingStore) GetProductionReportData(
+	ctx context.Context,
+	input ReportingPeriodInput,
+	rowLimit int,
+) (ProductionReportData, error) {
+	data, err := s.store.GetProductionReportData(ctx, sqlite.ReportingPeriodFilter{
+		FromOccurredOn: input.FromOccurredOn.String(),
+		ToOccurredOn:   input.ToOccurredOn.String(),
+		Granularity:    string(input.Granularity),
+	}, rowLimit)
+	if err != nil {
+		return ProductionReportData{}, err
+	}
+	return ProductionReportData{
+		Currency:                  data.Currency,
+		ProductionByRecipeProduct: mapReportingItemMetrics(data.ProductionByRecipeProduct),
+		DirectCostSeries:          mapReportingSeries(data.DirectCostSeries),
+		YieldVariance:             mapReportingItemMetrics(data.YieldVariance),
+	}, nil
+}
+
 func mapSalesReportTotals(value sqlite.SalesReportTotals) SalesReportTotals {
 	return SalesReportTotals{
 		SalesCount:     value.SalesCount,
@@ -130,15 +151,28 @@ func mapReportingItemMetrics(items []sqlite.ReportingItemMetric) []ReportingItem
 		mapped = append(mapped, ReportingItemMetric{
 			ItemID:                item.ItemID,
 			ItemName:              item.ItemName,
+			RecipeID:              item.RecipeID,
+			RecipeName:            item.RecipeName,
 			BaseUnitCode:          item.BaseUnitCode,
+			DocumentCount:         item.DocumentCount,
 			QuantityAtomic:        item.QuantityAtomic,
 			RevenueMinor:          item.RevenueMinor,
 			InventoryValueMicro:   item.InventoryValueMicro,
-			DirectCostMicro:       item.COGSMicro,
+			DirectCostMicro:       reportingDirectCostMicro(item),
 			ReorderQuantityAtomic: item.ReorderQuantityAtomic,
+			StandardYieldAtomic:   item.StandardYieldAtomic,
+			ActualYieldAtomic:     item.ActualYieldAtomic,
+			VarianceAtomic:        item.VarianceAtomic,
 		})
 	}
 	return mapped
+}
+
+func reportingDirectCostMicro(item sqlite.ReportingItemMetric) int64 {
+	if item.DirectCostMicro != 0 {
+		return item.DirectCostMicro
+	}
+	return item.COGSMicro
 }
 
 func mapReportingLotMetrics(items []sqlite.ReportingLotMetric) []ReportingLotMetric {

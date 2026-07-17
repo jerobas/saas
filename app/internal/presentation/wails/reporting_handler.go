@@ -185,8 +185,15 @@ func mapPurchaseReport(report application.PurchaseReport) dto.PurchaseReportResp
 	}
 }
 
-func mapProductionReport(application.ProductionReport) dto.ProductionReportResponse {
-	return dto.ProductionReportResponse{}
+func mapProductionReport(report application.ProductionReport) dto.ProductionReportResponse {
+	return dto.ProductionReportResponse{
+		Period:                    mapReportingPeriod(report.Period),
+		CurrencyCode:              report.Currency.Code().String(),
+		CurrencyMinorDigits:       int64(report.Currency.MinorDigits().Int()),
+		ProductionByRecipeProduct: mapReportingItemMetrics(report.ProductionByRecipeProduct),
+		DirectCostSeries:          mapReportingSeries(report.DirectCostSeries),
+		YieldVariance:             mapReportingItemMetrics(report.YieldVariance),
+	}
 }
 
 func mapAdjustmentReport(application.AdjustmentReport) dto.AdjustmentReportResponse {
@@ -239,6 +246,7 @@ func mapReportingItemMetrics(items []application.ReportingItemMetric) []dto.Repo
 			RecipeID:              optionalRecipeID(item.RecipeID),
 			RecipeName:            optionalStringOption(item.RecipeName),
 			BaseUnitCode:          optionalUnitCode(item.BaseUnitCode),
+			DocumentCount:         item.DocumentCount,
 			QuantityAtomic:        item.QuantityAtomic,
 			RevenueMinor:          item.RevenueMinor,
 			InventoryValueMicro:   item.InventoryValueMicro,

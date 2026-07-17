@@ -126,6 +126,7 @@ type ReportingItemMetricResponse struct {
 	RecipeID              *int64  `json:"recipeId,omitempty"`
 	RecipeName            *string `json:"recipeName,omitempty"`
 	BaseUnitCode          *string `json:"baseUnitCode,omitempty"`
+	DocumentCount         int64   `json:"documentCount"`
 	QuantityAtomic        int64   `json:"quantityAtomic"`
 	RevenueMinor          int64   `json:"revenueMinor"`
 	InventoryValueMicro   int64   `json:"inventoryValueMicro"`

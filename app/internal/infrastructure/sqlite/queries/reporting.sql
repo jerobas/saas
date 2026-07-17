@@ -469,3 +469,141 @@ SELECT
 FROM free_stock_lines
 GROUP BY bucket
 ORDER BY bucket;
+
+-- name: ListProductionByRecipeProduct :many
+WITH active_production_runs AS (
+    SELECT
+        document.id AS document_id,
+        recipe.id AS recipe_id,
+        recipe.name AS recipe_name,
+        output_item.id AS item_id,
+        output_item.name AS item_name,
+        output_item.base_unit_code,
+        output_line.quantity_atomic AS actual_yield_atomic,
+        output_line.inventory_value_micro AS output_inventory_value_micro,
+        run.direct_production_cost_micro,
+        revision.standard_yield_quantity_atomic
+    FROM stock_documents document
+    JOIN production_runs run ON run.document_id = document.id
+    JOIN recipe_revisions revision ON revision.id = run.recipe_revision_id
+    JOIN recipes recipe ON recipe.id = revision.recipe_id
+    JOIN stock_document_lines output_line ON output_line.id = run.output_line_id
+    JOIN items output_item ON output_item.id = output_line.item_id
+    WHERE document.kind = 'PRODUCTION'
+      AND document.occurred_on >= CAST(sqlc.arg(from_occurred_on) AS TEXT)
+      AND document.occurred_on <= CAST(sqlc.arg(to_occurred_on) AS TEXT)
+      AND NOT EXISTS (
+          SELECT 1
+          FROM stock_documents reversal
+          WHERE reversal.kind = 'REVERSAL'
+            AND reversal.reverses_document_id = document.id
+      )
+)
+SELECT
+    recipe_id,
+    recipe_name,
+    item_id,
+    item_name,
+    base_unit_code,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(actual_yield_atomic), 0) AS INTEGER) AS actual_yield_atomic,
+    CAST(COALESCE(SUM(output_inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro,
+    CAST(COALESCE(SUM(direct_production_cost_micro), 0) AS INTEGER) AS direct_cost_micro,
+    CAST(COALESCE(SUM(standard_yield_quantity_atomic), 0) AS INTEGER) AS standard_yield_atomic,
+    CAST(
+        COALESCE(SUM(actual_yield_atomic), 0)
+        - COALESCE(SUM(standard_yield_quantity_atomic), 0)
+        AS INTEGER
+    ) AS variance_atomic
+FROM active_production_runs
+GROUP BY recipe_id, recipe_name, item_id, item_name, base_unit_code
+ORDER BY actual_yield_atomic DESC, inventory_value_micro DESC, recipe_name, recipe_id
+LIMIT sqlc.arg(limit_count);
+
+-- name: ListProductionDirectCostSeries :many
+WITH active_production_runs AS (
+    SELECT
+        document.id AS document_id,
+        CAST(
+            CASE
+                WHEN CAST(sqlc.arg(granularity) AS TEXT) = 'DAY'
+                    THEN document.occurred_on
+                ELSE substr(document.occurred_on, 1, 7)
+            END AS TEXT
+        ) AS bucket,
+        output_line.quantity_atomic AS actual_yield_atomic,
+        output_line.inventory_value_micro AS output_inventory_value_micro,
+        run.direct_production_cost_micro
+    FROM stock_documents document
+    JOIN production_runs run ON run.document_id = document.id
+    JOIN stock_document_lines output_line ON output_line.id = run.output_line_id
+    WHERE document.kind = 'PRODUCTION'
+      AND document.occurred_on >= CAST(sqlc.arg(from_occurred_on) AS TEXT)
+      AND document.occurred_on <= CAST(sqlc.arg(to_occurred_on) AS TEXT)
+      AND NOT EXISTS (
+          SELECT 1
+          FROM stock_documents reversal
+          WHERE reversal.kind = 'REVERSAL'
+            AND reversal.reverses_document_id = document.id
+      )
+)
+SELECT
+    CAST(bucket AS TEXT) AS bucket,
+    CAST(bucket AS TEXT) AS label,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(actual_yield_atomic), 0) AS INTEGER) AS quantity_atomic,
+    CAST(COALESCE(SUM(output_inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro,
+    CAST(COALESCE(SUM(direct_production_cost_micro), 0) AS INTEGER) AS direct_cost_micro
+FROM active_production_runs
+GROUP BY bucket
+ORDER BY bucket;
+
+-- name: ListProductionYieldVariance :many
+WITH active_production_runs AS (
+    SELECT
+        document.id AS document_id,
+        recipe.id AS recipe_id,
+        recipe.name AS recipe_name,
+        output_item.id AS item_id,
+        output_item.name AS item_name,
+        output_item.base_unit_code,
+        output_line.quantity_atomic AS actual_yield_atomic,
+        output_line.inventory_value_micro AS output_inventory_value_micro,
+        run.direct_production_cost_micro,
+        revision.standard_yield_quantity_atomic
+    FROM stock_documents document
+    JOIN production_runs run ON run.document_id = document.id
+    JOIN recipe_revisions revision ON revision.id = run.recipe_revision_id
+    JOIN recipes recipe ON recipe.id = revision.recipe_id
+    JOIN stock_document_lines output_line ON output_line.id = run.output_line_id
+    JOIN items output_item ON output_item.id = output_line.item_id
+    WHERE document.kind = 'PRODUCTION'
+      AND document.occurred_on >= CAST(sqlc.arg(from_occurred_on) AS TEXT)
+      AND document.occurred_on <= CAST(sqlc.arg(to_occurred_on) AS TEXT)
+      AND NOT EXISTS (
+          SELECT 1
+          FROM stock_documents reversal
+          WHERE reversal.kind = 'REVERSAL'
+            AND reversal.reverses_document_id = document.id
+      )
+)
+SELECT
+    recipe_id,
+    recipe_name,
+    item_id,
+    item_name,
+    base_unit_code,
+    CAST(COUNT(DISTINCT document_id) AS INTEGER) AS document_count,
+    CAST(COALESCE(SUM(standard_yield_quantity_atomic), 0) AS INTEGER) AS standard_yield_atomic,
+    CAST(COALESCE(SUM(actual_yield_atomic), 0) AS INTEGER) AS actual_yield_atomic,
+    CAST(
+        COALESCE(SUM(actual_yield_atomic), 0)
+        - COALESCE(SUM(standard_yield_quantity_atomic), 0)
+        AS INTEGER
+    ) AS variance_atomic,
+    CAST(COALESCE(SUM(output_inventory_value_micro), 0) AS INTEGER) AS inventory_value_micro,
+    CAST(COALESCE(SUM(direct_production_cost_micro), 0) AS INTEGER) AS direct_cost_micro
+FROM active_production_runs
+GROUP BY recipe_id, recipe_name, item_id, item_name, base_unit_code
+ORDER BY ABS(variance_atomic) DESC, recipe_name, recipe_id
+LIMIT sqlc.arg(limit_count);

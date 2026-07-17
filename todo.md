@@ -121,31 +121,14 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - top fornecedores por gasto;
   - entradas gratis `FREE_STOCK`;
   - exclusao de compras revertidas.
-- [ ] Implementar queries:
-  - total de vendas no periodo;
-  - receita no periodo;
-  - COGS no periodo;
-  - margem bruta no periodo;
-  - crescimento versus periodo anterior;
-  - ticket medio;
-  - serie por mes/dia usando `occurred_on`;
-  - produtos mais vendidos por quantidade e receita;
-  - vendas gratis/promocao/amostra;
-  - vendas por cliente e vendas anonimas;
-  - valor total em estoque via `inventory_balances`;
-  - itens abaixo do ponto de reposicao via `reorder_quantity_atomic`;
-  - itens zerados vendaveis;
-  - lotes vencendo e vencidos com saldo;
-  - valor de estoque por item;
-  - compras/spend por periodo;
-  - top fornecedores por gasto;
-  - entradas gratis `FREE_STOCK`;
+- [x] Implementar `GetProductionReport` real:
   - producao por receita/produto;
-  - custo direto de producao;
+  - custo direto de producao por periodo;
   - variacao simples de yield;
+  - exclusao de producoes revertidas.
+- [ ] Implementar queries restantes:
   - ajustes positivos/negativos por motivo;
   - documentos revertidos/correcoes exatas;
-  - mix por categoria vazio/placeholder;
   - dashboard vazio sem documentos.
 - [x] Garantir que SALE revertida nao entra nos agregados.
 
@@ -155,6 +138,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
 - [x] Criar primeiro `ReportingStore` read-only para vendas.
 - [x] Expandir `ReportingStore` read-only para inventario/lotes.
 - [x] Expandir `ReportingStore` read-only para compras.
+- [x] Expandir `ReportingStore` read-only para producao.
 - [ ] Criar testes de store com banco temporario:
   - dashboard vazio;
   - compras sem vendas;
@@ -163,7 +147,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - estoque valorizado;
   - baixo estoque.
 - [x] Criar `ReportingService` fino, sem regra de escrita, para `GetSalesReport`.
-- [ ] Expandir `ReportingService` para producao e ajustes/correcoes.
+- [ ] Expandir `ReportingService` para ajustes/correcoes.
 - [ ] Adicionar teste de application para periodo invalido e periodo padrao.
 
 ### 5.7.3 — Wails/gateway
@@ -179,7 +163,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - `GetCategoryMixReport`.
 - [x] Registrar handler no app Wails.
 - [x] Adicionar `reportingGateway` tipado no frontend.
-- [x] Cobrir gateway/handler em testes de superficie para vendas, inventario, compras e placeholder de categorias.
+- [x] Cobrir gateway/handler em testes de superficie para vendas, inventario, compras, producao e placeholder de categorias.
 
 ### 5.7.4 — Dashboard real minimo
 

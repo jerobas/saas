@@ -101,7 +101,13 @@ type PurchaseReport struct {
 	FreeStockEntries    []ReportingSeries
 }
 
-type ProductionReport struct{}
+type ProductionReport struct {
+	Period                    ReportingPeriodInput
+	Currency                  domain.Currency
+	ProductionByRecipeProduct []ReportingItemMetric
+	DirectCostSeries          []ReportingSeries
+	YieldVariance             []ReportingItemMetric
+}
 
 type AdjustmentReport struct{}
 
@@ -123,6 +129,7 @@ type ReportingStore interface {
 	GetSalesReportData(ctx context.Context, current ReportingPeriodInput, previous ReportingPeriodInput, topLimit int) (SalesReportData, error)
 	GetInventoryReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (InventoryReportData, error)
 	GetPurchaseReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (PurchaseReportData, error)
+	GetProductionReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (ProductionReportData, error)
 }
 
 type SalesReportData struct {
@@ -164,6 +171,13 @@ type PurchaseReportData struct {
 	FreeStockEntrySeries []ReportingSeries
 }
 
+type ProductionReportData struct {
+	Currency                  domain.Currency
+	ProductionByRecipeProduct []ReportingItemMetric
+	DirectCostSeries          []ReportingSeries
+	YieldVariance             []ReportingItemMetric
+}
+
 type ReportingSeries struct {
 	Bucket              string
 	Label               string
@@ -184,6 +198,7 @@ type ReportingItemMetric struct {
 	RecipeID              domain.Option[domain.RecipeID]
 	RecipeName            domain.Option[string]
 	BaseUnitCode          domain.Option[domain.UnitCode]
+	DocumentCount         int64
 	QuantityAtomic        int64
 	RevenueMinor          int64
 	InventoryValueMicro   int64
@@ -303,8 +318,18 @@ func (s *ReportingService) GetPurchaseReport(ctx context.Context, input Reportin
 	}, nil
 }
 
-func (s *ReportingService) GetProductionReport(context.Context, ReportingPeriodInput) (ProductionReport, error) {
-	return ProductionReport{}, ErrReportingEndpointNotImplemented
+func (s *ReportingService) GetProductionReport(ctx context.Context, input ReportingPeriodInput) (ProductionReport, error) {
+	data, err := s.store.GetProductionReportData(ctx, input, 10)
+	if err != nil {
+		return ProductionReport{}, err
+	}
+	return ProductionReport{
+		Period:                    input,
+		Currency:                  data.Currency,
+		ProductionByRecipeProduct: data.ProductionByRecipeProduct,
+		DirectCostSeries:          data.DirectCostSeries,
+		YieldVariance:             data.YieldVariance,
+	}, nil
 }
 
 func (s *ReportingService) GetAdjustmentReport(context.Context, ReportingPeriodInput) (AdjustmentReport, error) {

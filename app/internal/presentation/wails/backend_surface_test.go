@@ -723,6 +723,29 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("inventory report = %#v", inventoryReport)
 	}
 
+	productionReport, err := reportingHandler.GetProductionReport(dto.ReportingPeriodRequest{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-31",
+		Granularity:    "MONTH",
+	})
+	if err != nil {
+		t.Fatalf("get production report: %v", err)
+	}
+	if len(productionReport.ProductionByRecipeProduct) != 1 ||
+		productionReport.ProductionByRecipeProduct[0].DocumentCount != 1 ||
+		productionReport.ProductionByRecipeProduct[0].QuantityAtomic != 100 ||
+		productionReport.ProductionByRecipeProduct[0].InventoryValueMicro != 3_000_000 ||
+		productionReport.ProductionByRecipeProduct[0].DirectCostMicro != 500_000 ||
+		productionReport.ProductionByRecipeProduct[0].StandardYieldAtomic == nil ||
+		*productionReport.ProductionByRecipeProduct[0].StandardYieldAtomic != 1_000 ||
+		productionReport.ProductionByRecipeProduct[0].VarianceAtomic == nil ||
+		*productionReport.ProductionByRecipeProduct[0].VarianceAtomic != -900 ||
+		len(productionReport.DirectCostSeries) != 1 ||
+		productionReport.DirectCostSeries[0].DirectCostMicro != 500_000 ||
+		len(productionReport.YieldVariance) != 1 {
+		t.Fatalf("production report = %#v", productionReport)
+	}
+
 	purchaseReport, err := reportingHandler.GetPurchaseReport(dto.ReportingPeriodRequest{
 		FromOccurredOn: "2026-07-01",
 		ToOccurredOn:   "2026-07-31",

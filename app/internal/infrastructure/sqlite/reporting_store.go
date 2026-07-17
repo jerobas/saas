@@ -46,6 +46,13 @@ type PurchaseReportData struct {
 	FreeStockEntrySeries []ReportingSeries
 }
 
+type ProductionReportData struct {
+	Currency                  domain.Currency
+	ProductionByRecipeProduct []ReportingItemMetric
+	DirectCostSeries          []ReportingSeries
+	YieldVariance             []ReportingItemMetric
+}
+
 type SalesReportTotals struct {
 	SalesCount     int64
 	QuantityAtomic int64
@@ -69,12 +76,19 @@ type ReportingSeries struct {
 type ReportingItemMetric struct {
 	ItemID                domain.Option[domain.ItemID]
 	ItemName              string
+	RecipeID              domain.Option[domain.RecipeID]
+	RecipeName            domain.Option[string]
 	BaseUnitCode          domain.Option[domain.UnitCode]
+	DocumentCount         int64
 	QuantityAtomic        int64
 	RevenueMinor          int64
 	InventoryValueMicro   int64
+	DirectCostMicro       int64
 	COGSMicro             int64
 	ReorderQuantityAtomic domain.Option[int64]
+	StandardYieldAtomic   domain.Option[int64]
+	ActualYieldAtomic     domain.Option[int64]
+	VarianceAtomic        domain.Option[int64]
 }
 
 type ReportingLotMetric struct {
@@ -300,6 +314,51 @@ func (s *Store) GetPurchaseReportData(
 	return data, nil
 }
 
+func (s *Store) GetProductionReportData(
+	ctx context.Context,
+	filter ReportingPeriodFilter,
+	rowLimit int,
+) (ProductionReportData, error) {
+	if rowLimit <= 0 {
+		rowLimit = 10
+	}
+	var data ProductionReportData
+	err := s.withReadQueries(ctx, "get production report data", func(queries *sqlcgen.Queries) error {
+		currencyRow, err := queries.GetReportingCurrency(ctx)
+		if err != nil {
+			return err
+		}
+		currency, err := domain.RestoreCurrency(currencyRow.CurrencyCode, int(currencyRow.CurrencyMinorDigits))
+		if err != nil {
+			return err
+		}
+		byProduct, err := queries.ListProductionByRecipeProduct(ctx, productionByRecipeProductParams(filter, rowLimit))
+		if err != nil {
+			return err
+		}
+		directCostSeries, err := queries.ListProductionDirectCostSeries(ctx, productionDirectCostSeriesParams(filter))
+		if err != nil {
+			return err
+		}
+		yieldVariance, err := queries.ListProductionYieldVariance(ctx, productionYieldVarianceParams(filter, rowLimit))
+		if err != nil {
+			return err
+		}
+
+		data = ProductionReportData{
+			Currency:                  currency,
+			ProductionByRecipeProduct: mapProductionByRecipeProductRows(byProduct),
+			DirectCostSeries:          mapProductionDirectCostSeriesRows(directCostSeries),
+			YieldVariance:             mapProductionYieldVarianceRows(yieldVariance),
+		}
+		return nil
+	})
+	if err != nil {
+		return ProductionReportData{}, err
+	}
+	return data, nil
+}
+
 func salesTotalsParams(filter ReportingPeriodFilter) sqlcgen.GetSalesReportTotalsParams {
 	return sqlcgen.GetSalesReportTotalsParams{
 		FromOccurredOn: filter.FromOccurredOn,
@@ -377,6 +436,30 @@ func freeStockEntrySeriesParams(filter ReportingPeriodFilter) sqlcgen.ListFreeSt
 	}
 }
 
+func productionByRecipeProductParams(filter ReportingPeriodFilter, limit int) sqlcgen.ListProductionByRecipeProductParams {
+	return sqlcgen.ListProductionByRecipeProductParams{
+		LimitCount:     int64(limit),
+		FromOccurredOn: filter.FromOccurredOn,
+		ToOccurredOn:   filter.ToOccurredOn,
+	}
+}
+
+func productionDirectCostSeriesParams(filter ReportingPeriodFilter) sqlcgen.ListProductionDirectCostSeriesParams {
+	return sqlcgen.ListProductionDirectCostSeriesParams{
+		Granularity:    filter.Granularity,
+		FromOccurredOn: filter.FromOccurredOn,
+		ToOccurredOn:   filter.ToOccurredOn,
+	}
+}
+
+func productionYieldVarianceParams(filter ReportingPeriodFilter, limit int) sqlcgen.ListProductionYieldVarianceParams {
+	return sqlcgen.ListProductionYieldVarianceParams{
+		LimitCount:     int64(limit),
+		FromOccurredOn: filter.FromOccurredOn,
+		ToOccurredOn:   filter.ToOccurredOn,
+	}
+}
+
 func mapSalesTotalsRow(row sqlcgen.GetSalesReportTotalsRow) SalesReportTotals {
 	return SalesReportTotals{
 		SalesCount:     row.SalesCount,
@@ -430,6 +513,21 @@ func mapFreeStockEntrySeriesRows(rows []sqlcgen.ListFreeStockEntrySeriesRow) []R
 			RevenueMinor:        row.SpendMinor,
 			SpendMinor:          row.SpendMinor,
 			InventoryValueMicro: row.InventoryValueMicro,
+		})
+	}
+	return items
+}
+
+func mapProductionDirectCostSeriesRows(rows []sqlcgen.ListProductionDirectCostSeriesRow) []ReportingSeries {
+	items := make([]ReportingSeries, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, ReportingSeries{
+			Bucket:              row.Bucket,
+			Label:               row.Label,
+			DocumentCount:       row.DocumentCount,
+			QuantityAtomic:      row.QuantityAtomic,
+			InventoryValueMicro: row.InventoryValueMicro,
+			DirectCostMicro:     row.DirectCostMicro,
 		})
 	}
 	return items
@@ -493,6 +591,77 @@ func mapInventoryItem(itemIDValue int64, itemName string, baseUnitCodeValue stri
 		BaseUnitCode:        optionWhenValid(baseUnitCode, baseUnitErr),
 		QuantityAtomic:      quantityAtomic,
 		InventoryValueMicro: inventoryValueMicro,
+	}
+}
+
+func mapProductionByRecipeProductRows(rows []sqlcgen.ListProductionByRecipeProductRow) []ReportingItemMetric {
+	items := make([]ReportingItemMetric, 0, len(rows))
+	for _, row := range rows {
+		item := mapProductionItem(
+			row.RecipeID,
+			row.RecipeName,
+			row.ItemID,
+			row.ItemName,
+			row.BaseUnitCode,
+			row.DocumentCount,
+			row.ActualYieldAtomic,
+			row.InventoryValueMicro,
+			row.DirectCostMicro,
+		)
+		item.StandardYieldAtomic = domain.Some(row.StandardYieldAtomic)
+		item.ActualYieldAtomic = domain.Some(row.ActualYieldAtomic)
+		item.VarianceAtomic = domain.Some(row.VarianceAtomic)
+		items = append(items, item)
+	}
+	return items
+}
+
+func mapProductionYieldVarianceRows(rows []sqlcgen.ListProductionYieldVarianceRow) []ReportingItemMetric {
+	items := make([]ReportingItemMetric, 0, len(rows))
+	for _, row := range rows {
+		item := mapProductionItem(
+			row.RecipeID,
+			row.RecipeName,
+			row.ItemID,
+			row.ItemName,
+			row.BaseUnitCode,
+			row.DocumentCount,
+			row.ActualYieldAtomic,
+			row.InventoryValueMicro,
+			row.DirectCostMicro,
+		)
+		item.StandardYieldAtomic = domain.Some(row.StandardYieldAtomic)
+		item.ActualYieldAtomic = domain.Some(row.ActualYieldAtomic)
+		item.VarianceAtomic = domain.Some(row.VarianceAtomic)
+		items = append(items, item)
+	}
+	return items
+}
+
+func mapProductionItem(
+	recipeIDValue int64,
+	recipeName string,
+	itemIDValue int64,
+	itemName string,
+	baseUnitCodeValue string,
+	documentCount int64,
+	actualYieldAtomic int64,
+	inventoryValueMicro int64,
+	directCostMicro int64,
+) ReportingItemMetric {
+	recipeID, recipeIDErr := domain.NewRecipeID(recipeIDValue)
+	itemID, itemIDErr := domain.NewItemID(itemIDValue)
+	baseUnitCode, baseUnitErr := domain.NewUnitCode(baseUnitCodeValue)
+	return ReportingItemMetric{
+		RecipeID:            optionWhenValid(recipeID, recipeIDErr),
+		RecipeName:          domain.Some(recipeName),
+		ItemID:              optionWhenValid(itemID, itemIDErr),
+		ItemName:            itemName,
+		BaseUnitCode:        optionWhenValid(baseUnitCode, baseUnitErr),
+		DocumentCount:       documentCount,
+		QuantityAtomic:      actualYieldAtomic,
+		InventoryValueMicro: inventoryValueMicro,
+		DirectCostMicro:     directCostMicro,
 	}
 }
 

@@ -889,6 +889,7 @@ export interface ReportingItemMetricResponse {
   recipeId?: number | null;
   recipeName?: string | null;
   baseUnitCode?: string | null;
+  documentCount: number;
   quantityAtomic: number;
   revenueMinor: number;
   inventoryValueMicro: number;

@@ -210,6 +210,103 @@ func TestReportingStorePurchaseReportAggregatesSpendAndExcludesReversedDocuments
 	}
 }
 
+func TestReportingStoreProductionReportAggregatesRunsYieldAndExcludesReversedDocuments(t *testing.T) {
+	store := recipeTestStore(t, "reporting-production.db")
+	ctx := context.Background()
+	outputID := recipeTestItem(t, store, "Reported cake", false, true)
+	componentID := recipeTestItem(t, store, "Reported flour", true, false)
+	recipeValue, err := store.CreateRecipe(ctx, CreateRecipeInput{
+		Name:         recipeName(t, "Reported cake recipe"),
+		OutputItemID: outputID,
+		CreatedAt:    recipeInstant(t, 1_000),
+		Revision: recipeRevisionInput(t, 1_000, "mix", []RecipeComponentInput{
+			recipeComponentInput(t, 1, componentID, 500, recipeUnitSource(t, "g")),
+		}),
+	})
+	if err != nil {
+		t.Fatalf("create reporting recipe: %v", err)
+	}
+	postAdjustmentTestPurchase(t, store, componentID, "reporting-production-stock", "RPT-FLOUR", "2026-12-31", 1_000, 1_000)
+
+	posted, err := store.PostProduction(ctx, productionReportInput(
+		t,
+		"reporting-production-run",
+		recipeValue.CurrentRevision().ID(),
+		componentID,
+		500,
+		250,
+		2_500_000,
+	))
+	if err != nil {
+		t.Fatalf("post production: %v", err)
+	}
+	if posted.OutputLine().InventoryValue().Int64() != 7_500_000 {
+		t.Fatalf("production output = %#v", posted.OutputLine())
+	}
+
+	reversed, err := store.PostProduction(ctx, productionReportInput(
+		t,
+		"reporting-production-reversed",
+		recipeValue.CurrentRevision().ID(),
+		componentID,
+		100,
+		50,
+		123_000,
+	))
+	if err != nil {
+		t.Fatalf("post reversed production fixture: %v", err)
+	}
+	if _, err := store.PostReversal(ctx, PostReversalInput{
+		IdempotencyKey:   mustPurchaseIdempotencyKey(t, "reverse-reporting-production"),
+		TargetDocumentID: reversed.ID(),
+		OccurredOn:       mustPurchaseDate(t, "2026-07-18"),
+		PostedAt:         mustCatalogInstant(t, 9_000),
+	}); err != nil {
+		t.Fatalf("reverse production: %v", err)
+	}
+
+	report, err := store.GetProductionReportData(ctx, ReportingPeriodFilter{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-31",
+		Granularity:    "MONTH",
+	}, 10)
+	if err != nil {
+		t.Fatalf("get production report data: %v", err)
+	}
+
+	if len(report.ProductionByRecipeProduct) != 1 {
+		t.Fatalf("production by recipe/product = %#v", report.ProductionByRecipeProduct)
+	}
+	product := report.ProductionByRecipeProduct[0]
+	standardYield, standardOK := product.StandardYieldAtomic.Get()
+	actualYield, actualOK := product.ActualYieldAtomic.Get()
+	variance, varianceOK := product.VarianceAtomic.Get()
+	if product.ItemName != "Reported cake" ||
+		product.RecipeName.IsNone() ||
+		product.DocumentCount != 1 ||
+		product.QuantityAtomic != 250 ||
+		product.InventoryValueMicro != 7_500_000 ||
+		product.DirectCostMicro != 2_500_000 ||
+		!standardOK || standardYield != 1_000 ||
+		!actualOK || actualYield != 250 ||
+		!varianceOK || variance != -750 {
+		t.Fatalf("production product metric = %#v", product)
+	}
+	if len(report.DirectCostSeries) != 1 ||
+		report.DirectCostSeries[0].Bucket != "2026-07" ||
+		report.DirectCostSeries[0].DocumentCount != 1 ||
+		report.DirectCostSeries[0].QuantityAtomic != 250 ||
+		report.DirectCostSeries[0].InventoryValueMicro != 7_500_000 ||
+		report.DirectCostSeries[0].DirectCostMicro != 2_500_000 {
+		t.Fatalf("direct cost series = %#v", report.DirectCostSeries)
+	}
+	if len(report.YieldVariance) != 1 ||
+		report.YieldVariance[0].ItemName != "Reported cake" ||
+		report.YieldVariance[0].VarianceAtomic.IsNone() {
+		t.Fatalf("yield variance = %#v", report.YieldVariance)
+	}
+}
+
 func reportSaleInput(
 	t *testing.T,
 	itemID domain.ItemID,
@@ -306,4 +403,38 @@ func postReportingPurchase(
 		t.Fatalf("post reporting purchase: %v", err)
 	}
 	return posted
+}
+
+func productionReportInput(
+	t *testing.T,
+	idempotencyKey string,
+	revisionID domain.RecipeRevisionID,
+	componentID domain.ItemID,
+	componentQuantity int64,
+	outputQuantity int64,
+	directCostMicro int64,
+) PostProductionInput {
+	t.Helper()
+	return PostProductionInput{
+		IdempotencyKey:   mustPurchaseIdempotencyKey(t, idempotencyKey),
+		RecipeRevisionID: revisionID,
+		OccurredOn:       mustPurchaseDate(t, "2026-07-15"),
+		PostedAt:         recipeInstant(t, outputQuantity*10),
+		DirectCost:       mustInventoryValue(t, directCostMicro),
+		Output: PostProductionOutputInput{
+			Quantity:    recipeQuantity(t, outputQuantity),
+			EnteredUnit: recipeUnit(t, "g"),
+			Conversion:  recipeConversion(t, 1_000, 1),
+			LotCode:     domain.Some(recipeText(t, idempotencyKey+"-out")),
+			ExpiresOn:   domain.Some(mustPurchaseDate(t, "2026-12-31")),
+		},
+		Inputs: []PostProductionComponentInput{
+			{
+				ItemID:      componentID,
+				Quantity:    recipeQuantity(t, componentQuantity),
+				EnteredUnit: recipeUnit(t, "g"),
+				Conversion:  recipeConversion(t, 1_000, 1),
+			},
+		},
+	}
 }

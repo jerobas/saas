@@ -841,9 +841,47 @@ describe("desktop bridge", () => {
       topSuppliersBySpend: [],
       freeStockEntries: [],
     };
+    const productionReport = {
+      period: request,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      productionByRecipeProduct: [
+        {
+          itemId: 10,
+          itemName: "Cake",
+          recipeId: 20,
+          recipeName: "Cake recipe",
+          baseUnitCode: "g",
+          documentCount: 1,
+          quantityAtomic: 100,
+          revenueMinor: 0,
+          inventoryValueMicro: 3_000_000,
+          directCostMicro: 500_000,
+          standardYieldAtomic: 1_000,
+          actualYieldAtomic: 100,
+          varianceAtomic: -900,
+        },
+      ],
+      directCostSeries: [
+        {
+          bucket: "2026-07",
+          label: "2026-07",
+          documentCount: 1,
+          salesCount: 0,
+          quantityAtomic: 100,
+          revenueMinor: 0,
+          spendMinor: 0,
+          inventoryValueMicro: 3_000_000,
+          directCostMicro: 500_000,
+          grossMarginMicro: 0,
+        },
+      ],
+      yieldVariance: [],
+    };
     const getSalesReport = vi.fn().mockResolvedValue(salesReport);
     const getInventoryReport = vi.fn().mockResolvedValue(inventoryReport);
     const getPurchaseReport = vi.fn().mockResolvedValue(purchaseReport);
+    const getProductionReport = vi.fn().mockResolvedValue(productionReport);
     const getCategoryMixReport = vi.fn().mockResolvedValue(categoryMix);
     window.go = {
       service: {
@@ -851,6 +889,7 @@ describe("desktop bridge", () => {
           GetSalesReport: getSalesReport,
           GetInventoryReport: getInventoryReport,
           GetPurchaseReport: getPurchaseReport,
+          GetProductionReport: getProductionReport,
           GetCategoryMixReport: getCategoryMixReport,
         },
       },
@@ -859,10 +898,12 @@ describe("desktop bridge", () => {
     await expect(reportingGateway.getSalesReport(request)).resolves.toEqual(salesReport);
     await expect(reportingGateway.getInventoryReport(request)).resolves.toEqual(inventoryReport);
     await expect(reportingGateway.getPurchaseReport(request)).resolves.toEqual(purchaseReport);
+    await expect(reportingGateway.getProductionReport(request)).resolves.toEqual(productionReport);
     await expect(reportingGateway.getCategoryMixReport(request)).resolves.toEqual(categoryMix);
     expect(getSalesReport).toHaveBeenCalledWith(request);
     expect(getInventoryReport).toHaveBeenCalledWith(request);
     expect(getPurchaseReport).toHaveBeenCalledWith(request);
+    expect(getProductionReport).toHaveBeenCalledWith(request);
     expect(getCategoryMixReport).toHaveBeenCalledWith(request);
   });
 });
