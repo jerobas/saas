@@ -708,6 +708,21 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("sales report = %#v", salesReport)
 	}
 
+	inventoryReport, err := reportingHandler.GetInventoryReport(dto.ReportingPeriodRequest{
+		FromOccurredOn: "2026-07-01",
+		ToOccurredOn:   "2026-07-18",
+		Granularity:    "MONTH",
+	})
+	if err != nil {
+		t.Fatalf("get inventory report: %v", err)
+	}
+	if inventoryReport.TotalInventoryValueMicro != 4_900_000 ||
+		inventoryReport.LowStockItemCount != 1 ||
+		len(inventoryReport.ExpiringLots7Days) != 1 ||
+		inventoryReport.ExpiringLots7Days[0].AvailableQuantity != 80 {
+		t.Fatalf("inventory report = %#v", inventoryReport)
+	}
+
 	categoryMix, err := reportingHandler.GetCategoryMixReport(dto.ReportingPeriodRequest{
 		FromOccurredOn: "2026-07-01",
 		ToOccurredOn:   "2026-07-31",

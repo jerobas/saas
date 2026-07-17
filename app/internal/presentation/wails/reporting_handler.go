@@ -158,8 +158,20 @@ func mapSalesReport(report application.SalesReport) dto.SalesReportResponse {
 	}
 }
 
-func mapInventoryReport(application.InventoryReport) dto.InventoryReportResponse {
-	return dto.InventoryReportResponse{}
+func mapInventoryReport(report application.InventoryReport) dto.InventoryReportResponse {
+	return dto.InventoryReportResponse{
+		Period:                   mapReportingPeriod(report.Period),
+		CurrencyCode:             report.Currency.Code().String(),
+		CurrencyMinorDigits:      int64(report.Currency.MinorDigits().Int()),
+		TotalInventoryValueMicro: report.TotalInventoryValueMicro,
+		LowStockItemCount:        report.LowStockItemCount,
+		ZeroStockSellableCount:   report.ZeroStockSellableCount,
+		LowStockItems:            mapReportingItemMetrics(report.LowStockItems),
+		ExpiringLots7Days:        mapReportingLotMetrics(report.ExpiringLots7Days),
+		ExpiringLots30Days:       mapReportingLotMetrics(report.ExpiringLots30Days),
+		ExpiredLotsWithStock:     mapReportingLotMetrics(report.ExpiredLotsWithStock),
+		InventoryValueByItem:     mapReportingItemMetrics(report.InventoryValueByItem),
+	}
 }
 
 func mapPurchaseReport(application.PurchaseReport) dto.PurchaseReportResponse {
@@ -212,18 +224,35 @@ func mapReportingItemMetrics(items []application.ReportingItemMetric) []dto.Repo
 	response := make([]dto.ReportingItemMetricResponse, 0, len(items))
 	for _, item := range items {
 		response = append(response, dto.ReportingItemMetricResponse{
-			ItemID:              optionalItemID(item.ItemID),
+			ItemID:                optionalItemID(item.ItemID),
+			ItemName:              item.ItemName,
+			RecipeID:              optionalRecipeID(item.RecipeID),
+			RecipeName:            optionalStringOption(item.RecipeName),
+			BaseUnitCode:          optionalUnitCode(item.BaseUnitCode),
+			QuantityAtomic:        item.QuantityAtomic,
+			RevenueMinor:          item.RevenueMinor,
+			InventoryValueMicro:   item.InventoryValueMicro,
+			DirectCostMicro:       item.DirectCostMicro,
+			ReorderQuantityAtomic: optionalInt64(item.ReorderQuantityAtomic),
+			StandardYieldAtomic:   optionalInt64(item.StandardYieldAtomic),
+			ActualYieldAtomic:     optionalInt64(item.ActualYieldAtomic),
+			VarianceAtomic:        optionalInt64(item.VarianceAtomic),
+		})
+	}
+	return response
+}
+
+func mapReportingLotMetrics(items []application.ReportingLotMetric) []dto.ReportingLotMetricResponse {
+	response := make([]dto.ReportingLotMetricResponse, 0, len(items))
+	for _, item := range items {
+		response = append(response, dto.ReportingLotMetricResponse{
+			LotID:               item.LotID.Int64(),
+			ItemID:              item.ItemID.Int64(),
 			ItemName:            item.ItemName,
-			RecipeID:            optionalRecipeID(item.RecipeID),
-			RecipeName:          optionalStringOption(item.RecipeName),
-			BaseUnitCode:        optionalUnitCode(item.BaseUnitCode),
-			QuantityAtomic:      item.QuantityAtomic,
-			RevenueMinor:        item.RevenueMinor,
+			LotCode:             optionalStringOption(item.LotCode),
+			ExpiresOn:           optionalReportingBusinessDate(item.ExpiresOn),
+			AvailableQuantity:   item.AvailableQuantity,
 			InventoryValueMicro: item.InventoryValueMicro,
-			DirectCostMicro:     item.DirectCostMicro,
-			StandardYieldAtomic: optionalInt64(item.StandardYieldAtomic),
-			ActualYieldAtomic:   optionalInt64(item.ActualYieldAtomic),
-			VarianceAtomic:      optionalInt64(item.VarianceAtomic),
 		})
 	}
 	return response
@@ -269,6 +298,15 @@ func optionalStringOption(value domain.Option[string]) *string {
 	if !ok {
 		return nil
 	}
+	return &raw
+}
+
+func optionalReportingBusinessDate(value domain.Option[domain.BusinessDate]) *string {
+	date, ok := value.Get()
+	if !ok {
+		return nil
+	}
+	raw := date.String()
 	return &raw
 }
 

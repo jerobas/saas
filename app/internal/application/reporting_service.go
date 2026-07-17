@@ -80,7 +80,18 @@ type SalesReport struct {
 	AnonymousSales         ReportingCounterpartyMetric
 }
 
-type InventoryReport struct{}
+type InventoryReport struct {
+	Period                   ReportingPeriodInput
+	Currency                 domain.Currency
+	TotalInventoryValueMicro int64
+	LowStockItemCount        int64
+	ZeroStockSellableCount   int64
+	LowStockItems            []ReportingItemMetric
+	ExpiringLots7Days        []ReportingLotMetric
+	ExpiringLots30Days       []ReportingLotMetric
+	ExpiredLotsWithStock     []ReportingLotMetric
+	InventoryValueByItem     []ReportingItemMetric
+}
 
 type PurchaseReport struct{}
 
@@ -104,6 +115,7 @@ type CategoryMixRow struct {
 
 type ReportingStore interface {
 	GetSalesReportData(ctx context.Context, current ReportingPeriodInput, previous ReportingPeriodInput, topLimit int) (SalesReportData, error)
+	GetInventoryReportData(ctx context.Context, input ReportingPeriodInput, rowLimit int) (InventoryReportData, error)
 }
 
 type SalesReportData struct {
@@ -126,6 +138,18 @@ type SalesReportTotals struct {
 	COGSMicro      int64
 }
 
+type InventoryReportData struct {
+	Currency                 domain.Currency
+	TotalInventoryValueMicro int64
+	LowStockItemCount        int64
+	ZeroStockSellableCount   int64
+	LowStockItems            []ReportingItemMetric
+	ExpiringLots7Days        []ReportingLotMetric
+	ExpiringLots30Days       []ReportingLotMetric
+	ExpiredLotsWithStock     []ReportingLotMetric
+	InventoryValueByItem     []ReportingItemMetric
+}
+
 type ReportingSeries struct {
 	Bucket           string
 	Label            string
@@ -137,18 +161,29 @@ type ReportingSeries struct {
 }
 
 type ReportingItemMetric struct {
-	ItemID              domain.Option[domain.ItemID]
+	ItemID                domain.Option[domain.ItemID]
+	ItemName              string
+	RecipeID              domain.Option[domain.RecipeID]
+	RecipeName            domain.Option[string]
+	BaseUnitCode          domain.Option[domain.UnitCode]
+	QuantityAtomic        int64
+	RevenueMinor          int64
+	InventoryValueMicro   int64
+	DirectCostMicro       int64
+	ReorderQuantityAtomic domain.Option[int64]
+	StandardYieldAtomic   domain.Option[int64]
+	ActualYieldAtomic     domain.Option[int64]
+	VarianceAtomic        domain.Option[int64]
+}
+
+type ReportingLotMetric struct {
+	LotID               domain.InventoryLotID
+	ItemID              domain.ItemID
 	ItemName            string
-	RecipeID            domain.Option[domain.RecipeID]
-	RecipeName          domain.Option[string]
-	BaseUnitCode        domain.Option[domain.UnitCode]
-	QuantityAtomic      int64
-	RevenueMinor        int64
+	LotCode             domain.Option[string]
+	ExpiresOn           domain.Option[domain.BusinessDate]
+	AvailableQuantity   int64
 	InventoryValueMicro int64
-	DirectCostMicro     int64
-	StandardYieldAtomic domain.Option[int64]
-	ActualYieldAtomic   domain.Option[int64]
-	VarianceAtomic      domain.Option[int64]
 }
 
 type ReportingCounterpartyMetric struct {
@@ -217,8 +252,23 @@ func (s *ReportingService) GetSalesReport(ctx context.Context, input ReportingPe
 	}, nil
 }
 
-func (s *ReportingService) GetInventoryReport(context.Context, ReportingPeriodInput) (InventoryReport, error) {
-	return InventoryReport{}, ErrReportingEndpointNotImplemented
+func (s *ReportingService) GetInventoryReport(ctx context.Context, input ReportingPeriodInput) (InventoryReport, error) {
+	data, err := s.store.GetInventoryReportData(ctx, input, 10)
+	if err != nil {
+		return InventoryReport{}, err
+	}
+	return InventoryReport{
+		Period:                   input,
+		Currency:                 data.Currency,
+		TotalInventoryValueMicro: data.TotalInventoryValueMicro,
+		LowStockItemCount:        data.LowStockItemCount,
+		ZeroStockSellableCount:   data.ZeroStockSellableCount,
+		LowStockItems:            data.LowStockItems,
+		ExpiringLots7Days:        data.ExpiringLots7Days,
+		ExpiringLots30Days:       data.ExpiringLots30Days,
+		ExpiredLotsWithStock:     data.ExpiredLotsWithStock,
+		InventoryValueByItem:     data.InventoryValueByItem,
+	}, nil
 }
 
 func (s *ReportingService) GetPurchaseReport(context.Context, ReportingPeriodInput) (PurchaseReport, error) {

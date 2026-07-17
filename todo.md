@@ -108,6 +108,14 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - vendas por cliente;
   - vendas anonimas;
   - exclusao de vendas revertidas.
+- [x] Implementar `GetInventoryReport` real:
+  - valor total em estoque;
+  - quantidade de itens abaixo do ponto de reposicao;
+  - quantidade de itens vendaveis zerados;
+  - baixo estoque por item;
+  - lotes vencendo em 7/30 dias;
+  - lotes vencidos ainda com saldo;
+  - valor de estoque por item.
 - [ ] Implementar queries:
   - total de vendas no periodo;
   - receita no periodo;
@@ -140,6 +148,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
 
 - [ ] Criar `ReportingStore` read-only em SQLite.
 - [x] Criar primeiro `ReportingStore` read-only para vendas.
+- [x] Expandir `ReportingStore` read-only para inventario/lotes.
 - [ ] Criar testes de store com banco temporario:
   - dashboard vazio;
   - compras sem vendas;
@@ -148,7 +157,7 @@ Regra visual: por enquanto o Dashboard real renderiza somente os cards/graficos 
   - estoque valorizado;
   - baixo estoque.
 - [x] Criar `ReportingService` fino, sem regra de escrita, para `GetSalesReport`.
-- [ ] Expandir `ReportingService` para os demais grupos de endpoint.
+- [ ] Expandir `ReportingService` para compras, producao e ajustes/correcoes.
 - [ ] Adicionar teste de application para periodo invalido e periodo padrao.
 
 ### 5.7.3 — Wails/gateway

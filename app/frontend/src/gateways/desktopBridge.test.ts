@@ -807,20 +807,37 @@ describe("desktop bridge", () => {
         spendMinor: 0,
       },
     };
+    const inventoryReport = {
+      period: request,
+      currencyCode: "BRL",
+      currencyMinorDigits: 2,
+      totalInventoryValueMicro: 4_900_000,
+      lowStockItemCount: 1,
+      zeroStockSellableCount: 0,
+      lowStockItems: [],
+      expiringLots7Days: [],
+      expiringLots30Days: [],
+      expiredLotsWithStock: [],
+      inventoryValueByItem: [],
+    };
     const getSalesReport = vi.fn().mockResolvedValue(salesReport);
+    const getInventoryReport = vi.fn().mockResolvedValue(inventoryReport);
     const getCategoryMixReport = vi.fn().mockResolvedValue(categoryMix);
     window.go = {
       service: {
         ReportingHandler: {
           GetSalesReport: getSalesReport,
+          GetInventoryReport: getInventoryReport,
           GetCategoryMixReport: getCategoryMixReport,
         },
       },
     };
 
     await expect(reportingGateway.getSalesReport(request)).resolves.toEqual(salesReport);
+    await expect(reportingGateway.getInventoryReport(request)).resolves.toEqual(inventoryReport);
     await expect(reportingGateway.getCategoryMixReport(request)).resolves.toEqual(categoryMix);
     expect(getSalesReport).toHaveBeenCalledWith(request);
+    expect(getInventoryReport).toHaveBeenCalledWith(request);
     expect(getCategoryMixReport).toHaveBeenCalledWith(request);
   });
 });

@@ -49,6 +49,32 @@ func (s *sqliteReportingStore) GetSalesReportData(
 	}, nil
 }
 
+func (s *sqliteReportingStore) GetInventoryReportData(
+	ctx context.Context,
+	input ReportingPeriodInput,
+	rowLimit int,
+) (InventoryReportData, error) {
+	data, err := s.store.GetInventoryReportData(ctx, sqlite.ReportingPeriodFilter{
+		FromOccurredOn: input.FromOccurredOn.String(),
+		ToOccurredOn:   input.ToOccurredOn.String(),
+		Granularity:    string(input.Granularity),
+	}, rowLimit)
+	if err != nil {
+		return InventoryReportData{}, err
+	}
+	return InventoryReportData{
+		Currency:                 data.Currency,
+		TotalInventoryValueMicro: data.TotalInventoryValueMicro,
+		LowStockItemCount:        data.LowStockItemCount,
+		ZeroStockSellableCount:   data.ZeroStockSellableCount,
+		LowStockItems:            mapReportingItemMetrics(data.LowStockItems),
+		ExpiringLots7Days:        mapReportingLotMetrics(data.ExpiringLots7Days),
+		ExpiringLots30Days:       mapReportingLotMetrics(data.ExpiringLots30Days),
+		ExpiredLotsWithStock:     mapReportingLotMetrics(data.ExpiredLotsWithStock),
+		InventoryValueByItem:     mapReportingItemMetrics(data.InventoryValueByItem),
+	}, nil
+}
+
 func mapSalesReportTotals(value sqlite.SalesReportTotals) SalesReportTotals {
 	return SalesReportTotals{
 		SalesCount:     value.SalesCount,
@@ -77,12 +103,30 @@ func mapReportingItemMetrics(items []sqlite.ReportingItemMetric) []ReportingItem
 	mapped := make([]ReportingItemMetric, 0, len(items))
 	for _, item := range items {
 		mapped = append(mapped, ReportingItemMetric{
+			ItemID:                item.ItemID,
+			ItemName:              item.ItemName,
+			BaseUnitCode:          item.BaseUnitCode,
+			QuantityAtomic:        item.QuantityAtomic,
+			RevenueMinor:          item.RevenueMinor,
+			InventoryValueMicro:   item.InventoryValueMicro,
+			DirectCostMicro:       item.COGSMicro,
+			ReorderQuantityAtomic: item.ReorderQuantityAtomic,
+		})
+	}
+	return mapped
+}
+
+func mapReportingLotMetrics(items []sqlite.ReportingLotMetric) []ReportingLotMetric {
+	mapped := make([]ReportingLotMetric, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, ReportingLotMetric{
+			LotID:               item.LotID,
 			ItemID:              item.ItemID,
 			ItemName:            item.ItemName,
-			BaseUnitCode:        item.BaseUnitCode,
-			QuantityAtomic:      item.QuantityAtomic,
-			RevenueMinor:        item.RevenueMinor,
-			InventoryValueMicro: item.COGSMicro,
+			LotCode:             item.LotCode,
+			ExpiresOn:           item.ExpiresOn,
+			AvailableQuantity:   item.AvailableQuantity,
+			InventoryValueMicro: item.InventoryValueMicro,
 		})
 	}
 	return mapped

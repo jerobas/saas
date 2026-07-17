@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/jerobas/saas/internal/domain"
 	"github.com/jerobas/saas/internal/infrastructure/sqlite/sqlcgen"
@@ -26,6 +27,18 @@ type SalesReportData struct {
 	AnonymousSales        ReportingCounterpartyMetric
 }
 
+type InventoryReportData struct {
+	Currency                 domain.Currency
+	TotalInventoryValueMicro int64
+	LowStockItemCount        int64
+	ZeroStockSellableCount   int64
+	LowStockItems            []ReportingItemMetric
+	ExpiringLots7Days        []ReportingLotMetric
+	ExpiringLots30Days       []ReportingLotMetric
+	ExpiredLotsWithStock     []ReportingLotMetric
+	InventoryValueByItem     []ReportingItemMetric
+}
+
 type SalesReportTotals struct {
 	SalesCount     int64
 	QuantityAtomic int64
@@ -43,12 +56,24 @@ type ReportingSeries struct {
 }
 
 type ReportingItemMetric struct {
-	ItemID         domain.Option[domain.ItemID]
-	ItemName       string
-	BaseUnitCode   domain.Option[domain.UnitCode]
-	QuantityAtomic int64
-	RevenueMinor   int64
-	COGSMicro      int64
+	ItemID                domain.Option[domain.ItemID]
+	ItemName              string
+	BaseUnitCode          domain.Option[domain.UnitCode]
+	QuantityAtomic        int64
+	RevenueMinor          int64
+	InventoryValueMicro   int64
+	COGSMicro             int64
+	ReorderQuantityAtomic domain.Option[int64]
+}
+
+type ReportingLotMetric struct {
+	LotID               domain.InventoryLotID
+	ItemID              domain.ItemID
+	ItemName            string
+	LotCode             domain.Option[string]
+	ExpiresOn           domain.Option[domain.BusinessDate]
+	AvailableQuantity   int64
+	InventoryValueMicro int64
 }
 
 type ReportingCounterpartyMetric struct {
@@ -142,6 +167,79 @@ func (s *Store) GetSalesReportData(
 	})
 	if err != nil {
 		return SalesReportData{}, err
+	}
+	return data, nil
+}
+
+func (s *Store) GetInventoryReportData(
+	ctx context.Context,
+	filter ReportingPeriodFilter,
+	rowLimit int,
+) (InventoryReportData, error) {
+	if rowLimit <= 0 {
+		rowLimit = 10
+	}
+	var data InventoryReportData
+	err := s.withReadQueries(ctx, "get inventory report data", func(queries *sqlcgen.Queries) error {
+		currencyRow, err := queries.GetReportingCurrency(ctx)
+		if err != nil {
+			return err
+		}
+		currency, err := domain.RestoreCurrency(currencyRow.CurrencyCode, int(currencyRow.CurrencyMinorDigits))
+		if err != nil {
+			return err
+		}
+		totals, err := queries.GetInventoryReportTotals(ctx)
+		if err != nil {
+			return err
+		}
+		lowStock, err := queries.ListLowStockItems(ctx, int64(rowLimit))
+		if err != nil {
+			return err
+		}
+		valueByItem, err := queries.ListInventoryValueByItem(ctx, int64(rowLimit))
+		if err != nil {
+			return err
+		}
+		expiring7, err := queries.ListExpiringLots(ctx, sqlcgen.ListExpiringLotsParams{
+			ReferenceDate: filter.ToOccurredOn,
+			DaysAhead:     7,
+			LimitCount:    int64(rowLimit),
+		})
+		if err != nil {
+			return err
+		}
+		expiring30, err := queries.ListExpiringLots(ctx, sqlcgen.ListExpiringLotsParams{
+			ReferenceDate: filter.ToOccurredOn,
+			DaysAhead:     30,
+			LimitCount:    int64(rowLimit),
+		})
+		if err != nil {
+			return err
+		}
+		expired, err := queries.ListExpiredLotsWithStock(ctx, sqlcgen.ListExpiredLotsWithStockParams{
+			ReferenceDate: filter.ToOccurredOn,
+			LimitCount:    int64(rowLimit),
+		})
+		if err != nil {
+			return err
+		}
+
+		data = InventoryReportData{
+			Currency:                 currency,
+			TotalInventoryValueMicro: totals.TotalInventoryValueMicro,
+			LowStockItemCount:        totals.LowStockItemCount,
+			ZeroStockSellableCount:   totals.ZeroStockSellableCount,
+			LowStockItems:            mapLowStockRows(lowStock),
+			ExpiringLots7Days:        mapExpiringLotRows(expiring7),
+			ExpiringLots30Days:       mapExpiringLotRows(expiring30),
+			ExpiredLotsWithStock:     mapExpiredLotRows(expired),
+			InventoryValueByItem:     mapInventoryValueRows(valueByItem),
+		}
+		return nil
+	})
+	if err != nil {
+		return InventoryReportData{}, err
 	}
 	return data, nil
 }
@@ -250,6 +348,96 @@ func mapTopProduct(itemIDValue int64, itemName string, baseUnitCodeValue string,
 		RevenueMinor:   revenueMinor,
 		COGSMicro:      cogsMicro,
 	}
+}
+
+func mapLowStockRows(rows []sqlcgen.ListLowStockItemsRow) []ReportingItemMetric {
+	items := make([]ReportingItemMetric, 0, len(rows))
+	for _, row := range rows {
+		item := mapInventoryItem(row.ItemID, row.ItemName, row.BaseUnitCode, row.QuantityAtomic, row.InventoryValueMicro)
+		if row.ReorderQuantityAtomic.Valid {
+			item.ReorderQuantityAtomic = domain.Some(row.ReorderQuantityAtomic.Int64)
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func mapInventoryValueRows(rows []sqlcgen.ListInventoryValueByItemRow) []ReportingItemMetric {
+	items := make([]ReportingItemMetric, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapInventoryItem(row.ItemID, row.ItemName, row.BaseUnitCode, row.QuantityAtomic, row.InventoryValueMicro))
+	}
+	return items
+}
+
+func mapInventoryItem(itemIDValue int64, itemName string, baseUnitCodeValue string, quantityAtomic, inventoryValueMicro int64) ReportingItemMetric {
+	itemID, itemIDErr := domain.NewItemID(itemIDValue)
+	baseUnitCode, baseUnitErr := domain.NewUnitCode(baseUnitCodeValue)
+	return ReportingItemMetric{
+		ItemID:              optionWhenValid(itemID, itemIDErr),
+		ItemName:            itemName,
+		BaseUnitCode:        optionWhenValid(baseUnitCode, baseUnitErr),
+		QuantityAtomic:      quantityAtomic,
+		InventoryValueMicro: inventoryValueMicro,
+	}
+}
+
+func mapExpiringLotRows(rows []sqlcgen.ListExpiringLotsRow) []ReportingLotMetric {
+	items := make([]ReportingLotMetric, 0, len(rows))
+	for _, row := range rows {
+		if item, ok := mapReportingLot(row.LotID, row.ItemID, row.ItemName, row.LotCode, row.ExpiresOn, row.AvailableQuantityAtomic, row.InventoryValueMicro).Get(); ok {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+func mapExpiredLotRows(rows []sqlcgen.ListExpiredLotsWithStockRow) []ReportingLotMetric {
+	items := make([]ReportingLotMetric, 0, len(rows))
+	for _, row := range rows {
+		if item, ok := mapReportingLot(row.LotID, row.ItemID, row.ItemName, row.LotCode, row.ExpiresOn, row.AvailableQuantityAtomic, row.InventoryValueMicro).Get(); ok {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+func mapReportingLot(lotIDValue, itemIDValue int64, itemName string, lotCodeValue, expiresOnValue sql.NullString, availableQuantity, inventoryValueMicro int64) domain.Option[ReportingLotMetric] {
+	lotID, err := domain.NewInventoryLotID(lotIDValue)
+	if err != nil {
+		return domain.None[ReportingLotMetric]()
+	}
+	itemID, err := domain.NewItemID(itemIDValue)
+	if err != nil {
+		return domain.None[ReportingLotMetric]()
+	}
+	return domain.Some(ReportingLotMetric{
+		LotID:               lotID,
+		ItemID:              itemID,
+		ItemName:            itemName,
+		LotCode:             optionSQLString(lotCodeValue),
+		ExpiresOn:           optionBusinessDate(expiresOnValue),
+		AvailableQuantity:   availableQuantity,
+		InventoryValueMicro: inventoryValueMicro,
+	})
+}
+
+func optionSQLString(value sql.NullString) domain.Option[string] {
+	if !value.Valid {
+		return domain.None[string]()
+	}
+	return domain.Some(value.String)
+}
+
+func optionBusinessDate(value sql.NullString) domain.Option[domain.BusinessDate] {
+	if !value.Valid {
+		return domain.None[domain.BusinessDate]()
+	}
+	date, err := domain.ParseBusinessDate(value.String)
+	if err != nil {
+		return domain.None[domain.BusinessDate]()
+	}
+	return domain.Some(date)
 }
 
 func mapFreeSalesTotals(row sqlcgen.GetFreeSalesTotalsRow) ReportingReasonMetric {
