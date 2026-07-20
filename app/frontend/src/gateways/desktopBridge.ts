@@ -780,11 +780,11 @@ export interface SalesReportResponse {
   currencyCode: string;
   currencyMinorDigits: number;
   totalSalesCount: number;
-  totalRevenueMinor: number;
-  cogsMicro: number;
-  grossMarginMicro: number;
+  commercialTotalMinor: number;
+  cogsInventoryValueMicro: number;
+  grossMarginInventoryValueMicro: number;
   grossMarginBasisPoints?: number | null;
-  averageTicketMinor?: number | null;
+  averageCommercialTotalMinor?: number | null;
   growthBasisPoints?: number | null;
   salesRevenueSeries: ReportingSeriesResponse[];
   monthlyRevenueSeries: ReportingSeriesResponse[];
@@ -847,7 +847,7 @@ export interface CategoryMixReportResponse {
 export interface CategoryMixRowResponse {
   categoryName: string;
   quantityAtomic: number;
-  revenueMinor: number;
+  commercialTotalMinor: number;
   shareBasisPoints: number;
 }
 
@@ -857,11 +857,10 @@ export interface ReportingSeriesResponse {
   documentCount: number;
   salesCount: number;
   quantityAtomic: number;
-  revenueMinor: number;
-  spendMinor: number;
+  commercialTotalMinor: number;
   inventoryValueMicro: number;
-  directCostMicro: number;
-  grossMarginMicro: number;
+  directCostInventoryValueMicro: number;
+  grossMarginInventoryValueMicro: number;
 }
 
 export interface ReportingItemMetricResponse {
@@ -872,9 +871,9 @@ export interface ReportingItemMetricResponse {
   baseUnitCode?: string | null;
   documentCount: number;
   quantityAtomic: number;
-  revenueMinor: number;
+  commercialTotalMinor: number;
   inventoryValueMicro: number;
-  directCostMicro: number;
+  directCostInventoryValueMicro: number;
   reorderQuantityAtomic?: number | null;
   standardYieldAtomic?: number | null;
   actualYieldAtomic?: number | null;
@@ -885,15 +884,14 @@ export interface ReportingCounterpartyMetricResponse {
   counterpartyId?: number | null;
   counterpartyName?: string | null;
   documentCount: number;
-  revenueMinor: number;
-  spendMinor: number;
+  commercialTotalMinor: number;
 }
 
 export interface ReportingReasonMetricResponse {
   reasonCode: string;
   documentCount: number;
   quantityAtomic: number;
-  revenueMinor: number;
+  commercialTotalMinor: number;
   inventoryValueMicro: number;
 }
 

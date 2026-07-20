@@ -698,11 +698,11 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		t.Fatalf("get sales report: %v", err)
 	}
 	if salesReport.TotalSalesCount != 1 ||
-		salesReport.TotalRevenueMinor != 1_000 ||
-		salesReport.COGSMicro != 600_000 ||
-		salesReport.GrossMarginMicro != 9_400_000 ||
-		salesReport.AverageTicketMinor == nil ||
-		*salesReport.AverageTicketMinor != 1_000 ||
+		salesReport.CommercialTotalMinor != 1_000 ||
+		salesReport.COGSInventoryValueMicro != 600_000 ||
+		salesReport.GrossMarginInventoryValueMicro != 9_400_000 ||
+		salesReport.AverageCommercialTotalMinor == nil ||
+		*salesReport.AverageCommercialTotalMinor != 1_000 ||
 		len(salesReport.TopProductsByQuantity) != 1 ||
 		salesReport.TopProductsByQuantity[0].QuantityAtomic != 20 {
 		t.Fatalf("sales report = %#v", salesReport)
@@ -735,13 +735,13 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 		productionReport.ProductionByRecipeProduct[0].DocumentCount != 1 ||
 		productionReport.ProductionByRecipeProduct[0].QuantityAtomic != 100 ||
 		productionReport.ProductionByRecipeProduct[0].InventoryValueMicro != 3_000_000 ||
-		productionReport.ProductionByRecipeProduct[0].DirectCostMicro != 500_000 ||
+		productionReport.ProductionByRecipeProduct[0].DirectCostInventoryValueMicro != 500_000 ||
 		productionReport.ProductionByRecipeProduct[0].StandardYieldAtomic == nil ||
 		*productionReport.ProductionByRecipeProduct[0].StandardYieldAtomic != 1_000 ||
 		productionReport.ProductionByRecipeProduct[0].VarianceAtomic == nil ||
 		*productionReport.ProductionByRecipeProduct[0].VarianceAtomic != -900 ||
 		len(productionReport.DirectCostSeries) != 1 ||
-		productionReport.DirectCostSeries[0].DirectCostMicro != 500_000 ||
+		productionReport.DirectCostSeries[0].DirectCostInventoryValueMicro != 500_000 ||
 		len(productionReport.YieldVariance) != 1 {
 		t.Fatalf("production report = %#v", productionReport)
 	}
@@ -756,10 +756,10 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	}
 	if len(purchaseReport.PurchaseSpendSeries) != 1 ||
 		purchaseReport.PurchaseSpendSeries[0].DocumentCount != 1 ||
-		purchaseReport.PurchaseSpendSeries[0].SpendMinor != 500 ||
+		purchaseReport.PurchaseSpendSeries[0].CommercialTotalMinor != 500 ||
 		purchaseReport.PurchaseSpendSeries[0].InventoryValueMicro != 5_000_000 ||
 		len(purchaseReport.TopSuppliersBySpend) != 1 ||
-		purchaseReport.TopSuppliersBySpend[0].SpendMinor != 500 ||
+		purchaseReport.TopSuppliersBySpend[0].CommercialTotalMinor != 500 ||
 		len(purchaseReport.FreeStockEntries) != 0 {
 		t.Fatalf("purchase report = %#v", purchaseReport)
 	}

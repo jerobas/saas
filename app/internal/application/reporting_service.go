@@ -56,23 +56,23 @@ func NewReportingPeriodInput(from, to domain.BusinessDate, granularity Reporting
 }
 
 type SalesReport struct {
-	Period                 ReportingPeriodInput
-	Currency               domain.Currency
-	TotalSalesCount        int64
-	TotalRevenueMinor      int64
-	COGSMicro              int64
-	GrossMarginMicro       int64
-	GrossMarginBasisPoints domain.Option[int64]
-	AverageTicketMinor     domain.Option[int64]
-	GrowthBasisPoints      domain.Option[int64]
-	SalesRevenueSeries     []ReportingSeries
-	MonthlyRevenueSeries   []ReportingSeries
-	MonthlySalesSeries     []ReportingSeries
-	TopProductsByQuantity  []ReportingItemMetric
-	TopProductsByRevenue   []ReportingItemMetric
-	FreeSales              ReportingReasonMetric
-	SalesByCustomer        []ReportingCounterpartyMetric
-	AnonymousSales         ReportingCounterpartyMetric
+	Period                         ReportingPeriodInput
+	Currency                       domain.Currency
+	TotalSalesCount                int64
+	CommercialTotalMinor           int64
+	COGSInventoryValueMicro        int64
+	GrossMarginInventoryValueMicro int64
+	GrossMarginBasisPoints         domain.Option[int64]
+	AverageCommercialTotalMinor    domain.Option[int64]
+	GrowthBasisPoints              domain.Option[int64]
+	SalesRevenueSeries             []ReportingSeries
+	MonthlyRevenueSeries           []ReportingSeries
+	MonthlySalesSeries             []ReportingSeries
+	TopProductsByQuantity          []ReportingItemMetric
+	TopProductsByRevenue           []ReportingItemMetric
+	FreeSales                      ReportingReasonMetric
+	SalesByCustomer                []ReportingCounterpartyMetric
+	AnonymousSales                 ReportingCounterpartyMetric
 }
 
 type InventoryReport struct {
@@ -120,10 +120,10 @@ type CategoryMixReport struct {
 }
 
 type CategoryMixRow struct {
-	CategoryName     string
-	QuantityAtomic   int64
-	RevenueMinor     int64
-	ShareBasisPoints int64
+	CategoryName         string
+	QuantityAtomic       int64
+	CommercialTotalMinor int64
+	ShareBasisPoints     int64
 }
 
 type ReportingStore interface {
@@ -148,10 +148,10 @@ type SalesReportData struct {
 }
 
 type SalesReportTotals struct {
-	SalesCount     int64
-	QuantityAtomic int64
-	RevenueMinor   int64
-	COGSMicro      int64
+	SalesCount              int64
+	QuantityAtomic          int64
+	CommercialTotalMinor    int64
+	COGSInventoryValueMicro int64
 }
 
 type InventoryReportData struct {
@@ -188,34 +188,33 @@ type AdjustmentReportData struct {
 }
 
 type ReportingSeries struct {
-	Bucket              string
-	Label               string
-	DocumentCount       int64
-	SalesCount          int64
-	QuantityAtomic      int64
-	RevenueMinor        int64
-	SpendMinor          int64
-	InventoryValueMicro int64
-	DirectCostMicro     int64
-	COGSMicro           int64
-	GrossMarginMicro    int64
+	Bucket                         string
+	Label                          string
+	DocumentCount                  int64
+	SalesCount                     int64
+	QuantityAtomic                 int64
+	CommercialTotalMinor           int64
+	InventoryValueMicro            int64
+	DirectCostInventoryValueMicro  int64
+	COGSInventoryValueMicro        int64
+	GrossMarginInventoryValueMicro int64
 }
 
 type ReportingItemMetric struct {
-	ItemID                domain.Option[domain.ItemID]
-	ItemName              string
-	RecipeID              domain.Option[domain.RecipeID]
-	RecipeName            domain.Option[string]
-	BaseUnitCode          domain.Option[domain.UnitCode]
-	DocumentCount         int64
-	QuantityAtomic        int64
-	RevenueMinor          int64
-	InventoryValueMicro   int64
-	DirectCostMicro       int64
-	ReorderQuantityAtomic domain.Option[int64]
-	StandardYieldAtomic   domain.Option[int64]
-	ActualYieldAtomic     domain.Option[int64]
-	VarianceAtomic        domain.Option[int64]
+	ItemID                        domain.Option[domain.ItemID]
+	ItemName                      string
+	RecipeID                      domain.Option[domain.RecipeID]
+	RecipeName                    domain.Option[string]
+	BaseUnitCode                  domain.Option[domain.UnitCode]
+	DocumentCount                 int64
+	QuantityAtomic                int64
+	CommercialTotalMinor          int64
+	InventoryValueMicro           int64
+	DirectCostInventoryValueMicro int64
+	ReorderQuantityAtomic         domain.Option[int64]
+	StandardYieldAtomic           domain.Option[int64]
+	ActualYieldAtomic             domain.Option[int64]
+	VarianceAtomic                domain.Option[int64]
 }
 
 type ReportingLotMetric struct {
@@ -229,19 +228,18 @@ type ReportingLotMetric struct {
 }
 
 type ReportingCounterpartyMetric struct {
-	CounterpartyID   domain.Option[domain.CounterpartyID]
-	CounterpartyName domain.Option[string]
-	DocumentCount    int64
-	RevenueMinor     int64
-	SpendMinor       int64
+	CounterpartyID       domain.Option[domain.CounterpartyID]
+	CounterpartyName     domain.Option[string]
+	DocumentCount        int64
+	CommercialTotalMinor int64
 }
 
 type ReportingReasonMetric struct {
-	ReasonCode          string
-	DocumentCount       int64
-	QuantityAtomic      int64
-	RevenueMinor        int64
-	InventoryValueMicro int64
+	ReasonCode           string
+	DocumentCount        int64
+	QuantityAtomic       int64
+	CommercialTotalMinor int64
+	InventoryValueMicro  int64
 }
 
 type ReportingService struct {
@@ -264,29 +262,29 @@ func (s *ReportingService) GetSalesReport(ctx context.Context, input ReportingPe
 	if err != nil {
 		return SalesReport{}, err
 	}
-	revenueMicro, err := minorToMicro(data.CurrentTotals.RevenueMinor, data.Currency)
+	revenueMicro, err := minorToMicro(data.CurrentTotals.CommercialTotalMinor, data.Currency)
 	if err != nil {
 		return SalesReport{}, err
 	}
-	grossMarginMicro := revenueMicro - data.CurrentTotals.COGSMicro
+	grossMarginInventoryValueMicro := revenueMicro - data.CurrentTotals.COGSInventoryValueMicro
 	return SalesReport{
-		Period:                 input,
-		Currency:               data.Currency,
-		TotalSalesCount:        data.CurrentTotals.SalesCount,
-		TotalRevenueMinor:      data.CurrentTotals.RevenueMinor,
-		COGSMicro:              data.CurrentTotals.COGSMicro,
-		GrossMarginMicro:       grossMarginMicro,
-		GrossMarginBasisPoints: ratioBasisPoints(grossMarginMicro, revenueMicro),
-		AverageTicketMinor:     averageMinor(data.CurrentTotals.RevenueMinor, data.CurrentTotals.SalesCount),
-		GrowthBasisPoints:      growthBasisPoints(data.CurrentTotals.RevenueMinor, data.PreviousTotals.RevenueMinor),
-		SalesRevenueSeries:     enrichSeries(data.SalesRevenueSeries, data.Currency),
-		MonthlyRevenueSeries:   enrichSeries(data.MonthlySeries, data.Currency),
-		MonthlySalesSeries:     enrichSeries(data.MonthlySeries, data.Currency),
-		TopProductsByQuantity:  data.TopProductsByQuantity,
-		TopProductsByRevenue:   data.TopProductsByRevenue,
-		FreeSales:              data.FreeSales,
-		SalesByCustomer:        data.SalesByCustomer,
-		AnonymousSales:         data.AnonymousSales,
+		Period:                         input,
+		Currency:                       data.Currency,
+		TotalSalesCount:                data.CurrentTotals.SalesCount,
+		CommercialTotalMinor:           data.CurrentTotals.CommercialTotalMinor,
+		COGSInventoryValueMicro:        data.CurrentTotals.COGSInventoryValueMicro,
+		GrossMarginInventoryValueMicro: grossMarginInventoryValueMicro,
+		GrossMarginBasisPoints:         ratioBasisPoints(grossMarginInventoryValueMicro, revenueMicro),
+		AverageCommercialTotalMinor:    averageMinor(data.CurrentTotals.CommercialTotalMinor, data.CurrentTotals.SalesCount),
+		GrowthBasisPoints:              growthBasisPoints(data.CurrentTotals.CommercialTotalMinor, data.PreviousTotals.CommercialTotalMinor),
+		SalesRevenueSeries:             enrichSeries(data.SalesRevenueSeries, data.Currency),
+		MonthlyRevenueSeries:           enrichSeries(data.MonthlySeries, data.Currency),
+		MonthlySalesSeries:             enrichSeries(data.MonthlySeries, data.Currency),
+		TopProductsByQuantity:          data.TopProductsByQuantity,
+		TopProductsByRevenue:           data.TopProductsByRevenue,
+		FreeSales:                      data.FreeSales,
+		SalesByCustomer:                data.SalesByCustomer,
+		AnonymousSales:                 data.AnonymousSales,
 	}, nil
 }
 
@@ -398,9 +396,9 @@ func minorToMicro(value int64, currency domain.Currency) (int64, error) {
 func enrichSeries(items []ReportingSeries, currency domain.Currency) []ReportingSeries {
 	enriched := make([]ReportingSeries, 0, len(items))
 	for _, item := range items {
-		revenueMicro, err := minorToMicro(item.RevenueMinor, currency)
+		revenueMicro, err := minorToMicro(item.CommercialTotalMinor, currency)
 		if err == nil {
-			item.GrossMarginMicro = revenueMicro - item.COGSMicro
+			item.GrossMarginInventoryValueMicro = revenueMicro - item.COGSInventoryValueMicro
 		}
 		enriched = append(enriched, item)
 	}

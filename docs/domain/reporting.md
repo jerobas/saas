@@ -9,10 +9,13 @@ documents, lines, lots, allocations, recipes, and `inventory_balances`.
 - All endpoints receive an inclusive `fromOccurredOn` / `toOccurredOn` period
   unless documented otherwise.
 - Document dates use `stock_documents.occurred_on`, not posting time.
-- Revenue and commercial totals use minor currency units
-  (`commercialTotalMinor`).
+- Revenue, purchase spend, and other commercial totals use minor currency units
+  and are exposed as `commercialTotalMinor`. Average ticket uses
+  `averageCommercialTotalMinor`.
 - COGS, inventory valuation, production direct cost, and gross margin use
-  microcurrency (`inventoryValueMicro`).
+  microcurrency. Shared stock valuation uses `inventoryValueMicro`; specific
+  reporting fields use explicit names such as `cogsInventoryValueMicro`,
+  `directCostInventoryValueMicro`, and `grossMarginInventoryValueMicro`.
 - Responses include `currencyCode` and `currencyMinorDigits` when monetary
   values are present.
 - Operational dashboard aggregates exclude documents that have been exactly
@@ -48,9 +51,9 @@ Sales-focused endpoint for dashboard/report tabs.
 Fields:
 
 - total sales count;
-- total revenue;
-- COGS;
-- gross margin value;
+- commercial total/revenue;
+- COGS inventory value;
+- gross margin inventory value;
 - gross margin percentage;
 - average ticket;
 - growth versus previous period;
@@ -84,8 +87,8 @@ Inbound/commercial purchasing endpoint.
 
 Fields:
 
-- purchase spend by period;
-- top suppliers by spend;
+- purchase commercial total by period;
+- top suppliers by commercial total;
 - free-stock inbound entries using reason `FREE_STOCK`.
 
 ### `GetProductionReport`
@@ -95,7 +98,7 @@ Production and costing endpoint.
 Fields:
 
 - production quantity by recipe/product;
-- direct production cost by period;
+- direct production cost inventory value by period;
 - simple yield variance: actual output versus recipe standard yield.
 
 ### `GetAdjustmentReport`

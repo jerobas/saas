@@ -121,24 +121,24 @@ func mapReportingPeriod(input application.ReportingPeriodInput) dto.ReportingPer
 
 func mapSalesReport(report application.SalesReport) dto.SalesReportResponse {
 	return dto.SalesReportResponse{
-		Period:                 mapReportingPeriod(report.Period),
-		CurrencyCode:           report.Currency.Code().String(),
-		CurrencyMinorDigits:    int64(report.Currency.MinorDigits().Int()),
-		TotalSalesCount:        report.TotalSalesCount,
-		TotalRevenueMinor:      report.TotalRevenueMinor,
-		COGSMicro:              report.COGSMicro,
-		GrossMarginMicro:       report.GrossMarginMicro,
-		GrossMarginBasisPoints: optionalInt64(report.GrossMarginBasisPoints),
-		AverageTicketMinor:     optionalInt64(report.AverageTicketMinor),
-		GrowthBasisPoints:      optionalInt64(report.GrowthBasisPoints),
-		SalesRevenueSeries:     mapReportingSeries(report.SalesRevenueSeries),
-		MonthlyRevenueSeries:   mapReportingSeries(report.MonthlyRevenueSeries),
-		MonthlySalesSeries:     mapReportingSeries(report.MonthlySalesSeries),
-		TopProductsByQuantity:  mapReportingItemMetrics(report.TopProductsByQuantity),
-		TopProductsByRevenue:   mapReportingItemMetrics(report.TopProductsByRevenue),
-		FreeSales:              mapReportingReasonMetric(report.FreeSales),
-		SalesByCustomer:        mapReportingCounterpartyMetrics(report.SalesByCustomer),
-		AnonymousSales:         mapReportingCounterpartyMetric(report.AnonymousSales),
+		Period:                         mapReportingPeriod(report.Period),
+		CurrencyCode:                   report.Currency.Code().String(),
+		CurrencyMinorDigits:            int64(report.Currency.MinorDigits().Int()),
+		TotalSalesCount:                report.TotalSalesCount,
+		CommercialTotalMinor:           report.CommercialTotalMinor,
+		COGSInventoryValueMicro:        report.COGSInventoryValueMicro,
+		GrossMarginInventoryValueMicro: report.GrossMarginInventoryValueMicro,
+		GrossMarginBasisPoints:         optionalInt64(report.GrossMarginBasisPoints),
+		AverageCommercialTotalMinor:    optionalInt64(report.AverageCommercialTotalMinor),
+		GrowthBasisPoints:              optionalInt64(report.GrowthBasisPoints),
+		SalesRevenueSeries:             mapReportingSeries(report.SalesRevenueSeries),
+		MonthlyRevenueSeries:           mapReportingSeries(report.MonthlyRevenueSeries),
+		MonthlySalesSeries:             mapReportingSeries(report.MonthlySalesSeries),
+		TopProductsByQuantity:          mapReportingItemMetrics(report.TopProductsByQuantity),
+		TopProductsByRevenue:           mapReportingItemMetrics(report.TopProductsByRevenue),
+		FreeSales:                      mapReportingReasonMetric(report.FreeSales),
+		SalesByCustomer:                mapReportingCounterpartyMetrics(report.SalesByCustomer),
+		AnonymousSales:                 mapReportingCounterpartyMetric(report.AnonymousSales),
 	}
 }
 
@@ -195,10 +195,10 @@ func mapCategoryMixReport(report application.CategoryMixReport) dto.CategoryMixR
 	rows := make([]dto.CategoryMixRowResponse, 0, len(report.Rows))
 	for _, row := range report.Rows {
 		rows = append(rows, dto.CategoryMixRowResponse{
-			CategoryName:     row.CategoryName,
-			QuantityAtomic:   row.QuantityAtomic,
-			RevenueMinor:     row.RevenueMinor,
-			ShareBasisPoints: row.ShareBasisPoints,
+			CategoryName:         row.CategoryName,
+			QuantityAtomic:       row.QuantityAtomic,
+			CommercialTotalMinor: row.CommercialTotalMinor,
+			ShareBasisPoints:     row.ShareBasisPoints,
 		})
 	}
 	return dto.CategoryMixReportResponse{
@@ -213,16 +213,15 @@ func mapReportingSeries(items []application.ReportingSeries) []dto.ReportingSeri
 	response := make([]dto.ReportingSeriesResponse, 0, len(items))
 	for _, item := range items {
 		response = append(response, dto.ReportingSeriesResponse{
-			Bucket:              item.Bucket,
-			Label:               item.Label,
-			DocumentCount:       item.DocumentCount,
-			SalesCount:          item.SalesCount,
-			QuantityAtomic:      item.QuantityAtomic,
-			RevenueMinor:        item.RevenueMinor,
-			SpendMinor:          item.SpendMinor,
-			InventoryValueMicro: item.InventoryValueMicro,
-			DirectCostMicro:     item.DirectCostMicro,
-			GrossMarginMicro:    item.GrossMarginMicro,
+			Bucket:                         item.Bucket,
+			Label:                          item.Label,
+			DocumentCount:                  item.DocumentCount,
+			SalesCount:                     item.SalesCount,
+			QuantityAtomic:                 item.QuantityAtomic,
+			CommercialTotalMinor:           item.CommercialTotalMinor,
+			InventoryValueMicro:            item.InventoryValueMicro,
+			DirectCostInventoryValueMicro:  item.DirectCostInventoryValueMicro,
+			GrossMarginInventoryValueMicro: item.GrossMarginInventoryValueMicro,
 		})
 	}
 	return response
@@ -232,20 +231,20 @@ func mapReportingItemMetrics(items []application.ReportingItemMetric) []dto.Repo
 	response := make([]dto.ReportingItemMetricResponse, 0, len(items))
 	for _, item := range items {
 		response = append(response, dto.ReportingItemMetricResponse{
-			ItemID:                optionalItemID(item.ItemID),
-			ItemName:              item.ItemName,
-			RecipeID:              optionalRecipeID(item.RecipeID),
-			RecipeName:            optionalStringOption(item.RecipeName),
-			BaseUnitCode:          optionalUnitCode(item.BaseUnitCode),
-			DocumentCount:         item.DocumentCount,
-			QuantityAtomic:        item.QuantityAtomic,
-			RevenueMinor:          item.RevenueMinor,
-			InventoryValueMicro:   item.InventoryValueMicro,
-			DirectCostMicro:       item.DirectCostMicro,
-			ReorderQuantityAtomic: optionalInt64(item.ReorderQuantityAtomic),
-			StandardYieldAtomic:   optionalInt64(item.StandardYieldAtomic),
-			ActualYieldAtomic:     optionalInt64(item.ActualYieldAtomic),
-			VarianceAtomic:        optionalInt64(item.VarianceAtomic),
+			ItemID:                        optionalItemID(item.ItemID),
+			ItemName:                      item.ItemName,
+			RecipeID:                      optionalRecipeID(item.RecipeID),
+			RecipeName:                    optionalStringOption(item.RecipeName),
+			BaseUnitCode:                  optionalUnitCode(item.BaseUnitCode),
+			DocumentCount:                 item.DocumentCount,
+			QuantityAtomic:                item.QuantityAtomic,
+			CommercialTotalMinor:          item.CommercialTotalMinor,
+			InventoryValueMicro:           item.InventoryValueMicro,
+			DirectCostInventoryValueMicro: item.DirectCostInventoryValueMicro,
+			ReorderQuantityAtomic:         optionalInt64(item.ReorderQuantityAtomic),
+			StandardYieldAtomic:           optionalInt64(item.StandardYieldAtomic),
+			ActualYieldAtomic:             optionalInt64(item.ActualYieldAtomic),
+			VarianceAtomic:                optionalInt64(item.VarianceAtomic),
 		})
 	}
 	return response
@@ -277,21 +276,20 @@ func mapReportingCounterpartyMetrics(items []application.ReportingCounterpartyMe
 
 func mapReportingCounterpartyMetric(item application.ReportingCounterpartyMetric) dto.ReportingCounterpartyMetricResponse {
 	return dto.ReportingCounterpartyMetricResponse{
-		CounterpartyID:   optionalCounterpartyIDValue(item.CounterpartyID),
-		CounterpartyName: optionalStringOption(item.CounterpartyName),
-		DocumentCount:    item.DocumentCount,
-		RevenueMinor:     item.RevenueMinor,
-		SpendMinor:       item.SpendMinor,
+		CounterpartyID:       optionalCounterpartyIDValue(item.CounterpartyID),
+		CounterpartyName:     optionalStringOption(item.CounterpartyName),
+		DocumentCount:        item.DocumentCount,
+		CommercialTotalMinor: item.CommercialTotalMinor,
 	}
 }
 
 func mapReportingReasonMetric(item application.ReportingReasonMetric) dto.ReportingReasonMetricResponse {
 	return dto.ReportingReasonMetricResponse{
-		ReasonCode:          item.ReasonCode,
-		DocumentCount:       item.DocumentCount,
-		QuantityAtomic:      item.QuantityAtomic,
-		RevenueMinor:        item.RevenueMinor,
-		InventoryValueMicro: item.InventoryValueMicro,
+		ReasonCode:           item.ReasonCode,
+		DocumentCount:        item.DocumentCount,
+		QuantityAtomic:       item.QuantityAtomic,
+		CommercialTotalMinor: item.CommercialTotalMinor,
+		InventoryValueMicro:  item.InventoryValueMicro,
 	}
 }
 

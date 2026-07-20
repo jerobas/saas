@@ -139,10 +139,10 @@ func (s *sqliteReportingStore) GetAdjustmentReportData(
 
 func mapSalesReportTotals(value sqlite.SalesReportTotals) SalesReportTotals {
 	return SalesReportTotals{
-		SalesCount:     value.SalesCount,
-		QuantityAtomic: value.QuantityAtomic,
-		RevenueMinor:   value.RevenueMinor,
-		COGSMicro:      value.COGSMicro,
+		SalesCount:              value.SalesCount,
+		QuantityAtomic:          value.QuantityAtomic,
+		CommercialTotalMinor:    value.RevenueMinor,
+		COGSInventoryValueMicro: value.COGSMicro,
 	}
 }
 
@@ -150,16 +150,18 @@ func mapReportingSeries(items []sqlite.ReportingSeries) []ReportingSeries {
 	mapped := make([]ReportingSeries, 0, len(items))
 	for _, item := range items {
 		mapped = append(mapped, ReportingSeries{
-			Bucket:              item.Bucket,
-			Label:               item.Label,
-			DocumentCount:       item.DocumentCount,
-			SalesCount:          item.SalesCount,
-			QuantityAtomic:      item.QuantityAtomic,
-			RevenueMinor:        item.RevenueMinor,
-			SpendMinor:          item.SpendMinor,
-			InventoryValueMicro: item.InventoryValueMicro,
-			DirectCostMicro:     item.DirectCostMicro,
-			COGSMicro:           item.COGSMicro,
+			Bucket:         item.Bucket,
+			Label:          item.Label,
+			DocumentCount:  item.DocumentCount,
+			SalesCount:     item.SalesCount,
+			QuantityAtomic: item.QuantityAtomic,
+			CommercialTotalMinor: reportingCommercialTotalMinor(
+				item.RevenueMinor,
+				item.SpendMinor,
+			),
+			InventoryValueMicro:           item.InventoryValueMicro,
+			DirectCostInventoryValueMicro: item.DirectCostMicro,
+			COGSInventoryValueMicro:       item.COGSMicro,
 		})
 	}
 	return mapped
@@ -169,26 +171,26 @@ func mapReportingItemMetrics(items []sqlite.ReportingItemMetric) []ReportingItem
 	mapped := make([]ReportingItemMetric, 0, len(items))
 	for _, item := range items {
 		mapped = append(mapped, ReportingItemMetric{
-			ItemID:                item.ItemID,
-			ItemName:              item.ItemName,
-			RecipeID:              item.RecipeID,
-			RecipeName:            item.RecipeName,
-			BaseUnitCode:          item.BaseUnitCode,
-			DocumentCount:         item.DocumentCount,
-			QuantityAtomic:        item.QuantityAtomic,
-			RevenueMinor:          item.RevenueMinor,
-			InventoryValueMicro:   item.InventoryValueMicro,
-			DirectCostMicro:       reportingDirectCostMicro(item),
-			ReorderQuantityAtomic: item.ReorderQuantityAtomic,
-			StandardYieldAtomic:   item.StandardYieldAtomic,
-			ActualYieldAtomic:     item.ActualYieldAtomic,
-			VarianceAtomic:        item.VarianceAtomic,
+			ItemID:                        item.ItemID,
+			ItemName:                      item.ItemName,
+			RecipeID:                      item.RecipeID,
+			RecipeName:                    item.RecipeName,
+			BaseUnitCode:                  item.BaseUnitCode,
+			DocumentCount:                 item.DocumentCount,
+			QuantityAtomic:                item.QuantityAtomic,
+			CommercialTotalMinor:          item.RevenueMinor,
+			InventoryValueMicro:           item.InventoryValueMicro,
+			DirectCostInventoryValueMicro: reportingDirectCostInventoryValueMicro(item),
+			ReorderQuantityAtomic:         item.ReorderQuantityAtomic,
+			StandardYieldAtomic:           item.StandardYieldAtomic,
+			ActualYieldAtomic:             item.ActualYieldAtomic,
+			VarianceAtomic:                item.VarianceAtomic,
 		})
 	}
 	return mapped
 }
 
-func reportingDirectCostMicro(item sqlite.ReportingItemMetric) int64 {
+func reportingDirectCostInventoryValueMicro(item sqlite.ReportingItemMetric) int64 {
 	if item.DirectCostMicro != 0 {
 		return item.DirectCostMicro
 	}
@@ -213,11 +215,11 @@ func mapReportingLotMetrics(items []sqlite.ReportingLotMetric) []ReportingLotMet
 
 func mapReportingReasonMetric(item sqlite.ReportingReasonMetric) ReportingReasonMetric {
 	return ReportingReasonMetric{
-		ReasonCode:          item.ReasonCode,
-		DocumentCount:       item.DocumentCount,
-		QuantityAtomic:      item.QuantityAtomic,
-		RevenueMinor:        item.RevenueMinor,
-		InventoryValueMicro: reportingReasonInventoryValueMicro(item),
+		ReasonCode:           item.ReasonCode,
+		DocumentCount:        item.DocumentCount,
+		QuantityAtomic:       item.QuantityAtomic,
+		CommercialTotalMinor: item.RevenueMinor,
+		InventoryValueMicro:  reportingReasonInventoryValueMicro(item),
 	}
 }
 
@@ -249,7 +251,16 @@ func mapReportingCounterpartyMetric(item sqlite.ReportingCounterpartyMetric) Rep
 		CounterpartyID:   item.CounterpartyID,
 		CounterpartyName: item.CounterpartyName,
 		DocumentCount:    item.DocumentCount,
-		RevenueMinor:     item.RevenueMinor,
-		SpendMinor:       item.SpendMinor,
+		CommercialTotalMinor: reportingCommercialTotalMinor(
+			item.RevenueMinor,
+			item.SpendMinor,
+		),
 	}
+}
+
+func reportingCommercialTotalMinor(revenueMinor, spendMinor int64) int64 {
+	if revenueMinor != 0 {
+		return revenueMinor
+	}
+	return spendMinor
 }

@@ -34,7 +34,7 @@ O backend de reporting já tem endpoints reais separados por domínio e o dashbo
 ## Reporting: testes e contrato
 
 - [x] Adicionar teste de application para período inválido e período padrão.
-- [ ] Padronizar nomes de campos monetários, se ainda quisermos essa limpeza:
+- [x] Padronizar nomes de campos monetários, se ainda quisermos essa limpeza:
   - receita/comercial em `commercialTotalMinor`;
   - estoque/COGS/margem em `inventoryValueMicro`;
   - frontend formatando cada escala explicitamente.
