@@ -113,7 +113,7 @@ const DashboardPage = () => {
     };
   }, []);
 
-  // Preview data kept intentionally until the real V2 dashboard queries exist.
+  // Preview data kept intentionally until the visible widgets use the wired V2 reports.
   const salesdData = [
     { month: "Jan", sales: 4000, revenue: 2400 },
     { month: "Fev", sales: 3000, revenue: 1398 },
@@ -187,15 +187,15 @@ const DashboardPage = () => {
         <div className="max-w-7xl mx-auto px-6 py-8">
           <h1 className="text-3xl font-bold text-slate-900">Painel</h1>
           <p className="text-slate-600 mt-2">
-            Preview visual do dashboard. Os dados abaixo ainda são de demonstração.
+            Visão geral da operação. Os cards e gráficos visíveis ainda usam dados de demonstração.
           </p>
         </div>
       </header>
 
       <div className="bg-amber-50 border-b border-amber-100">
         <div className="max-w-7xl mx-auto px-6 py-3 text-sm text-amber-900">
-          Esta tela preserva o layout antigo enquanto as consultas reais de dashboard ainda não
-          existem no backend V2.
+          Os relatórios reais do backend V2 já estão conectados. A próxima etapa é apresentar esses
+          dados nos cards e gráficos desta tela.
         </div>
       </div>
 

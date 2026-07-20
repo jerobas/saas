@@ -44,7 +44,7 @@ já faz o wiring oculto deles. A próxima decisão é visual: quando trocar os
 cards/gráficos fake por esses dados reais.
 
 - [x] Converter `DashboardPage.jsx` para `DashboardPage.tsx`.
-- [ ] Corrigir textos do dashboard que ainda dizem que as queries reais não existem; hoje o que falta é a visualização real.
+- [x] Corrigir textos do dashboard que ainda dizem que as queries reais não existem; hoje o que falta é a visualização real.
 - [ ] Substituir os cards visíveis por dados reais:
   - receita do período;
   - número de vendas;
