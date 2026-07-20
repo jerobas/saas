@@ -16,16 +16,29 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ArrowUpRight, Package, ShoppingCart, CurrencyDollar } from "@phosphor-icons/react";
-import { reportingGateway } from "../../gateways/desktopBridge";
+import { reportingGateway, type ReportingPeriodRequest } from "../../gateways/desktopBridge";
 
-const businessDate = (date) => {
+type DashboardTab = "overview" | "revenue" | "sales" | "products";
+
+type ReportingEndpointResult =
+  { status: "fulfilled"; value: unknown } | { status: "rejected"; reason: string };
+
+interface HiddenReportingDump {
+  status: "idle" | "loading" | "loaded";
+  period: ReportingPeriodRequest | null;
+  endpoints: Record<string, ReportingEndpointResult>;
+}
+
+type ReportingEndpoint = [name: string, load: () => Promise<unknown>];
+
+const businessDate = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
-const defaultReportingPeriod = () => {
+const defaultReportingPeriod = (): ReportingPeriodRequest => {
   const today = new Date();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   return {
@@ -35,8 +48,10 @@ const defaultReportingPeriod = () => {
   };
 };
 
-const loadHiddenReportingDump = async (period) => {
-  const endpoints = [
+const loadHiddenReportingDump = async (
+  period: ReportingPeriodRequest,
+): Promise<Record<string, ReportingEndpointResult>> => {
+  const endpoints: ReportingEndpoint[] = [
     ["salesReport", () => reportingGateway.getSalesReport(period)],
     ["inventoryReport", () => reportingGateway.getInventoryReport(period)],
     ["purchaseReport", () => reportingGateway.getPurchaseReport(period)],
@@ -46,7 +61,7 @@ const loadHiddenReportingDump = async (period) => {
   ];
 
   const entries = await Promise.all(
-    endpoints.map(async ([name, load]) => {
+    endpoints.map(async ([name, load]): Promise<[string, ReportingEndpointResult]> => {
       try {
         return [name, { status: "fulfilled", value: await load() }];
       } catch (error) {
@@ -65,8 +80,8 @@ const loadHiddenReportingDump = async (period) => {
 };
 
 const DashboardPage = () => {
-  const [activeTab, setActiveTab] = useState("overview");
-  const [hiddenReportingDump, setHiddenReportingDump] = useState(() => ({
+  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+  const [hiddenReportingDump, setHiddenReportingDump] = useState<HiddenReportingDump>(() => ({
     status: "idle",
     period: null,
     endpoints: {},

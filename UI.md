@@ -43,7 +43,7 @@ O backend de reporting já tem endpoints reais separados por domínio e o dashbo
 já faz o wiring oculto deles. A próxima decisão é visual: quando trocar os
 cards/gráficos fake por esses dados reais.
 
-- [ ] Converter `DashboardPage.jsx` para `DashboardPage.tsx`.
+- [x] Converter `DashboardPage.jsx` para `DashboardPage.tsx`.
 - [ ] Corrigir textos do dashboard que ainda dizem que as queries reais não existem; hoje o que falta é a visualização real.
 - [ ] Substituir os cards visíveis por dados reais:
   - receita do período;
