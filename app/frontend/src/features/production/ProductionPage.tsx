@@ -632,9 +632,8 @@ function ProductionPage() {
                         {component.item?.name ?? `Item #${component.itemId}`}
                       </p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Receita: {component.enteredPackagingName ?? component.enteredUnitCode} ·
-                        conversao {component.conversionNumeratorAtomic}/
-                        {component.conversionDenominator}
+                        Unidade da receita:{" "}
+                        {component.enteredPackagingName ?? component.enteredUnitCode}
                       </p>
                       <p className="mt-1 text-sm text-slate-500">
                         Saldo: {component.balance?.quantityAtomic ?? 0} atomicos ·{" "}

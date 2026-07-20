@@ -33,26 +33,57 @@ const gram = {
   isSeeded: true,
 };
 
+const kilogram = {
+  code: "kg",
+  name: "kilogram",
+  symbol: "kg",
+  dimension: "MASS",
+  numeratorAtomic: 1_000_000,
+  denominator: 1,
+  isItemBase: false,
+  isSeeded: true,
+};
+
+const chocolate = {
+  id: 1,
+  name: "Chocolate",
+  sku: "CHOCO",
+  description: null,
+  baseUnitCode: "g",
+  capabilities: { purchasable: true, producible: false, sellable: true },
+  defaultSalePrice: 1250,
+  reorderQuantityAtomic: null,
+  createdAtMs: 1_700_000_000_000,
+  updatedAtMs: 1_700_000_000_001,
+  archivedAtMs: null,
+};
+
+const chocolateDetail = {
+  ...chocolate,
+  baseUnit: gram,
+  packagings: [],
+};
+
 describe("ProductsPage", () => {
   beforeEach(() => {
-    gatewayMocks.referenceDataGateway.listMeasurementUnits.mockResolvedValue([gram]);
+    gatewayMocks.referenceDataGateway.listMeasurementUnits.mockResolvedValue([gram, kilogram]);
     gatewayMocks.catalogGateway.listItems.mockResolvedValue({
-      items: [
-        {
-          id: 1,
-          name: "Chocolate",
-          sku: "CHOCO",
-          description: null,
-          baseUnitCode: "g",
-          capabilities: { purchasable: true, producible: false, sellable: true },
-          defaultSalePrice: 1250,
-          reorderQuantityAtomic: null,
-          createdAtMs: 1_700_000_000_000,
-          updatedAtMs: 1_700_000_000_001,
-          archivedAtMs: null,
-        },
-      ],
+      items: [chocolate],
       next: null,
+    });
+    gatewayMocks.catalogGateway.getItem.mockResolvedValue(chocolateDetail);
+    gatewayMocks.catalogGateway.createItemPackaging.mockResolvedValue({
+      id: 3,
+      itemId: 1,
+      name: "Saco 1,5 kg",
+      enteredUnitCode: "kg",
+      conversionNumeratorAtomic: 1_500_000,
+      conversionDenominator: 1,
+      baseUnit: gram,
+      enteredUnit: kilogram,
+      createdAtMs: 1_700_000_000_003,
+      updatedAtMs: 1_700_000_000_003,
+      archivedAtMs: null,
     });
   });
 
@@ -113,5 +144,31 @@ describe("ProductsPage", () => {
         defaultSalePrice: 1250,
       }),
     );
+  });
+
+  it("creates packaging from readable content while preserving the exact conversion", async () => {
+    const user = userEvent.setup();
+
+    render(<ProductsPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Chocolate" }));
+    await user.type(screen.getByLabelText("Nome da embalagem"), "Saco 1,5 kg");
+    await user.clear(screen.getByLabelText("Conteúdo"));
+    await user.type(screen.getByLabelText("Conteúdo"), "1,5");
+    await user.selectOptions(screen.getByLabelText("Unidade"), "kg");
+
+    expect(screen.getByText("1 embalagem =")).toHaveTextContent("1 embalagem = 1.500 g");
+    expect(screen.queryByPlaceholderText("Numerador")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Denominador")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Criar embalagem" }));
+
+    expect(gatewayMocks.catalogGateway.createItemPackaging).toHaveBeenCalledWith({
+      itemId: 1,
+      name: "Saco 1,5 kg",
+      enteredUnitCode: "kg",
+      conversionNumeratorAtomic: 1_500_000,
+      conversionDenominator: 1,
+    });
   });
 });

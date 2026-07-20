@@ -1,5 +1,6 @@
 import { FileText, MagnifyingGlass, Plus, Trash } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
+import ConversionPreview from "../../components/ConversionPreview";
 import {
   catalogGateway,
   type CounterpartyResponse,
@@ -222,7 +223,7 @@ function PurchaseDocumentForm({
         conversionDenominator <= 0 ||
         !line.enteredUnitCode
       ) {
-        onError(`Revise item, quantidade atômica e conversão da linha ${index + 1}.`);
+        onError(`Revise item, quantidade atômica e unidade da linha ${index + 1}.`);
         return;
       }
       if (commercialTotalMinor === undefined || commercialTotalMinor < 0) {
@@ -519,32 +520,15 @@ function PurchaseDocumentForm({
                       )}
                     </div>
 
-                    <div className="mt-3 grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-2">
-                      <label className="block text-xs font-semibold text-slate-600">
-                        Conversão — numerador
-                        <input
-                          aria-label={`Conversão numerador da linha ${index + 1}`}
-                          value={line.conversionNumeratorAtomic}
-                          onChange={(event) =>
-                            updateLine(line.key, {
-                              conversionNumeratorAtomic: event.target.value,
-                            })
-                          }
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
-                        />
-                      </label>
-                      <label className="block text-xs font-semibold text-slate-600">
-                        Conversão — denominador
-                        <input
-                          aria-label={`Conversão denominador da linha ${index + 1}`}
-                          value={line.conversionDenominator}
-                          onChange={(event) =>
-                            updateLine(line.key, { conversionDenominator: event.target.value })
-                          }
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
-                        />
-                      </label>
-                    </div>
+                    {item && line.enteredPackagingName && (
+                      <ConversionPreview
+                        label={`1 ${line.enteredPackagingName}`}
+                        numeratorAtomic={line.conversionNumeratorAtomic}
+                        denominator={line.conversionDenominator}
+                        baseUnit={item.baseUnit}
+                        className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600"
+                      />
+                    )}
                   </article>
                 );
               })}

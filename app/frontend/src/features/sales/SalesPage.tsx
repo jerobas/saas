@@ -1,5 +1,6 @@
 import { ArrowClockwise, ShoppingCart, Tag } from "@phosphor-icons/react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import ConversionPreview from "../../components/ConversionPreview";
 import {
   catalogGateway,
   counterpartyGateway,
@@ -263,7 +264,7 @@ function SalesPage() {
     if (!itemId || !quantityAtomic || !conversionNumeratorAtomic || !conversionDenominator) {
       setMessage({
         type: "error",
-        text: "Informe item, quantidade atomica e conversao para postar a venda.",
+        text: "Informe item, quantidade atomica e unidade para postar a venda.",
       });
       return;
     }
@@ -481,34 +482,15 @@ function SalesPage() {
                 </label>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-sm font-semibold text-slate-700">
-                  Conversao numerador
-                  <input
-                    value={form.line.conversionNumeratorAtomic}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        line: { ...form.line, conversionNumeratorAtomic: event.target.value },
-                      })
-                    }
-                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                  />
-                </label>
-                <label className="block text-sm font-semibold text-slate-700">
-                  Denominador
-                  <input
-                    value={form.line.conversionDenominator}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        line: { ...form.line, conversionDenominator: event.target.value },
-                      })
-                    }
-                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                  />
-                </label>
-              </div>
+              {selectedItem && form.line.enteredPackagingName && (
+                <ConversionPreview
+                  label={`1 ${form.line.enteredPackagingName}`}
+                  numeratorAtomic={form.line.conversionNumeratorAtomic}
+                  denominator={form.line.conversionDenominator}
+                  baseUnit={selectedItem.baseUnit}
+                  className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600"
+                />
+              )}
 
               <label className="block text-sm font-semibold text-slate-700">
                 Lote de saida de estoque

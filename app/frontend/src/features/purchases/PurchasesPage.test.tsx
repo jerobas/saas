@@ -33,6 +33,17 @@ const flourSummary = {
   archivedAtMs: null,
 };
 
+const kilogram = {
+  code: "kg",
+  name: "kilogram",
+  symbol: "kg",
+  dimension: "MASS" as const,
+  numeratorAtomic: 1_000_000,
+  denominator: 1,
+  isItemBase: false,
+  isSeeded: true,
+};
+
 const flourDetail = {
   ...flourSummary,
   baseUnit: {
@@ -45,7 +56,30 @@ const flourDetail = {
     isItemBase: true,
     isSeeded: true,
   },
-  packagings: [],
+  packagings: [
+    {
+      id: 12,
+      itemId: 10,
+      name: "Saco 1 kg",
+      enteredUnitCode: "kg",
+      conversionNumeratorAtomic: 1_000_000,
+      conversionDenominator: 1,
+      baseUnit: {
+        code: "g",
+        name: "gram",
+        symbol: "g",
+        dimension: "MASS" as const,
+        numeratorAtomic: 1000,
+        denominator: 1,
+        isItemBase: true,
+        isSeeded: true,
+      },
+      enteredUnit: kilogram,
+      createdAtMs: 1_700_000_000_000,
+      updatedAtMs: 1_700_000_000_000,
+      archivedAtMs: null,
+    },
+  ],
 };
 
 const sugarSummary = {
@@ -154,6 +188,10 @@ describe("PurchasesPage", () => {
     await user.selectOptions(screen.getByLabelText("Item para adicionar"), "11");
     await user.click(screen.getByRole("button", { name: "Adicionar item" }));
 
+    expect(screen.queryByLabelText("Conversão numerador da linha 1")).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Unidade ou embalagem da linha 1"), "12");
+    expect(screen.getByText("1 Saco 1 kg =")).toHaveTextContent("1 Saco 1 kg = 1.000 g");
+
     expect(screen.queryByLabelText("Lote da linha 1")).not.toBeInTheDocument();
     await user.click(screen.getByRole("switch", { name: "Informar lote e validade" }));
 
@@ -172,8 +210,9 @@ describe("PurchasesPage", () => {
           expect.objectContaining({
             itemId: 10,
             quantityAtomic: 1000,
-            enteredUnitCode: "g",
-            conversionNumeratorAtomic: 1000,
+            enteredUnitCode: "kg",
+            enteredPackagingName: "Saco 1 kg",
+            conversionNumeratorAtomic: 1_000_000,
             conversionDenominator: 1,
             commercialTotalMinor: 5000,
             lotCode: "LOTE-1",

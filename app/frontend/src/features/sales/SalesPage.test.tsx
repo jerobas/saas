@@ -151,6 +151,8 @@ describe("SalesPage", () => {
     render(<SalesPage />);
 
     expect(await screen.findByText("BOLO-1")).toBeInTheDocument();
+    expect(screen.queryByText("Conversao numerador")).not.toBeInTheDocument();
+    expect(screen.queryByText("Denominador")).not.toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Cliente"), "20");
     await user.type(screen.getByLabelText("Quantidade atomica"), "20");
     await user.type(screen.getByLabelText("Total comercial"), "25,00");

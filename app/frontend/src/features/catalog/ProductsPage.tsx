@@ -1,5 +1,6 @@
 import { Archive, ArrowClockwise, Package, Plus, XCircle } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ConversionPreview from "../../components/ConversionPreview";
 import {
   catalogGateway,
   type CapabilitiesRequest,
@@ -25,8 +26,7 @@ interface ItemFormState {
 interface PackagingFormState {
   name: string;
   enteredUnitCode: string;
-  conversionNumeratorAtomic: string;
-  conversionDenominator: string;
+  contentQuantity: string;
 }
 
 const emptyItemForm: ItemFormState = {
@@ -44,8 +44,7 @@ const emptyItemForm: ItemFormState = {
 const emptyPackagingForm: PackagingFormState = {
   name: "",
   enteredUnitCode: "",
-  conversionNumeratorAtomic: "1000",
-  conversionDenominator: "1",
+  contentQuantity: "1",
 };
 
 const optionalText = (value: string) => {
@@ -66,6 +65,39 @@ const parseMoneyMinor = (value: string) => {
   const parsed = Number.parseFloat(normalized);
   if (!Number.isFinite(parsed)) return undefined;
   return Math.round(parsed * 100);
+};
+
+const greatestCommonDivisor = (left: number, right: number) => {
+  let a = Math.abs(left);
+  let b = Math.abs(right);
+  while (b !== 0) [a, b] = [b, a % b];
+  return a;
+};
+
+const exactPackagingConversion = (contentQuantity: string, unit?: MeasurementUnitResponse) => {
+  const normalized = contentQuantity.trim().replace(",", ".");
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(normalized);
+  if (!match || !unit) return null;
+
+  const decimals = match[2]?.length ?? 0;
+  const enteredDenominator = 10 ** decimals;
+  const enteredNumerator = Number(`${match[1]}${match[2] ?? ""}`);
+  const numeratorAtomic = enteredNumerator * unit.numeratorAtomic;
+  const denominator = enteredDenominator * unit.denominator;
+  if (
+    !Number.isSafeInteger(numeratorAtomic) ||
+    !Number.isSafeInteger(denominator) ||
+    numeratorAtomic <= 0 ||
+    denominator <= 0
+  ) {
+    return null;
+  }
+
+  const divisor = greatestCommonDivisor(numeratorAtomic, denominator);
+  return {
+    numeratorAtomic: numeratorAtomic / divisor,
+    denominator: denominator / divisor,
+  };
 };
 
 const formatMoney = (minor?: number | null) => {
@@ -115,6 +147,16 @@ function ProductsPage() {
     if (!selectedBaseUnit) return units;
     return units.filter((unit) => unit.dimension === selectedBaseUnit.dimension);
   }, [selectedBaseUnit, units]);
+
+  const selectedPackagingUnit = useMemo(
+    () => units.find((unit) => unit.code === packagingForm.enteredUnitCode),
+    [packagingForm.enteredUnitCode, units],
+  );
+
+  const packagingConversion = useMemo(
+    () => exactPackagingConversion(packagingForm.contentQuantity, selectedPackagingUnit),
+    [packagingForm.contentQuantity, selectedPackagingUnit],
+  );
 
   const refreshSelectedItem = useCallback(async (id: number) => {
     const item = await catalogGateway.getItem(id);
@@ -274,6 +316,10 @@ function ProductsPage() {
 
   const createPackaging = async () => {
     if (!selectedItem || saving) return;
+    if (!packagingConversion) {
+      setMessage({ type: "error", text: "Informe um conteúdo positivo para a embalagem." });
+      return;
+    }
     setSaving(true);
     setMessage(null);
     try {
@@ -281,8 +327,8 @@ function ProductsPage() {
         itemId: selectedItem.id,
         name: packagingForm.name.trim(),
         enteredUnitCode: packagingForm.enteredUnitCode,
-        conversionNumeratorAtomic: Number.parseInt(packagingForm.conversionNumeratorAtomic, 10),
-        conversionDenominator: Number.parseInt(packagingForm.conversionDenominator, 10),
+        conversionNumeratorAtomic: packagingConversion.numeratorAtomic,
+        conversionDenominator: packagingConversion.denominator,
       });
       await refreshSelectedItem(selectedItem.id);
       setPackagingForm({
@@ -622,51 +668,61 @@ function ProductsPage() {
             {selectedItem && (
               <div className="mt-6 grid gap-6 lg:grid-cols-[320px_1fr]">
                 <div className="space-y-3">
-                  <input
-                    value={packagingForm.name}
-                    onChange={(event) =>
-                      setPackagingForm({ ...packagingForm, name: event.target.value })
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                    placeholder="Saco 1 kg"
-                  />
-                  <select
-                    value={packagingForm.enteredUnitCode}
-                    onChange={(event) =>
-                      setPackagingForm({ ...packagingForm, enteredUnitCode: event.target.value })
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                  >
-                    {compatiblePackagingUnits.map((unit) => (
-                      <option key={unit.code} value={unit.code}>
-                        {unit.symbol} - {unit.name}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Nome da embalagem
+                    <input
+                      value={packagingForm.name}
+                      onChange={(event) =>
+                        setPackagingForm({ ...packagingForm, name: event.target.value })
+                      }
+                      className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                      placeholder="Saco 1 kg"
+                    />
+                  </label>
                   <div className="grid grid-cols-2 gap-3">
-                    <input
-                      value={packagingForm.conversionNumeratorAtomic}
-                      onChange={(event) =>
-                        setPackagingForm({
-                          ...packagingForm,
-                          conversionNumeratorAtomic: event.target.value,
-                        })
-                      }
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                      placeholder="Numerador"
-                    />
-                    <input
-                      value={packagingForm.conversionDenominator}
-                      onChange={(event) =>
-                        setPackagingForm({
-                          ...packagingForm,
-                          conversionDenominator: event.target.value,
-                        })
-                      }
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                      placeholder="Denominador"
-                    />
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Conteúdo
+                      <input
+                        value={packagingForm.contentQuantity}
+                        onChange={(event) =>
+                          setPackagingForm({
+                            ...packagingForm,
+                            contentQuantity: event.target.value,
+                          })
+                        }
+                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                        placeholder="1"
+                      />
+                    </label>
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Unidade
+                      <select
+                        value={packagingForm.enteredUnitCode}
+                        onChange={(event) =>
+                          setPackagingForm({
+                            ...packagingForm,
+                            enteredUnitCode: event.target.value,
+                          })
+                        }
+                        className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                      >
+                        {compatiblePackagingUnits.map((unit) => (
+                          <option key={unit.code} value={unit.code}>
+                            {unit.symbol} - {unit.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
+                  {packagingConversion && selectedBaseUnit && (
+                    <ConversionPreview
+                      label="1 embalagem"
+                      numeratorAtomic={packagingConversion.numeratorAtomic}
+                      denominator={packagingConversion.denominator}
+                      baseUnit={selectedBaseUnit}
+                      className="rounded-xl bg-pink-50 px-3 py-2 text-sm text-pink-800"
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={createPackaging}
@@ -690,11 +746,13 @@ function ProductsPage() {
                       >
                         <div>
                           <p className="font-semibold text-slate-950">{packaging.name}</p>
-                          <p className="text-sm text-slate-600">
-                            {packaging.enteredUnit.symbol} &rarr;{" "}
-                            {packaging.conversionNumeratorAtomic}/{packaging.conversionDenominator}{" "}
-                            atomicos de {packaging.baseUnit.symbol}
-                          </p>
+                          <ConversionPreview
+                            label={`1 ${packaging.name}`}
+                            numeratorAtomic={packaging.conversionNumeratorAtomic}
+                            denominator={packaging.conversionDenominator}
+                            baseUnit={packaging.baseUnit}
+                            className="text-sm text-slate-600"
+                          />
                           <p className="text-xs text-slate-500">
                             Atualizado em {formatDateTime(packaging.updatedAtMs)}
                           </p>

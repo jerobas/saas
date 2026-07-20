@@ -643,8 +643,6 @@ function RecipesPage() {
                               {component.enteredPackagingName
                                 ? ` via ${component.enteredPackagingName}`
                                 : " via unidade base"}
-                              {" · "}conversao {component.conversionNumeratorAtomic}/
-                              {component.conversionDenominator}
                             </div>
                           </div>
                         ))}

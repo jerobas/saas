@@ -18,7 +18,7 @@
 
 ## Unidades e embalagens
 
-- [ ] Esconder conversão numerador/denominador da UI:
+- [x] Esconder conversão numerador/denominador da UI:
   - usuário escolhe unidade ou embalagem;
   - app mostra apenas um preview legível do equivalente na unidade base quando útil;
   - backend continua salvando a conversão exata historicamente.
