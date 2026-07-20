@@ -5,6 +5,7 @@ import RecipesPage from "./RecipesPage";
 
 const gatewayMocks = vi.hoisted(() => ({
   catalogGateway: {
+    getItem: vi.fn(),
     listItems: vi.fn(),
   },
   recipeGateway: {
@@ -55,6 +56,52 @@ const secondComponentItem = {
   name: "Acucar",
 };
 
+const gramUnit = {
+  code: "g",
+  name: "gram",
+  symbol: "g",
+  dimension: "MASS",
+  numeratorAtomic: 1000,
+  denominator: 1,
+  isItemBase: true,
+  isSeeded: true,
+};
+
+const kilogramUnit = {
+  ...gramUnit,
+  code: "kg",
+  name: "kilogram",
+  symbol: "kg",
+  numeratorAtomic: 1_000_000,
+  isItemBase: false,
+};
+
+const componentItemDetail = {
+  ...componentItem,
+  baseUnit: gramUnit,
+  packagings: [],
+};
+
+const secondComponentItemDetail = {
+  ...secondComponentItem,
+  baseUnit: gramUnit,
+  packagings: [
+    {
+      id: 102,
+      itemId: 12,
+      name: "Pacote 1 kg",
+      enteredUnitCode: "kg",
+      conversionNumeratorAtomic: 1_000_000,
+      conversionDenominator: 1,
+      baseUnit: gramUnit,
+      enteredUnit: kilogramUnit,
+      createdAtMs: 1_700_000_000_000,
+      updatedAtMs: 1_700_000_000_000,
+      archivedAtMs: null,
+    },
+  ],
+};
+
 const revision = {
   id: 30,
   recipeId: 20,
@@ -81,8 +128,9 @@ const revision = {
       order: 2,
       itemId: 12,
       quantityAtomic: 200,
-      enteredUnitCode: "g",
-      conversionNumeratorAtomic: 1000,
+      enteredUnitCode: "kg",
+      enteredPackagingName: "Pacote 1 kg",
+      conversionNumeratorAtomic: 1_000_000,
       conversionDenominator: 1,
       createdAtMs: 1_700_000_000_100,
     },
@@ -116,6 +164,9 @@ const recipeSummary = {
 
 describe("RecipesPage", () => {
   beforeEach(() => {
+    gatewayMocks.catalogGateway.getItem.mockImplementation(async (itemId: number) =>
+      itemId === 12 ? secondComponentItemDetail : componentItemDetail,
+    );
     gatewayMocks.catalogGateway.listItems
       .mockResolvedValueOnce({ items: [outputItem], next: null })
       .mockResolvedValueOnce({
@@ -154,7 +205,7 @@ describe("RecipesPage", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a recipe through the V2 gateway", async () => {
+  it("creates a multi-component recipe with a packaging source", async () => {
     const user = userEvent.setup();
 
     render(<RecipesPage />);
@@ -172,6 +223,11 @@ describe("RecipesPage", () => {
     await user.click(screen.getByRole("button", { name: "Adicionar componente" }));
     await user.selectOptions(screen.getByLabelText("Item do componente 2"), "12");
     await user.type(screen.getByLabelText("Quantidade atomica 2"), "200");
+    await user.selectOptions(
+      screen.getByLabelText("Unidade ou embalagem do componente 2"),
+      await screen.findByRole("option", { name: "Pacote 1 kg" }),
+    );
+    expect(await screen.findByText("1.000 g")).toBeInTheDocument();
     await user.type(screen.getByLabelText("Instrucoes"), "Misture e asse.");
     await user.click(screen.getByRole("button", { name: "Criar" }));
 
@@ -194,8 +250,8 @@ describe("RecipesPage", () => {
             order: 2,
             itemId: 12,
             quantityAtomic: 200,
-            sourceType: "UNIT",
-            unitCode: "g",
+            sourceType: "PACKAGING",
+            packagingId: 102,
           },
         ],
       },

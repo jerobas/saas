@@ -8,10 +8,14 @@ import {
   UploadSimple,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ConversionPreview from "../../components/ConversionPreview";
 import {
   catalogGateway,
+  type ItemResponse,
   type ItemSummaryResponse,
+  type PackagingResponse,
   recipeGateway,
+  type RecipeComponentRequest,
   type RecipeResponse,
   type RecipeRevisionResponse,
   type RecipeSummaryResponse,
@@ -30,6 +34,8 @@ interface RecipeComponentFormState {
   rowId: number;
   itemId: string;
   quantityAtomic: string;
+  sourceType: "UNIT" | "PACKAGING";
+  packagingId: string;
 }
 
 let nextComponentRowId = 0;
@@ -38,6 +44,8 @@ const newComponentRow = (): RecipeComponentFormState => ({
   rowId: ++nextComponentRowId,
   itemId: "",
   quantityAtomic: "",
+  sourceType: "UNIT",
+  packagingId: "",
 });
 
 const emptyForm = (): RecipeFormState => ({
@@ -64,6 +72,9 @@ function RecipesPage() {
   const [recipes, setRecipes] = useState<RecipeSummaryResponse[]>([]);
   const [outputItems, setOutputItems] = useState<ItemSummaryResponse[]>([]);
   const [componentItems, setComponentItems] = useState<ItemSummaryResponse[]>([]);
+  const [componentItemDetails, setComponentItemDetails] = useState<Record<number, ItemResponse>>(
+    {},
+  );
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeResponse | null>(null);
   const [revisions, setRevisions] = useState<RecipeRevisionResponse[]>([]);
   const [form, setForm] = useState<RecipeFormState>(() => emptyForm());
@@ -123,20 +134,6 @@ function RecipesPage() {
       setForm((current) => ({
         ...current,
         outputItemId: current.outputItemId || String(produciblePage.items[0]?.id ?? ""),
-        components: current.components.map((component, index) => ({
-          ...component,
-          itemId:
-            component.itemId ||
-            (index === 0
-              ? String(
-                  itemPage.items.find(
-                    (item) =>
-                      activeOnly(item) &&
-                      item.id !== Number(current.outputItemId || produciblePage.items[0]?.id || 0),
-                  )?.id ?? "",
-                )
-              : ""),
-        })),
       }));
     } catch (error) {
       setMessage({
@@ -165,7 +162,7 @@ function RecipesPage() {
       return null;
     }
 
-    const componentRequests = [];
+    const componentRequests: RecipeComponentRequest[] = [];
     const selectedItemIds = new Set<number>();
     for (const [index, component] of form.components.entries()) {
       const componentItemId = parseInteger(component.itemId);
@@ -196,13 +193,36 @@ function RecipesPage() {
         return null;
       }
       selectedItemIds.add(componentItemId);
-      componentRequests.push({
-        order: index + 1,
-        itemId: componentItemId,
-        quantityAtomic: componentQuantityAtomic,
-        sourceType: "UNIT" as const,
-        unitCode: selectedItem.baseUnitCode,
-      });
+      if (component.sourceType === "PACKAGING") {
+        const packagingId = parseInteger(component.packagingId);
+        const packaging = packagingId
+          ? activePackagings(componentItemDetails[componentItemId]).find(
+              (candidate) => candidate.id === packagingId,
+            )
+          : undefined;
+        if (!packaging) {
+          setMessage({
+            type: "error",
+            text: `Selecione uma embalagem ativa para o componente ${index + 1}.`,
+          });
+          return null;
+        }
+        componentRequests.push({
+          order: index + 1,
+          itemId: componentItemId,
+          quantityAtomic: componentQuantityAtomic,
+          sourceType: "PACKAGING",
+          packagingId: packaging.id,
+        });
+      } else {
+        componentRequests.push({
+          order: index + 1,
+          itemId: componentItemId,
+          quantityAtomic: componentQuantityAtomic,
+          sourceType: "UNIT",
+          unitCode: selectedItem.baseUnitCode,
+        });
+      }
     }
 
     return {
@@ -223,17 +243,46 @@ function RecipesPage() {
       components: current.components.map((component) => ({
         ...component,
         itemId: component.itemId === outputItemId ? "" : component.itemId,
+        sourceType: component.itemId === outputItemId ? "UNIT" : component.sourceType,
+        packagingId: component.itemId === outputItemId ? "" : component.packagingId,
       })),
     }));
   };
 
-  const updateComponent = (rowId: number, field: "itemId" | "quantityAtomic", value: string) => {
+  const updateComponent = (
+    rowId: number,
+    patch: Partial<Omit<RecipeComponentFormState, "rowId">>,
+  ) => {
     setForm((current) => ({
       ...current,
       components: current.components.map((component) =>
-        component.rowId === rowId ? { ...component, [field]: value } : component,
+        component.rowId === rowId ? { ...component, ...patch } : component,
       ),
     }));
+  };
+
+  const selectComponentItem = async (rowId: number, itemId: string) => {
+    updateComponent(rowId, { itemId, sourceType: "UNIT", packagingId: "" });
+    const parsedItemId = parseInteger(itemId);
+    if (!parsedItemId || componentItemDetails[parsedItemId]) return;
+    try {
+      const detail = await catalogGateway.getItem(parsedItemId);
+      setComponentItemDetails((current) => ({ ...current, [parsedItemId]: detail }));
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: messageFromError(error, "Nao foi possivel carregar as embalagens do componente."),
+      });
+    }
+  };
+
+  const selectComponentSource = (rowId: number, value: string) => {
+    updateComponent(
+      rowId,
+      value === "base"
+        ? { sourceType: "UNIT", packagingId: "" }
+        : { sourceType: "PACKAGING", packagingId: value },
+    );
   };
 
   const addComponent = () => {
@@ -498,59 +547,104 @@ function RecipesPage() {
                 </div>
 
                 <div className="mt-4 space-y-3">
-                  {form.components.map((component, index) => (
-                    <div
-                      key={component.rowId}
-                      className="rounded-xl border border-slate-200 bg-white p-3"
-                    >
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Componente {index + 1}
-                        </span>
-                        {form.components.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeComponent(component.rowId)}
-                            aria-label={`Remover componente ${index + 1}`}
-                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash size={16} />
-                          </button>
+                  {form.components.map((component, index) => {
+                    const item = componentItems.find(
+                      (candidate) => String(candidate.id) === component.itemId,
+                    );
+                    const itemDetail = item ? componentItemDetails[item.id] : undefined;
+                    const packagings = activePackagings(itemDetail);
+                    const selectedPackaging = packagings.find(
+                      (packaging) => String(packaging.id) === component.packagingId,
+                    );
+                    return (
+                      <div
+                        key={component.rowId}
+                        className="rounded-xl border border-slate-200 bg-white p-3"
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Componente {index + 1}
+                          </span>
+                          {form.components.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeComponent(component.rowId)}
+                              aria-label={`Remover componente ${index + 1}`}
+                              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash size={16} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-[1fr_130px]">
+                          <label className="block text-xs font-semibold text-slate-700">
+                            Item do componente {index + 1}
+                            <select
+                              value={component.itemId}
+                              onChange={(event) =>
+                                void selectComponentItem(component.rowId, event.target.value)
+                              }
+                              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
+                            >
+                              <option value="">Selecione</option>
+                              {availableItemsForComponent(component.rowId).map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name} / base {item.baseUnitCode}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block text-xs font-semibold text-slate-700">
+                            Quantidade atomica {index + 1}
+                            <input
+                              value={component.quantityAtomic}
+                              onChange={(event) =>
+                                updateComponent(component.rowId, {
+                                  quantityAtomic: event.target.value,
+                                })
+                              }
+                              inputMode="numeric"
+                              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
+                              placeholder="500"
+                            />
+                          </label>
+                          <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+                            Unidade ou embalagem do componente {index + 1}
+                            <select
+                              value={
+                                component.sourceType === "PACKAGING"
+                                  ? component.packagingId
+                                  : "base"
+                              }
+                              onChange={(event) =>
+                                selectComponentSource(component.rowId, event.target.value)
+                              }
+                              disabled={!item}
+                              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500 disabled:bg-slate-100"
+                            >
+                              <option value="base">
+                                {item ? `${item.baseUnitCode} · unidade base` : "Unidade base"}
+                              </option>
+                              {packagings.map((packaging) => (
+                                <option key={packaging.id} value={packaging.id}>
+                                  {packaging.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        {selectedPackaging && itemDetail && (
+                          <ConversionPreview
+                            label={`1 ${selectedPackaging.name}`}
+                            numeratorAtomic={selectedPackaging.conversionNumeratorAtomic}
+                            denominator={selectedPackaging.conversionDenominator}
+                            baseUnit={itemDetail.baseUnit}
+                            className="mt-3 rounded-lg bg-pink-50 px-3 py-2 text-xs text-pink-800"
+                          />
                         )}
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-[1fr_130px]">
-                        <label className="block text-xs font-semibold text-slate-700">
-                          Item do componente {index + 1}
-                          <select
-                            value={component.itemId}
-                            onChange={(event) =>
-                              updateComponent(component.rowId, "itemId", event.target.value)
-                            }
-                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
-                          >
-                            <option value="">Selecione</option>
-                            {availableItemsForComponent(component.rowId).map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.name} / base {item.baseUnitCode}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="block text-xs font-semibold text-slate-700">
-                          Quantidade atomica {index + 1}
-                          <input
-                            value={component.quantityAtomic}
-                            onChange={(event) =>
-                              updateComponent(component.rowId, "quantityAtomic", event.target.value)
-                            }
-                            inputMode="numeric"
-                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
-                            placeholder="500"
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -586,8 +680,8 @@ function RecipesPage() {
               </div>
 
               <p className="text-xs text-slate-500">
-                Cada componente ainda usa sua unidade base. A escolha por embalagem entra no proximo
-                polimento.
+                Escolha a unidade base ou uma embalagem ativa; o app preserva a conversao exata na
+                revisao.
               </p>
             </div>
           </div>
@@ -780,5 +874,10 @@ function RecipesPage() {
     </main>
   );
 }
+
+const activePackagings = (item?: ItemResponse): PackagingResponse[] =>
+  item?.packagings.filter(
+    (packaging) => packaging.archivedAtMs === null || packaging.archivedAtMs === undefined,
+  ) ?? [];
 
 export default RecipesPage;
