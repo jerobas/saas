@@ -41,6 +41,8 @@ new migration and then every dependent layer.
   audits, browser smoke tests, and CI expectations.
 - [`development/architecture-conventions.md`](development/architecture-conventions.md):
   where new files belong and how layer/package boundaries should stay readable.
+- [`development/frontend-gateway-split.md`](development/frontend-gateway-split.md):
+  planned migration from one desktop bridge file to feature-owned gateways.
 
 Phase 3 replaced the seven experimental migrations with the strict, checksummed
 V2 baseline. Phase 4 removed the incompatible Go persistence layer and added

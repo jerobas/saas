@@ -42,7 +42,7 @@ O backend de reporting já tem endpoints reais separados por domínio e o dashbo
 
 ## Arquitetura e organização
 
-- [ ] Planejar a divisão de `desktopBridge.ts` em gateways por feature antes de implementar.
+- [x] Planejar a divisão de `desktopBridge.ts` em gateways por feature antes de implementar.
 - [x] Criar uma convenção curta de arquitetura: onde novos arquivos entram, nomes de camadas e limites entre feature/presentation/application/domain/infrastructure.
 
 ## Backlog adiado

@@ -98,7 +98,8 @@ features/settings/
 - Shared layout/components stay in `components/`.
 - Shared runtime context stays in `context/`.
 - The current desktop bridge stays in `gateways/desktopBridge.ts` until we
-  explicitly split it by feature.
+  explicitly split it by feature. The planned split is documented in
+  [`frontend-gateway-split.md`](frontend-gateway-split.md).
 - New visual work should prefer TypeScript files. Existing JSX can migrate
   vertically when that feature is already being touched.
 
