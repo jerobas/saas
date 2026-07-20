@@ -8,8 +8,38 @@ import (
 )
 
 type AdjustmentStore interface {
+	ListAdjustments(ctx context.Context, input AdjustmentListInput) (AdjustmentPage, error)
 	PostAdjustment(ctx context.Context, input adjustmentPostStoreInput) (AdjustmentDocument, error)
 }
+
+type AdjustmentCursor struct {
+	PostingSequence domain.PostingSequence
+	ID              domain.StockDocumentID
+}
+
+type AdjustmentListInput struct {
+	After    domain.Option[AdjustmentCursor]
+	PageSize int
+}
+
+type AdjustmentPage struct {
+	items []AdjustmentDocument
+	next  domain.Option[AdjustmentCursor]
+}
+
+func NewAdjustmentPage(items []AdjustmentDocument, next domain.Option[AdjustmentCursor]) AdjustmentPage {
+	cloned := make([]AdjustmentDocument, len(items))
+	copy(cloned, items)
+	return AdjustmentPage{items: cloned, next: next}
+}
+
+func (p AdjustmentPage) Items() []AdjustmentDocument {
+	items := make([]AdjustmentDocument, len(p.items))
+	copy(items, p.items)
+	return items
+}
+
+func (p AdjustmentPage) Next() domain.Option[AdjustmentCursor] { return p.next }
 
 type AdjustmentLineInput struct {
 	ItemID               domain.ItemID
@@ -235,6 +265,14 @@ func NewAdjustmentService(store AdjustmentStore, clock Clock) *AdjustmentService
 		panic("adjustment service requires a clock")
 	}
 	return &AdjustmentService{store: store, clock: clock}
+}
+
+func (s *AdjustmentService) ListAdjustments(ctx context.Context, input AdjustmentListInput) (AdjustmentPage, error) {
+	page, err := s.store.ListAdjustments(ctx, input)
+	if err != nil {
+		return AdjustmentPage{}, fmt.Errorf("list adjustments: %w", err)
+	}
+	return page, nil
 }
 
 func (s *AdjustmentService) PostAdjustment(ctx context.Context, input AdjustmentPostInput) (AdjustmentDocument, error) {

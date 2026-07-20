@@ -7,6 +7,7 @@ import {
   inventoryGateway,
   referenceDataGateway,
 } from "../../gateways/desktopBridge";
+import AdjustmentHistory from "./AdjustmentHistory";
 import ExactReversalForm from "./ExactReversalForm";
 import InventoryLotsView from "./InventoryLotsView";
 
@@ -81,6 +82,8 @@ const InventoryPage = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [adjustmentForm, setAdjustmentForm] = useState(newAdjustmentForm);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [reversalSelection, setReversalSelection] = useState({ documentId: null, requestKey: 0 });
   const activeView = searchParams.get("view") === "lots" ? "lots" : "overview";
 
   const selectView = (view) => {
@@ -213,6 +216,7 @@ const InventoryPage = () => {
         direction: current.direction,
         reasonCode: adjustmentReasons[current.direction][0][0],
       }));
+      setHistoryRefreshKey((current) => current + 1);
       await loadBalances();
     } catch (err) {
       console.error("Erro ao postar ajuste:", err);
@@ -220,6 +224,13 @@ const InventoryPage = () => {
     } finally {
       setPostingAdjustment(false);
     }
+  };
+
+  const selectAdjustmentForReversal = (documentId) => {
+    setReversalSelection((current) => ({
+      documentId,
+      requestKey: current.requestKey + 1,
+    }));
   };
 
   return (
@@ -490,7 +501,17 @@ const InventoryPage = () => {
               </div>
             </section>
 
-            <ExactReversalForm onPosted={() => void loadBalances()} />
+            <AdjustmentHistory
+              items={balances}
+              refreshKey={historyRefreshKey}
+              onReverse={selectAdjustmentForReversal}
+            />
+
+            <ExactReversalForm
+              prefillDocumentId={reversalSelection.documentId}
+              prefillRequestKey={reversalSelection.requestKey}
+              onPosted={() => void loadBalances()}
+            />
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}

@@ -48,6 +48,7 @@ or expiry differs.
 - Preview automatic FEFO allocation.
 - Post an opening balance.
 - Post positive or negative reasoned adjustments.
+- Read recent adjustment documents and select one for exact reversal.
 - Record a physical count and post its calculated difference.
 - Reconcile projections against ledger replay.
 

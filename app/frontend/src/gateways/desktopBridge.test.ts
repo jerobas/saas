@@ -367,7 +367,7 @@ describe("desktop bridge", () => {
     expect(postPurchase).toHaveBeenCalledWith(request);
   });
 
-  it("forwards adjustment posting calls to the V2 adjustment handler", async () => {
+  it("forwards adjustment listing and posting calls to the V2 adjustment handler", async () => {
     const response = {
       id: 41,
       idempotencyKey: "adjustment-1",
@@ -392,10 +392,13 @@ describe("desktop bridge", () => {
         },
       ],
     };
+    const page = { items: [response], next: null };
+    const listAdjustments = vi.fn().mockResolvedValue(page);
     const postAdjustment = vi.fn().mockResolvedValue(response);
     window.go = {
       service: {
         AdjustmentHandler: {
+          ListAdjustments: listAdjustments,
           PostAdjustment: postAdjustment,
         },
       },
@@ -416,8 +419,11 @@ describe("desktop bridge", () => {
         },
       ],
     };
+    const listRequest = { pageSize: 8 };
 
+    await expect(adjustmentGateway.listAdjustments(listRequest)).resolves.toEqual(page);
     await expect(adjustmentGateway.postAdjustment(request)).resolves.toEqual(response);
+    expect(listAdjustments).toHaveBeenCalledWith(listRequest);
     expect(postAdjustment).toHaveBeenCalledWith(request);
   });
 

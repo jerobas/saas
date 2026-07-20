@@ -12,6 +12,34 @@ import (
 	"github.com/jerobas/saas/internal/domain"
 )
 
+const (
+	adjustmentDefaultPageSize = 50
+	adjustmentMaximumPageSize = 100
+)
+
+type AdjustmentCursor struct {
+	PostingSequence domain.PostingSequence
+	ID              domain.StockDocumentID
+}
+
+type AdjustmentListFilter struct {
+	After    domain.Option[AdjustmentCursor]
+	PageSize int
+}
+
+type AdjustmentPage struct {
+	items []PostedAdjustmentDocument
+	next  domain.Option[AdjustmentCursor]
+}
+
+func (p AdjustmentPage) Items() []PostedAdjustmentDocument {
+	items := make([]PostedAdjustmentDocument, len(p.items))
+	copy(items, p.items)
+	return items
+}
+
+func (p AdjustmentPage) Next() domain.Option[AdjustmentCursor] { return p.next }
+
 type PostAdjustmentInput struct {
 	IdempotencyKey domain.IdempotencyKey
 	OccurredOn     domain.BusinessDate
@@ -162,6 +190,104 @@ func NewAdjustmentAllocation(id domain.LotAllocationID, lotID domain.InventoryLo
 func (a AdjustmentAllocation) ID() domain.LotAllocationID      { return a.id }
 func (a AdjustmentAllocation) LotID() domain.InventoryLotID    { return a.lotID }
 func (a AdjustmentAllocation) Quantity() domain.AtomicQuantity { return a.quantity }
+
+func (s *Store) ListPostedAdjustments(ctx context.Context, filter AdjustmentListFilter) (AdjustmentPage, error) {
+	pageSize, err := adjustmentPageSize(filter.PageSize)
+	if err != nil {
+		return AdjustmentPage{}, err
+	}
+	var page AdjustmentPage
+	err = s.database.Read(ctx, func(tx *database.ReadTx) error {
+		documentIDs, err := listPostedAdjustmentIDs(ctx, tx, filter.After, pageSize+1)
+		if err != nil {
+			return err
+		}
+		hasMore := len(documentIDs) > pageSize
+		if hasMore {
+			documentIDs = documentIDs[:pageSize]
+		}
+		items := make([]PostedAdjustmentDocument, 0, len(documentIDs))
+		for _, id := range documentIDs {
+			document, err := loadPostedAdjustmentDocument(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			items = append(items, document)
+		}
+		next := domain.None[AdjustmentCursor]()
+		if hasMore && len(items) > 0 {
+			last := items[len(items)-1]
+			next = domain.Some(AdjustmentCursor{
+				PostingSequence: last.PostingSequence(),
+				ID:              last.ID(),
+			})
+		}
+		page = AdjustmentPage{items: items, next: next}
+		return nil
+	})
+	if err != nil {
+		return AdjustmentPage{}, classifyError("list posted adjustments", err)
+	}
+	return page, nil
+}
+
+func adjustmentPageSize(requested int) (int, error) {
+	if requested == 0 {
+		return adjustmentDefaultPageSize, nil
+	}
+	if requested < 1 || requested > adjustmentMaximumPageSize {
+		return 0, domain.Invalid("page_size", domain.ViolationOutOfRange, "")
+	}
+	return requested, nil
+}
+
+func listPostedAdjustmentIDs(
+	ctx context.Context,
+	tx databaseWriteTx,
+	after domain.Option[AdjustmentCursor],
+	limit int,
+) ([]int64, error) {
+	args := []any{limit}
+	query := `
+		SELECT id
+		FROM stock_documents
+		WHERE kind = 'ADJUSTMENT'
+		ORDER BY posting_sequence DESC, id DESC
+		LIMIT ?
+	`
+	if cursor, ok := after.Get(); ok {
+		if cursor.PostingSequence.IsZero() || cursor.ID.IsZero() {
+			return nil, domain.Invalid("cursor", domain.ViolationInvalidFormat, "")
+		}
+		args = []any{cursor.PostingSequence.Int64(), cursor.PostingSequence.Int64(), cursor.ID.Int64(), limit}
+		query = `
+			SELECT id
+			FROM stock_documents
+			WHERE kind = 'ADJUSTMENT'
+			  AND (posting_sequence < ? OR (posting_sequence = ? AND id < ?))
+			ORDER BY posting_sequence DESC, id DESC
+			LIMIT ?
+		`
+	}
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
 
 func (s *Store) PostAdjustment(ctx context.Context, input PostAdjustmentInput) (PostedAdjustmentDocument, error) {
 	var posted PostedAdjustmentDocument

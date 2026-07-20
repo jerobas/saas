@@ -535,6 +535,13 @@ func TestPhase5BackendSurfaceForSettingsUnitsCatalogAndCounterparties(t *testing
 	if len(adjustment.Lines[0].Allocations) != 1 || adjustment.Lines[0].Allocations[0].QuantityAtomic != 250 {
 		t.Fatalf("adjustment allocations = %#v", adjustment.Lines[0].Allocations)
 	}
+	adjustmentPage, err := adjustmentHandler.ListAdjustments(dto.AdjustmentListRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("list adjustments: %v", err)
+	}
+	if len(adjustmentPage.Items) != 1 || adjustmentPage.Items[0].ID != adjustment.ID {
+		t.Fatalf("adjustment page = %#v", adjustmentPage)
+	}
 
 	adjustedBalance, err := inventoryHandler.GetInventoryBalance(restoredItem.ID)
 	if err != nil {

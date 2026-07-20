@@ -34,6 +34,26 @@ type AdjustmentDocumentResponse struct {
 	Lines               []AdjustmentLineResponse `json:"lines"`
 }
 
+type AdjustmentCursorRequest struct {
+	PostingSequence int64 `json:"postingSequence"`
+	ID              int64 `json:"id"`
+}
+
+type AdjustmentCursorResponse struct {
+	PostingSequence int64 `json:"postingSequence"`
+	ID              int64 `json:"id"`
+}
+
+type AdjustmentListRequest struct {
+	After    *AdjustmentCursorRequest `json:"after,omitempty"`
+	PageSize int                      `json:"pageSize,omitempty"`
+}
+
+type AdjustmentPageResponse struct {
+	Items []AdjustmentDocumentResponse `json:"items"`
+	Next  *AdjustmentCursorResponse    `json:"next,omitempty"`
+}
+
 type AdjustmentLineResponse struct {
 	ID                        int64                          `json:"id"`
 	LineOrder                 int64                          `json:"lineOrder"`

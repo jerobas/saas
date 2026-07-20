@@ -1,9 +1,11 @@
 import { ArrowCounterClockwise, Warning } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type ReversalDocumentResponse, reversalGateway } from "../../gateways/desktopBridge";
 
 interface ExactReversalFormProps {
   onPosted?: (reversal: ReversalDocumentResponse) => void;
+  prefillDocumentId?: number | null;
+  prefillRequestKey?: number;
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -16,7 +18,12 @@ const optionalText = (value: string) => {
 const buildIdempotencyKey = () =>
   `reversal-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-function ExactReversalForm({ onPosted }: ExactReversalFormProps) {
+function ExactReversalForm({
+  onPosted,
+  prefillDocumentId,
+  prefillRequestKey,
+}: ExactReversalFormProps) {
+  const targetInputRef = useRef<HTMLInputElement>(null);
   const [targetDocumentId, setTargetDocumentId] = useState("");
   const [occurredOn, setOccurredOn] = useState(todayISO);
   const [notes, setNotes] = useState("");
@@ -24,6 +31,14 @@ function ExactReversalForm({ onPosted }: ExactReversalFormProps) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [latestReversal, setLatestReversal] = useState<ReversalDocumentResponse | null>(null);
+
+  useEffect(() => {
+    if (!prefillDocumentId || prefillDocumentId <= 0) return;
+    setTargetDocumentId(String(prefillDocumentId));
+    setMessage(null);
+    setLatestReversal(null);
+    targetInputRef.current?.focus();
+  }, [prefillDocumentId, prefillRequestKey]);
 
   const postReversal = async () => {
     if (saving) return;
@@ -114,6 +129,7 @@ function ExactReversalForm({ onPosted }: ExactReversalFormProps) {
         <label className="block text-sm font-semibold text-slate-700">
           ID do documento
           <input
+            ref={targetInputRef}
             inputMode="numeric"
             value={targetDocumentId}
             onChange={(event) => setTargetDocumentId(event.target.value)}

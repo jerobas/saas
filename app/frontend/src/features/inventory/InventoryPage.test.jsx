@@ -6,6 +6,7 @@ import InventoryPage from "./InventoryPage";
 
 const gatewayMocks = vi.hoisted(() => ({
   adjustmentGateway: {
+    listAdjustments: vi.fn(),
     postAdjustment: vi.fn(),
   },
   inventoryGateway: {
@@ -76,6 +77,7 @@ describe("InventoryPage", () => {
     gatewayMocks.inventoryGateway.listInventoryBalances.mockResolvedValue(balancePage);
     gatewayMocks.inventoryGateway.listItemLotFacts.mockResolvedValue([butterLot]);
     gatewayMocks.referenceDataGateway.listMeasurementUnits.mockResolvedValue([gram]);
+    gatewayMocks.adjustmentGateway.listAdjustments.mockResolvedValue({ items: [], next: null });
     gatewayMocks.adjustmentGateway.postAdjustment.mockResolvedValue({
       id: 40,
       idempotencyKey: "adjustment-test",
@@ -144,5 +146,45 @@ describe("InventoryPage", () => {
     expect(await screen.findByText("MANTEIGA-01")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Itens em estoque" })).toBeInTheDocument();
     expect(gatewayMocks.inventoryGateway.listItemLotFacts).toHaveBeenCalledWith(10);
+  });
+
+  it("prefills exact reversal from recent adjustment history", async () => {
+    const user = userEvent.setup();
+    gatewayMocks.adjustmentGateway.listAdjustments.mockResolvedValue({
+      items: [
+        {
+          id: 40,
+          idempotencyKey: "adjustment-test",
+          postingSequence: 2,
+          occurredOn: "2026-07-16",
+          postedAtMs: 1_700_000_000_001,
+          currencyCode: "BRL",
+          currencyMinorDigits: 2,
+          reasonCode: "WASTE",
+          lines: [
+            {
+              id: 50,
+              lineOrder: 1,
+              itemId: 10,
+              direction: "OUT",
+              quantityAtomic: 250,
+              enteredUnitCode: "g",
+              conversionNumeratorAtomic: 1000,
+              conversionDenominator: 1,
+              inventoryValueMicro: 1_250_000,
+              allocations: [],
+            },
+          ],
+        },
+      ],
+      next: null,
+    });
+
+    renderInventory();
+
+    await user.click(await screen.findByRole("button", { name: "Reverter ajuste #40" }));
+
+    expect(screen.getByLabelText("ID do documento")).toHaveValue("40");
+    expect(screen.getByLabelText("ID do documento")).toHaveFocus();
   });
 });

@@ -19,6 +19,18 @@ func NewAdjustmentHandler(service *application.AdjustmentService) *AdjustmentHan
 	return &AdjustmentHandler{service: service}
 }
 
+func (h *AdjustmentHandler) ListAdjustments(req dto.AdjustmentListRequest) (dto.AdjustmentPageResponse, error) {
+	input, err := parseAdjustmentListRequest(req)
+	if err != nil {
+		return dto.AdjustmentPageResponse{}, err
+	}
+	page, err := h.service.ListAdjustments(handlerContext(), input)
+	if err != nil {
+		return dto.AdjustmentPageResponse{}, fmt.Errorf("list adjustments: %w", err)
+	}
+	return mapAdjustmentPage(page), nil
+}
+
 func (h *AdjustmentHandler) PostAdjustment(req dto.AdjustmentPostRequest) (dto.AdjustmentDocumentResponse, error) {
 	input, err := parseAdjustmentPostRequest(req)
 	if err != nil {
@@ -67,6 +79,26 @@ func parseAdjustmentPostRequest(req dto.AdjustmentPostRequest) (application.Adju
 		Notes:          notes,
 		Lines:          lines,
 	}, nil
+}
+
+func parseAdjustmentListRequest(req dto.AdjustmentListRequest) (application.AdjustmentListInput, error) {
+	pageSize := req.PageSize
+	if pageSize == 0 {
+		pageSize = 50
+	}
+	after := domain.None[application.AdjustmentCursor]()
+	if req.After != nil {
+		postingSequence, err := domain.NewPostingSequence(req.After.PostingSequence)
+		if err != nil {
+			return application.AdjustmentListInput{}, fmt.Errorf("cursor posting sequence: %w", err)
+		}
+		id, err := domain.NewStockDocumentID(req.After.ID)
+		if err != nil {
+			return application.AdjustmentListInput{}, fmt.Errorf("cursor id: %w", err)
+		}
+		after = domain.Some(application.AdjustmentCursor{PostingSequence: postingSequence, ID: id})
+	}
+	return application.AdjustmentListInput{After: after, PageSize: pageSize}, nil
 }
 
 func parseAdjustmentLineRequest(req dto.AdjustmentLineRequest) (application.AdjustmentLineInput, error) {
@@ -140,6 +172,23 @@ func mapAdjustmentDocument(document application.AdjustmentDocument) dto.Adjustme
 	}
 	for _, line := range lines {
 		response.Lines = append(response.Lines, mapAdjustmentLine(line))
+	}
+	return response
+}
+
+func mapAdjustmentPage(page application.AdjustmentPage) dto.AdjustmentPageResponse {
+	items := page.Items()
+	response := dto.AdjustmentPageResponse{
+		Items: make([]dto.AdjustmentDocumentResponse, 0, len(items)),
+	}
+	for _, item := range items {
+		response.Items = append(response.Items, mapAdjustmentDocument(item))
+	}
+	if cursor, ok := page.Next().Get(); ok {
+		response.Next = &dto.AdjustmentCursorResponse{
+			PostingSequence: cursor.PostingSequence.Int64(),
+			ID:              cursor.ID.Int64(),
+		}
 	}
 	return response
 }

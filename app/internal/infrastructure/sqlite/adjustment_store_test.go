@@ -88,6 +88,53 @@ func TestAdjustmentStorePostsPositiveAdjustmentLotAndBalance(t *testing.T) {
 	if replayed.ID() != posted.ID() || !replayed.PostedAt().Equal(posted.PostedAt()) {
 		t.Fatalf("replayed = %#v, want original %#v", replayed, posted)
 	}
+
+	second, err := store.PostAdjustment(ctx, PostAdjustmentInput{
+		IdempotencyKey: mustPurchaseIdempotencyKey(t, "adjustment-in-2"),
+		OccurredOn:     mustPurchaseDate(t, "2026-07-16"),
+		PostedAt:       mustCatalogInstant(t, 4_000),
+		Reason:         domain.ReasonOpeningBalance,
+		Lines: []PostAdjustmentLineInput{
+			{
+				ItemID:         item.Item().ID(),
+				Direction:      domain.DirectionIn,
+				Quantity:       mustPurchaseQuantity(t, 100),
+				EnteredUnit:    mustCatalogUnitCode(t, "g"),
+				Conversion:     mustCatalogConversion(t, 1_000, 1),
+				InventoryValue: domain.Some(mustInventoryValue(t, 500_000)),
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post second adjustment: %v", err)
+	}
+
+	firstPage, err := store.ListPostedAdjustments(ctx, AdjustmentListFilter{PageSize: 1})
+	if err != nil {
+		t.Fatalf("list first adjustment page: %v", err)
+	}
+	firstItems := firstPage.Items()
+	if len(firstItems) != 1 || firstItems[0].ID() != second.ID() {
+		t.Fatalf("first page = %#v, want second adjustment first", firstItems)
+	}
+	if _, ok := firstPage.Next().Get(); !ok {
+		t.Fatal("first adjustment page should have a next cursor")
+	}
+
+	secondPage, err := store.ListPostedAdjustments(ctx, AdjustmentListFilter{
+		After:    firstPage.Next(),
+		PageSize: 1,
+	})
+	if err != nil {
+		t.Fatalf("list second adjustment page: %v", err)
+	}
+	secondItems := secondPage.Items()
+	if len(secondItems) != 1 || secondItems[0].ID() != posted.ID() {
+		t.Fatalf("second page = %#v, want original adjustment", secondItems)
+	}
+	if _, ok := secondPage.Next().Get(); ok {
+		t.Fatalf("second page next = %#v, want none", secondPage.Next())
+	}
 }
 
 func TestAdjustmentStorePostsNegativeAdjustmentWithFEFOAllocations(t *testing.T) {

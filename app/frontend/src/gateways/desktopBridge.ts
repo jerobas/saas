@@ -436,6 +436,26 @@ export interface AdjustmentDocumentResponse {
   lines: AdjustmentLineResponse[];
 }
 
+export interface AdjustmentCursorRequest {
+  postingSequence: number;
+  id: number;
+}
+
+export interface AdjustmentCursorResponse {
+  postingSequence: number;
+  id: number;
+}
+
+export interface AdjustmentListRequest {
+  after?: AdjustmentCursorRequest | null;
+  pageSize?: number;
+}
+
+export interface AdjustmentPageResponse {
+  items: AdjustmentDocumentResponse[];
+  next?: AdjustmentCursorResponse | null;
+}
+
 export interface AdjustmentLineResponse {
   id: number;
   lineOrder: number;
@@ -982,6 +1002,8 @@ export const purchaseGateway = {
 };
 
 export const adjustmentGateway = {
+  listAdjustments: (request: AdjustmentListRequest) =>
+    invoke<AdjustmentPageResponse>("AdjustmentHandler", "ListAdjustments", request),
   postAdjustment: (request: AdjustmentPostRequest) =>
     invoke<AdjustmentDocumentResponse>("AdjustmentHandler", "PostAdjustment", request),
 };

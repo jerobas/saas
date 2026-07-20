@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 
+	"github.com/jerobas/saas/internal/domain"
 	"github.com/jerobas/saas/internal/infrastructure/sqlite"
 )
 
@@ -15,6 +16,40 @@ func NewSQLiteAdjustmentStore(store *sqlite.Store) AdjustmentStore {
 		panic("sqlite adjustment store requires a store")
 	}
 	return &sqliteAdjustmentStore{store: store}
+}
+
+func (s *sqliteAdjustmentStore) ListAdjustments(ctx context.Context, input AdjustmentListInput) (AdjustmentPage, error) {
+	after := domain.None[sqlite.AdjustmentCursor]()
+	if cursor, ok := input.After.Get(); ok {
+		after = domain.Some(sqlite.AdjustmentCursor{
+			PostingSequence: cursor.PostingSequence,
+			ID:              cursor.ID,
+		})
+	}
+	page, err := s.store.ListPostedAdjustments(ctx, sqlite.AdjustmentListFilter{
+		After:    after,
+		PageSize: input.PageSize,
+	})
+	if err != nil {
+		return AdjustmentPage{}, err
+	}
+	sourceItems := page.Items()
+	items := make([]AdjustmentDocument, 0, len(sourceItems))
+	for _, posted := range sourceItems {
+		mapped, err := mapSQLitePostedAdjustment(posted)
+		if err != nil {
+			return AdjustmentPage{}, err
+		}
+		items = append(items, mapped)
+	}
+	next := domain.None[AdjustmentCursor]()
+	if cursor, ok := page.Next().Get(); ok {
+		next = domain.Some(AdjustmentCursor{
+			PostingSequence: cursor.PostingSequence,
+			ID:              cursor.ID,
+		})
+	}
+	return NewAdjustmentPage(items, next), nil
 }
 
 func (s *sqliteAdjustmentStore) PostAdjustment(ctx context.Context, input adjustmentPostStoreInput) (AdjustmentDocument, error) {
