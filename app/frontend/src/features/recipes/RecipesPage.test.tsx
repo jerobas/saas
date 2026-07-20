@@ -49,6 +49,12 @@ const componentItem = {
   archivedAtMs: null,
 };
 
+const secondComponentItem = {
+  ...componentItem,
+  id: 12,
+  name: "Acucar",
+};
+
 const revision = {
   id: 30,
   recipeId: 20,
@@ -64,6 +70,17 @@ const revision = {
       order: 1,
       itemId: 11,
       quantityAtomic: 500,
+      enteredUnitCode: "g",
+      conversionNumeratorAtomic: 1000,
+      conversionDenominator: 1,
+      createdAtMs: 1_700_000_000_100,
+    },
+    {
+      id: 32,
+      revisionId: 30,
+      order: 2,
+      itemId: 12,
+      quantityAtomic: 200,
       enteredUnitCode: "g",
       conversionNumeratorAtomic: 1000,
       conversionDenominator: 1,
@@ -101,8 +118,14 @@ describe("RecipesPage", () => {
   beforeEach(() => {
     gatewayMocks.catalogGateway.listItems
       .mockResolvedValueOnce({ items: [outputItem], next: null })
-      .mockResolvedValueOnce({ items: [outputItem, componentItem], next: null })
-      .mockResolvedValue({ items: [outputItem, componentItem], next: null });
+      .mockResolvedValueOnce({
+        items: [outputItem, componentItem, secondComponentItem],
+        next: null,
+      })
+      .mockResolvedValue({
+        items: [outputItem, componentItem, secondComponentItem],
+        next: null,
+      });
     gatewayMocks.recipeGateway.listRecipes
       .mockResolvedValueOnce({ items: [], next: null })
       .mockResolvedValue({ items: [recipeSummary], next: null });
@@ -144,8 +167,11 @@ describe("RecipesPage", () => {
     await user.type(screen.getByLabelText("Rendimento atomico"), "1000");
     await user.clear(screen.getByLabelText("Preparo min."));
     await user.type(screen.getByLabelText("Preparo min."), "45");
-    await user.selectOptions(screen.getByLabelText("Componente"), "11");
-    await user.type(screen.getByLabelText("Quantidade atomica do componente"), "500");
+    await user.selectOptions(screen.getByLabelText("Item do componente 1"), "11");
+    await user.type(screen.getByLabelText("Quantidade atomica 1"), "500");
+    await user.click(screen.getByRole("button", { name: "Adicionar componente" }));
+    await user.selectOptions(screen.getByLabelText("Item do componente 2"), "12");
+    await user.type(screen.getByLabelText("Quantidade atomica 2"), "200");
     await user.type(screen.getByLabelText("Instrucoes"), "Misture e asse.");
     await user.click(screen.getByRole("button", { name: "Criar" }));
 
@@ -164,12 +190,20 @@ describe("RecipesPage", () => {
             sourceType: "UNIT",
             unitCode: "g",
           },
+          {
+            order: 2,
+            itemId: 12,
+            quantityAtomic: 200,
+            sourceType: "UNIT",
+            unitCode: "g",
+          },
         ],
       },
     });
     expect(await screen.findByText('Receita "Receita de bolo" criada.')).toBeInTheDocument();
     expect(await screen.findByText("Revisao 1")).toBeInTheDocument();
     expect(await screen.findByText("1. Farinha")).toBeInTheDocument();
+    expect(await screen.findByText("2. Acucar")).toBeInTheDocument();
     expect(screen.getByText("Atual")).toBeInTheDocument();
     expect(screen.getByText(/Revisao publicada e imutavel/)).toBeInTheDocument();
   });

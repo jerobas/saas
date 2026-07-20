@@ -30,7 +30,7 @@
 
 ## Receitas
 
-- [ ] Melhorar Receitas: permitir múltiplos componentes na UI.
+- [x] Melhorar Receitas: permitir múltiplos componentes na UI.
 - [ ] Melhorar Receitas: permitir escolher componente por embalagem, não só unidade base.
 
 ## Vendas

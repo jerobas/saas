@@ -4,6 +4,7 @@ import {
   FileText,
   PencilSimple,
   Plus,
+  Trash,
   UploadSimple,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -22,9 +23,22 @@ interface RecipeFormState {
   standardYieldQuantityAtomic: string;
   instructions: string;
   preparationTimeMinutes: string;
-  componentItemId: string;
-  componentQuantityAtomic: string;
+  components: RecipeComponentFormState[];
 }
+
+interface RecipeComponentFormState {
+  rowId: number;
+  itemId: string;
+  quantityAtomic: string;
+}
+
+let nextComponentRowId = 0;
+
+const newComponentRow = (): RecipeComponentFormState => ({
+  rowId: ++nextComponentRowId,
+  itemId: "",
+  quantityAtomic: "",
+});
 
 const emptyForm = (): RecipeFormState => ({
   name: "",
@@ -32,8 +46,7 @@ const emptyForm = (): RecipeFormState => ({
   standardYieldQuantityAtomic: "1000",
   instructions: "",
   preparationTimeMinutes: "0",
-  componentItemId: "",
-  componentQuantityAtomic: "",
+  components: [newComponentRow()],
 });
 
 const parseInteger = (value: string) => {
@@ -58,17 +71,6 @@ function RecipesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  const selectedComponentItem = useMemo(
-    () => componentItems.find((item) => String(item.id) === form.componentItemId) ?? null,
-    [form.componentItemId, componentItems],
-  );
-
-  const availableComponentItems = useMemo(
-    () =>
-      componentItems.filter((item) => String(item.id) !== form.outputItemId && activeOnly(item)),
-    [componentItems, form.outputItemId],
-  );
 
   const catalogItemNames = useMemo(() => {
     const names = new Map<number, string>();
@@ -121,7 +123,20 @@ function RecipesPage() {
       setForm((current) => ({
         ...current,
         outputItemId: current.outputItemId || String(produciblePage.items[0]?.id ?? ""),
-        componentItemId: current.componentItemId || String(itemPage.items[0]?.id ?? ""),
+        components: current.components.map((component, index) => ({
+          ...component,
+          itemId:
+            component.itemId ||
+            (index === 0
+              ? String(
+                  itemPage.items.find(
+                    (item) =>
+                      activeOnly(item) &&
+                      item.id !== Number(current.outputItemId || produciblePage.items[0]?.id || 0),
+                  )?.id ?? "",
+                )
+              : ""),
+        })),
       }));
     } catch (error) {
       setMessage({
@@ -139,30 +154,55 @@ function RecipesPage() {
 
   const buildRevisionRequest = () => {
     const outputItemId = parseInteger(form.outputItemId);
-    const componentItemId = parseInteger(form.componentItemId);
     const standardYieldQuantityAtomic = parseInteger(form.standardYieldQuantityAtomic);
-    const componentQuantityAtomic = parseInteger(form.componentQuantityAtomic);
     const preparationTimeMinutes = parseInteger(form.preparationTimeMinutes);
 
-    if (
-      !outputItemId ||
-      !componentItemId ||
-      !standardYieldQuantityAtomic ||
-      !componentQuantityAtomic
-    ) {
+    if (!outputItemId || !standardYieldQuantityAtomic) {
       setMessage({
         type: "error",
-        text: "Informe item de saida, rendimento, componente e quantidade.",
+        text: "Informe item de saida e rendimento.",
       });
       return null;
     }
-    if (outputItemId === componentItemId) {
-      setMessage({ type: "error", text: "A receita nao pode consumir o proprio item de saida." });
-      return null;
-    }
-    if (!selectedComponentItem) {
-      setMessage({ type: "error", text: "Selecione um componente valido." });
-      return null;
+
+    const componentRequests = [];
+    const selectedItemIds = new Set<number>();
+    for (const [index, component] of form.components.entries()) {
+      const componentItemId = parseInteger(component.itemId);
+      const componentQuantityAtomic = parseInteger(component.quantityAtomic);
+      if (!componentItemId || !componentQuantityAtomic || componentQuantityAtomic <= 0) {
+        setMessage({
+          type: "error",
+          text: `Informe item e quantidade positiva para o componente ${index + 1}.`,
+        });
+        return null;
+      }
+      if (outputItemId === componentItemId) {
+        setMessage({ type: "error", text: "A receita nao pode consumir o proprio item de saida." });
+        return null;
+      }
+      if (selectedItemIds.has(componentItemId)) {
+        setMessage({ type: "error", text: "Cada componente pode aparecer apenas uma vez." });
+        return null;
+      }
+      const selectedItem = componentItems.find(
+        (item) => item.id === componentItemId && activeOnly(item),
+      );
+      if (!selectedItem) {
+        setMessage({
+          type: "error",
+          text: `Selecione um componente valido na linha ${index + 1}.`,
+        });
+        return null;
+      }
+      selectedItemIds.add(componentItemId);
+      componentRequests.push({
+        order: index + 1,
+        itemId: componentItemId,
+        quantityAtomic: componentQuantityAtomic,
+        sourceType: "UNIT" as const,
+        unitCode: selectedItem.baseUnitCode,
+      });
     }
 
     return {
@@ -171,17 +211,57 @@ function RecipesPage() {
         standardYieldQuantityAtomic,
         instructions: form.instructions,
         preparationTimeMinutes: preparationTimeMinutes ?? 0,
-        components: [
-          {
-            order: 1,
-            itemId: componentItemId,
-            quantityAtomic: componentQuantityAtomic,
-            sourceType: "UNIT" as const,
-            unitCode: selectedComponentItem.baseUnitCode,
-          },
-        ],
+        components: componentRequests,
       },
     };
+  };
+
+  const updateOutputItem = (outputItemId: string) => {
+    setForm((current) => ({
+      ...current,
+      outputItemId,
+      components: current.components.map((component) => ({
+        ...component,
+        itemId: component.itemId === outputItemId ? "" : component.itemId,
+      })),
+    }));
+  };
+
+  const updateComponent = (rowId: number, field: "itemId" | "quantityAtomic", value: string) => {
+    setForm((current) => ({
+      ...current,
+      components: current.components.map((component) =>
+        component.rowId === rowId ? { ...component, [field]: value } : component,
+      ),
+    }));
+  };
+
+  const addComponent = () => {
+    setForm((current) => ({
+      ...current,
+      components: [...current.components, newComponentRow()],
+    }));
+  };
+
+  const removeComponent = (rowId: number) => {
+    setForm((current) => ({
+      ...current,
+      components: current.components.filter((component) => component.rowId !== rowId),
+    }));
+  };
+
+  const availableItemsForComponent = (rowId: number) => {
+    const selectedByOtherRows = new Set(
+      form.components
+        .filter((component) => component.rowId !== rowId && component.itemId)
+        .map((component) => component.itemId),
+    );
+    return componentItems.filter(
+      (item) =>
+        activeOnly(item) &&
+        String(item.id) !== form.outputItemId &&
+        !selectedByOtherRows.has(String(item.id)),
+    );
   };
 
   const createRecipe = async () => {
@@ -343,7 +423,9 @@ function RecipesPage() {
               <FileText size={28} className="text-pink-600" />
               <div>
                 <h2 className="text-lg font-bold text-slate-950">Editar receita</h2>
-                <p className="text-sm text-slate-600">Um componente por vez nesta primeira UI.</p>
+                <p className="text-sm text-slate-600">
+                  Monte a ficha tecnica com todos os componentes necessarios.
+                </p>
               </div>
             </div>
 
@@ -362,14 +444,7 @@ function RecipesPage() {
                 Item de saida
                 <select
                   value={form.outputItemId}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      outputItemId: event.target.value,
-                      componentItemId:
-                        event.target.value === form.componentItemId ? "" : form.componentItemId,
-                    })
-                  }
+                  onChange={(event) => updateOutputItem(event.target.value)}
                   className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
                 >
                   <option value="">Selecione</option>
@@ -404,33 +479,80 @@ function RecipesPage() {
                 </label>
               </div>
 
-              <label className="block text-sm font-semibold text-slate-700">
-                Componente
-                <select
-                  value={form.componentItemId}
-                  onChange={(event) => setForm({ ...form, componentItemId: event.target.value })}
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                >
-                  <option value="">Selecione</option>
-                  {availableComponentItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} / base {item.baseUnitCode}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Componentes</h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      A ordem abaixo sera preservada na revisao imutavel.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addComponent}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-pink-200 bg-white px-3 py-2 text-xs font-semibold text-pink-700 transition hover:bg-pink-50"
+                  >
+                    <Plus size={15} />
+                    Adicionar componente
+                  </button>
+                </div>
 
-              <label className="block text-sm font-semibold text-slate-700">
-                Quantidade atomica do componente
-                <input
-                  value={form.componentQuantityAtomic}
-                  onChange={(event) =>
-                    setForm({ ...form, componentQuantityAtomic: event.target.value })
-                  }
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="500"
-                />
-              </label>
+                <div className="mt-4 space-y-3">
+                  {form.components.map((component, index) => (
+                    <div
+                      key={component.rowId}
+                      className="rounded-xl border border-slate-200 bg-white p-3"
+                    >
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                          Componente {index + 1}
+                        </span>
+                        {form.components.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeComponent(component.rowId)}
+                            aria-label={`Remover componente ${index + 1}`}
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash size={16} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-[1fr_130px]">
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Item do componente {index + 1}
+                          <select
+                            value={component.itemId}
+                            onChange={(event) =>
+                              updateComponent(component.rowId, "itemId", event.target.value)
+                            }
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
+                          >
+                            <option value="">Selecione</option>
+                            {availableItemsForComponent(component.rowId).map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name} / base {item.baseUnitCode}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Quantidade atomica {index + 1}
+                          <input
+                            value={component.quantityAtomic}
+                            onChange={(event) =>
+                              updateComponent(component.rowId, "quantityAtomic", event.target.value)
+                            }
+                            inputMode="numeric"
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
+                            placeholder="500"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               <label className="block text-sm font-semibold text-slate-700">
                 Instrucoes
@@ -464,8 +586,8 @@ function RecipesPage() {
               </div>
 
               <p className="text-xs text-slate-500">
-                Por enquanto a UI usa unidade base do componente. Embalagens ja existem no contrato,
-                mas podem entrar no proximo polimento.
+                Cada componente ainda usa sua unidade base. A escolha por embalagem entra no proximo
+                polimento.
               </p>
             </div>
           </div>
