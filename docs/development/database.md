@@ -144,3 +144,17 @@ Restore may return only when one restart-based workflow can:
 
 Until those steps and their failure-path tests exist, export is the only
 supported database lifecycle operation.
+
+## Disposable demo database
+
+`scripts/demo-data.ps1` creates a separate, marker-protected database for manual
+UI testing. It posts fixtures through the application/Wails boundaries instead
+of inserting business rows directly. The default path is the ignored
+`tmp/demo-data` directory and can be launched with the same `SAAS_DATA_DIR`
+override used by normal development.
+
+The script's `Clean -Force` action removes the complete fixture directory after
+the application is closed. It requires the exact demo marker and refuses the
+repository root, filesystem roots, `%APPDATA%\saas-dev`, and the packaged
+default data directory. It is not a reset or deletion mechanism for a real
+Sweeters database.

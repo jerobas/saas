@@ -54,6 +54,36 @@ $env:SAAS_DATA_DIR = "C:\temp\sweeters-data"
 .\scripts\dev.ps1
 ```
 
+## Generate disposable demo data
+
+To exercise inventory, sales, and dashboard screens with a larger local dataset,
+create a dedicated demo database:
+
+```powershell
+.\scripts\demo-data.ps1 Seed
+.\scripts\demo-data.ps1 Start
+```
+
+The default fixture contains suppliers, customers, ingredients, products,
+packagings, purchase lots, and six months of sales. Increase or reduce the
+number of sales generated per month with `-Scale`:
+
+```powershell
+.\scripts\demo-data.ps1 Seed -Scale 60
+```
+
+After closing the application, remove the entire disposable database and every
+record generated inside it:
+
+```powershell
+.\scripts\demo-data.ps1 Clean -Force
+```
+
+The workflow defaults to the ignored `tmp/demo-data` directory. Cleanup requires
+its exact marker file and refuses the normal development and packaged data
+directories, so it never performs row-by-row deletion in a real Sweeters
+database.
+
 ## Verify the desktop application
 
 ```powershell
