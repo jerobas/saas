@@ -38,12 +38,12 @@ O backend de reporting já tem endpoints reais separados por domínio e o dashbo
   - receita/comercial em `commercialTotalMinor`;
   - estoque/COGS/margem em `inventoryValueMicro`;
   - frontend formatando cada escala explicitamente.
-- [ ] Documentar a decisão final sobre documentos revertidos no dashboard operacional: documentos revertidos e documentos `REVERSAL` ficam fora dos agregados visíveis e entram futuramente em auditoria.
+- [x] Documentar a decisão final sobre documentos revertidos no dashboard operacional: documentos revertidos e documentos `REVERSAL` ficam fora dos agregados visíveis e entram futuramente em auditoria.
 
-## Conversas de arquitetura para retomar
+## Arquitetura e organização
 
-- [ ] Discutir se `desktopBridge.ts` deve ser dividido por feature/gateway antes de mexer.
-- [ ] Discutir o formato de uma convenção curta de arquitetura: onde novos arquivos entram, nomes de camadas e limites entre feature/presentation/application/domain/infrastructure.
+- [ ] Planejar a divisão de `desktopBridge.ts` em gateways por feature antes de implementar.
+- [ ] Criar uma convenção curta de arquitetura: onde novos arquivos entram, nomes de camadas e limites entre feature/presentation/application/domain/infrastructure.
 
 ## Backlog adiado
 

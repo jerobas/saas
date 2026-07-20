@@ -20,6 +20,20 @@ documents, lines, lots, allocations, recipes, and `inventory_balances`.
   visibility.
 - Empty databases return zero values and empty series/tables, not errors.
 
+## Reversal policy
+
+Operational reporting treats an exact reversal as a correction, not as a new
+business event.
+
+- Documents that were exactly reversed are excluded from visible sales,
+  purchase, production, and adjustment aggregates.
+- `REVERSAL` documents are also excluded from those normal business aggregates.
+- `GetAdjustmentReport.ExactReversals` is the current operational summary for
+  reversal volume/value. Detailed reversal audit can become a separate report
+  later.
+- Inventory reporting reads current lot/balance projections, so it naturally
+  reflects reversal effects after the projection is updated.
+
 ## Endpoint surface
 
 The dashboard composes the domain-specific endpoints below instead of using a
