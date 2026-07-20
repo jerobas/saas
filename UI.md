@@ -50,7 +50,7 @@ cards/gráficos fake por esses dados reais.
   - número de vendas;
   - produtos ativos/cadastrados;
   - crescimento versus período anterior.
-- [ ] Substituir os gráficos visíveis por dados reais, mantendo o layout atual:
+- [x] Substituir os gráficos visíveis por dados reais, mantendo o layout atual:
   - vendas/receita por período;
   - top produtos vendidos;
   - receita mensal;

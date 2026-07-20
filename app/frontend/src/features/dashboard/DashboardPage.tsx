@@ -19,6 +19,7 @@ import { ArrowUpRight, Package, ShoppingCart, CurrencyDollar } from "@phosphor-i
 import {
   catalogGateway,
   reportingGateway,
+  type CategoryMixReportResponse,
   type ReportingPeriodRequest,
   type SalesReportResponse,
 } from "../../gateways/desktopBridge";
@@ -36,7 +37,9 @@ interface HiddenReportingDump {
 
 interface DashboardMetricData {
   salesReport: SalesReportResponse | null;
+  monthlySalesReport: SalesReportResponse | null;
   activeProductCount: number | null;
+  categoryMixReport: CategoryMixReportResponse | null;
 }
 
 interface DashboardMetricsState extends DashboardMetricData {
@@ -58,6 +61,16 @@ const defaultReportingPeriod = (): ReportingPeriodRequest => {
   return {
     fromOccurredOn: businessDate(firstDayOfMonth),
     toOccurredOn: businessDate(today),
+    granularity: "DAY",
+  };
+};
+
+const monthlyReportingPeriod = (): ReportingPeriodRequest => {
+  const today = new Date();
+  const firstMonth = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+  return {
+    fromOccurredOn: businessDate(firstMonth),
+    toOccurredOn: businessDate(today),
     granularity: "MONTH",
   };
 };
@@ -65,6 +78,7 @@ const defaultReportingPeriod = (): ReportingPeriodRequest => {
 const loadHiddenReportingDump = async (
   period: ReportingPeriodRequest,
   salesReportPromise: Promise<SalesReportResponse>,
+  categoryMixReportPromise: Promise<CategoryMixReportResponse>,
 ): Promise<Record<string, ReportingEndpointResult>> => {
   const endpoints: ReportingEndpoint[] = [
     ["salesReport", () => salesReportPromise],
@@ -72,7 +86,7 @@ const loadHiddenReportingDump = async (
     ["purchaseReport", () => reportingGateway.getPurchaseReport(period)],
     ["productionReport", () => reportingGateway.getProductionReport(period)],
     ["adjustmentReport", () => reportingGateway.getAdjustmentReport(period)],
-    ["categoryMixReport", () => reportingGateway.getCategoryMixReport(period)],
+    ["categoryMixReport", () => categoryMixReportPromise],
   ];
 
   const entries = await Promise.all(
@@ -114,14 +128,21 @@ const loadActiveProductCount = async () => {
 
 const loadVisibleMetrics = async (
   salesReportPromise: Promise<SalesReportResponse>,
+  monthlySalesReportPromise: Promise<SalesReportResponse>,
+  categoryMixReportPromise: Promise<CategoryMixReportResponse>,
 ): Promise<DashboardMetricData> => {
-  const [salesResult, productsResult] = await Promise.allSettled([
-    salesReportPromise,
-    loadActiveProductCount(),
-  ]);
+  const [salesResult, monthlySalesResult, productsResult, categoryMixResult] =
+    await Promise.allSettled([
+      salesReportPromise,
+      monthlySalesReportPromise,
+      loadActiveProductCount(),
+      categoryMixReportPromise,
+    ]);
   return {
     salesReport: salesResult.status === "fulfilled" ? salesResult.value : null,
+    monthlySalesReport: monthlySalesResult.status === "fulfilled" ? monthlySalesResult.value : null,
     activeProductCount: productsResult.status === "fulfilled" ? productsResult.value : null,
+    categoryMixReport: categoryMixResult.status === "fulfilled" ? categoryMixResult.value : null,
   };
 };
 
@@ -153,24 +174,34 @@ const DashboardPage = () => {
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetricsState>(() => ({
     status: "idle",
     salesReport: null,
+    monthlySalesReport: null,
     activeProductCount: null,
+    categoryMixReport: null,
   }));
 
   useEffect(() => {
     let cancelled = false;
     const period = defaultReportingPeriod();
     const salesReportPromise = reportingGateway.getSalesReport(period);
+    const monthlySalesReportPromise = reportingGateway.getSalesReport(monthlyReportingPeriod());
+    const categoryMixReportPromise = reportingGateway.getCategoryMixReport(period);
 
     setHiddenReportingDump({
       status: "loading",
       period,
       endpoints: {},
     });
-    setDashboardMetrics({ status: "loading", salesReport: null, activeProductCount: null });
+    setDashboardMetrics({
+      status: "loading",
+      salesReport: null,
+      monthlySalesReport: null,
+      activeProductCount: null,
+      categoryMixReport: null,
+    });
 
     Promise.all([
-      loadHiddenReportingDump(period, salesReportPromise),
-      loadVisibleMetrics(salesReportPromise),
+      loadHiddenReportingDump(period, salesReportPromise, categoryMixReportPromise),
+      loadVisibleMetrics(salesReportPromise, monthlySalesReportPromise, categoryMixReportPromise),
     ]).then(([endpoints, metrics]) => {
       if (cancelled) {
         return;
@@ -188,34 +219,42 @@ const DashboardPage = () => {
     };
   }, []);
 
-  // Preview data kept intentionally until the visible widgets use the wired V2 reports.
-  const salesdData = [
-    { month: "Jan", sales: 4000, revenue: 2400 },
-    { month: "Fev", sales: 3000, revenue: 1398 },
-    { month: "Mar", sales: 2000, revenue: 9800 },
-    { month: "Abr", sales: 2780, revenue: 3908 },
-    { month: "Mai", sales: 1890, revenue: 4800 },
-    { month: "Jun", sales: 2390, revenue: 3800 },
-  ];
-
-  const topProductsData = [
-    { name: "Bolo de Chocolate", sales: 450 },
-    { name: "Brigadeiro", sales: 380 },
-    { name: "Mousse", sales: 320 },
-    { name: "Torta de Morango", sales: 290 },
-    { name: "Docinhos", sales: 250 },
-  ];
-
-  const categoriesData = [
-    { name: "Bolos", value: 35 },
-    { name: "Doces", value: 25 },
-    { name: "Tortas", value: 20 },
-    { name: "Outros", value: 20 },
-  ];
-
   const COLORS = ["#ec4899", "#f472b6", "#fbcfe8", "#fce7f3"];
 
   const salesReport = dashboardMetrics.salesReport;
+  const monthlySalesReport = dashboardMetrics.monthlySalesReport;
+  const currencyDivisor = salesReport ? 10 ** salesReport.currencyMinorDigits : 100;
+  const monthlyCurrencyDivisor = monthlySalesReport
+    ? 10 ** monthlySalesReport.currencyMinorDigits
+    : 100;
+  const salesRevenueData =
+    salesReport?.salesRevenueSeries.map((row) => ({
+      period: row.label,
+      sales: row.salesCount,
+      revenue: row.commercialTotalMinor / currencyDivisor,
+    })) ?? [];
+  const monthlyRevenueData =
+    monthlySalesReport?.monthlyRevenueSeries.map((row) => ({
+      period: row.label,
+      revenue: row.commercialTotalMinor / monthlyCurrencyDivisor,
+    })) ?? [];
+  const monthlySalesData =
+    monthlySalesReport?.monthlySalesSeries.map((row) => ({
+      period: row.label,
+      sales: row.salesCount,
+    })) ?? [];
+  const topProductsData =
+    salesReport?.topProductsByQuantity.map((row) => ({
+      name: row.itemName,
+      sales: row.quantityAtomic,
+    })) ?? [];
+  const categoriesData =
+    dashboardMetrics.categoryMixReport?.available === true
+      ? dashboardMetrics.categoryMixReport.rows.map((row) => ({
+          name: row.categoryName,
+          value: row.shareBasisPoints / 100,
+        }))
+      : [];
   const loadingMetric = dashboardMetrics.status !== "loaded" ? "..." : "—";
 
   const metrics = [
@@ -281,8 +320,8 @@ const DashboardPage = () => {
 
       <div className="bg-amber-50 border-b border-amber-100">
         <div className="max-w-7xl mx-auto px-6 py-3 text-sm text-amber-900">
-          Os cards já usam dados reais. Os gráficos abaixo ainda preservam dados de demonstração até
-          a próxima etapa visual.
+          Indicadores e gráficos usam relatórios reais. O mix por categoria permanece indisponível
+          porque o catálogo V2 ainda não possui categorias.
         </div>
       </div>
 
@@ -377,9 +416,9 @@ const DashboardPage = () => {
               >
                 <h2 className="text-xl font-bold text-slate-900 mb-6">Vendas e Receita</h2>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={salesdData}>
+                  <LineChart data={salesRevenueData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" stroke="#94a3b8" />
+                    <XAxis dataKey="period" stroke="#94a3b8" />
                     <YAxis stroke="#94a3b8" />
                     <Tooltip
                       contentStyle={{
@@ -393,6 +432,7 @@ const DashboardPage = () => {
                     <Line
                       type="monotone"
                       dataKey="sales"
+                      name="Vendas"
                       stroke="#ec4899"
                       strokeWidth={2}
                       dot={{ fill: "#ec4899" }}
@@ -401,6 +441,7 @@ const DashboardPage = () => {
                     <Line
                       type="monotone"
                       dataKey="revenue"
+                      name="Receita"
                       stroke="#8b5cf6"
                       strokeWidth={2}
                       dot={{ fill: "#8b5cf6" }}
@@ -418,25 +459,35 @@ const DashboardPage = () => {
                 className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm"
               >
                 <h2 className="text-xl font-bold text-slate-900 mb-6">Categorias</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={categoriesData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name} ${value}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoriesData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `${value}%`} />
-                  </PieChart>
-                </ResponsiveContainer>
+                {categoriesData.length === 0 ? (
+                  <div className="flex h-[300px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 text-center">
+                    <p className="font-semibold text-slate-800">Mix por categoria indisponível</p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      O catálogo V2 ainda não possui categorias. O gráfico será ativado quando essa
+                      dimensão existir.
+                    </p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={categoriesData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, value }) => `${name} ${value}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {categoriesData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => `${value}%`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </motion.div>
             </div>
 
@@ -461,7 +512,12 @@ const DashboardPage = () => {
                       color: "#fff",
                     }}
                   />
-                  <Bar dataKey="sales" fill="#ec4899" radius={[8, 8, 0, 0]} />
+                  <Bar
+                    dataKey="sales"
+                    name="Quantidade vendida"
+                    fill="#ec4899"
+                    radius={[8, 8, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </motion.div>
@@ -478,9 +534,9 @@ const DashboardPage = () => {
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
               <h2 className="text-2xl font-bold text-slate-900 mb-6">Receita Mensal</h2>
               <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={salesdData}>
+                <LineChart data={monthlyRevenueData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="month" stroke="#94a3b8" />
+                  <XAxis dataKey="period" stroke="#94a3b8" />
                   <YAxis stroke="#94a3b8" />
                   <Tooltip
                     contentStyle={{
@@ -494,6 +550,7 @@ const DashboardPage = () => {
                   <Line
                     type="monotone"
                     dataKey="revenue"
+                    name="Receita"
                     stroke="#10b981"
                     strokeWidth={3}
                     dot={{ fill: "#10b981", r: 6 }}
@@ -515,9 +572,9 @@ const DashboardPage = () => {
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
               <h2 className="text-2xl font-bold text-slate-900 mb-6">Vendas Mensais</h2>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={salesdData}>
+                <BarChart data={monthlySalesData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="month" stroke="#94a3b8" />
+                  <XAxis dataKey="period" stroke="#94a3b8" />
                   <YAxis stroke="#94a3b8" />
                   <Tooltip
                     contentStyle={{
@@ -527,7 +584,7 @@ const DashboardPage = () => {
                       color: "#fff",
                     }}
                   />
-                  <Bar dataKey="sales" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="sales" name="Vendas" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -558,7 +615,12 @@ const DashboardPage = () => {
                       color: "#fff",
                     }}
                   />
-                  <Bar dataKey="sales" fill="#a855f7" radius={[0, 8, 8, 0]} />
+                  <Bar
+                    dataKey="sales"
+                    name="Quantidade vendida"
+                    fill="#a855f7"
+                    radius={[0, 8, 8, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
