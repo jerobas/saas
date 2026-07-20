@@ -3,16 +3,16 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import AppLayout from "./components/AppLayout";
 import { AppProvider } from "./context/AppContext";
 
-const BatchesPage = lazy(() => import("./pages/BatchesPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const DatabasePage = lazy(() => import("./pages/DatabasePage"));
-const EnterprisePage = lazy(() => import("./pages/EnterprisePage"));
-const InventoryPage = lazy(() => import("./pages/InventoryPage"));
-const ProductsPage = lazy(() => import("./pages/ProductsPage"));
-const ProductionPage = lazy(() => import("./pages/ProductionPage"));
-const PurchasesPage = lazy(() => import("./pages/PurchasesPage"));
-const RecipesPage = lazy(() => import("./pages/RecipesPage"));
-const SalesPage = lazy(() => import("./pages/SalesPage"));
+const BatchesPage = lazy(() => import("./features/inventory/BatchesPage"));
+const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage"));
+const DatabasePage = lazy(() => import("./features/database/DatabasePage"));
+const EnterprisePage = lazy(() => import("./features/settings/EnterprisePage"));
+const InventoryPage = lazy(() => import("./features/inventory/InventoryPage"));
+const ProductsPage = lazy(() => import("./features/catalog/ProductsPage"));
+const ProductionPage = lazy(() => import("./features/production/ProductionPage"));
+const PurchasesPage = lazy(() => import("./features/purchases/PurchasesPage"));
+const RecipesPage = lazy(() => import("./features/recipes/RecipesPage"));
+const SalesPage = lazy(() => import("./features/sales/SalesPage"));
 
 const desktopPage = (page: ReactNode) => (
   <AppLayout>

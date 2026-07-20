@@ -11,7 +11,7 @@ import {
   type RecipeResponse,
   type RecipeSummaryResponse,
   recipeGateway,
-} from "../gateways/desktopBridge";
+} from "../../gateways/desktopBridge";
 
 interface ProductionComponentFormState {
   itemId: number;

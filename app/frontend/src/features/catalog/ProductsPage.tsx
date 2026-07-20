@@ -8,7 +8,7 @@ import {
   type MeasurementUnitResponse,
   type PackagingResponse,
   referenceDataGateway,
-} from "../gateways/desktopBridge";
+} from "../../gateways/desktopBridge";
 
 interface ItemFormState {
   name: string;

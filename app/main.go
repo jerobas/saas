@@ -11,7 +11,6 @@ import (
 	"github.com/jerobas/saas/internal/application"
 	"github.com/jerobas/saas/internal/infrastructure/sqlite"
 	presentationwails "github.com/jerobas/saas/internal/presentation/wails"
-	"github.com/jerobas/saas/service"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -60,7 +59,7 @@ func main() {
 	defer db.Close()
 
 	app := NewApp()
-	databaseService := service.NewDatabaseService(db)
+	databaseService := presentationwails.NewDatabaseService(db)
 	app.DatabaseService = databaseService
 
 	sqliteStore := sqlite.NewStore(db)

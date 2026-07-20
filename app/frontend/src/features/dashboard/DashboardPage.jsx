@@ -16,7 +16,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ArrowUpRight, Package, ShoppingCart, CurrencyDollar } from "@phosphor-icons/react";
-import { reportingGateway } from "../gateways/desktopBridge";
+import { reportingGateway } from "../../gateways/desktopBridge";
 
 const businessDate = (date) => {
   const year = date.getFullYear();

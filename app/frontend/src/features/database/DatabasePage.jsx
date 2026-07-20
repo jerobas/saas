@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExportDatabase } from "../gateways/desktopBridge";
+import { ExportDatabase } from "../../gateways/desktopBridge";
 
 const DatabasePage = () => {
   const [status, setStatus] = useState("");

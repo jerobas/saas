@@ -20,7 +20,7 @@ const gatewayMocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../gateways/desktopBridge", () => gatewayMocks);
+vi.mock("../../gateways/desktopBridge", () => gatewayMocks);
 
 const gram = {
   code: "g",

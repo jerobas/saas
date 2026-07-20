@@ -11,15 +11,15 @@ vi.mock("./components/AppLayout", () => ({
   default: ({ children }: PropsWithChildren) => <main>{children}</main>,
 }));
 
-vi.mock("./pages/DashboardPage", () => ({ default: () => <h1>Dashboard</h1> }));
-vi.mock("./pages/InventoryPage", () => ({ default: () => <h1>Inventory</h1> }));
-vi.mock("./pages/BatchesPage", () => ({ default: () => <h1>Batches</h1> }));
-vi.mock("./pages/RecipesPage", () => ({ default: () => <h1>Recipes</h1> }));
-vi.mock("./pages/ProductsPage", () => ({ default: () => <h1>Products</h1> }));
-vi.mock("./pages/ProductionPage", () => ({ default: () => <h1>Production</h1> }));
-vi.mock("./pages/SalesPage", () => ({ default: () => <h1>Sales</h1> }));
-vi.mock("./pages/EnterprisePage", () => ({ default: () => <h1>Enterprise</h1> }));
-vi.mock("./pages/DatabasePage", () => ({ default: () => <h1>Database</h1> }));
+vi.mock("./features/dashboard/DashboardPage", () => ({ default: () => <h1>Dashboard</h1> }));
+vi.mock("./features/inventory/InventoryPage", () => ({ default: () => <h1>Inventory</h1> }));
+vi.mock("./features/inventory/BatchesPage", () => ({ default: () => <h1>Batches</h1> }));
+vi.mock("./features/recipes/RecipesPage", () => ({ default: () => <h1>Recipes</h1> }));
+vi.mock("./features/catalog/ProductsPage", () => ({ default: () => <h1>Products</h1> }));
+vi.mock("./features/production/ProductionPage", () => ({ default: () => <h1>Production</h1> }));
+vi.mock("./features/sales/SalesPage", () => ({ default: () => <h1>Sales</h1> }));
+vi.mock("./features/settings/EnterprisePage", () => ({ default: () => <h1>Enterprise</h1> }));
+vi.mock("./features/database/DatabasePage", () => ({ default: () => <h1>Database</h1> }));
 
 describe("desktop routes", () => {
   beforeEach(() => {

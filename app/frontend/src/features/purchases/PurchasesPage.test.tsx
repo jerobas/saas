@@ -17,7 +17,7 @@ const gatewayMocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../gateways/desktopBridge", () => gatewayMocks);
+vi.mock("../../gateways/desktopBridge", () => gatewayMocks);
 
 const flourSummary = {
   id: 10,

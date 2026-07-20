@@ -14,7 +14,7 @@ import {
   type RecipeResponse,
   type RecipeRevisionResponse,
   type RecipeSummaryResponse,
-} from "../gateways/desktopBridge";
+} from "../../gateways/desktopBridge";
 
 interface RecipeFormState {
   name: string;

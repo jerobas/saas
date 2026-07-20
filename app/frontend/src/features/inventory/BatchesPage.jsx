@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { Package, Warning } from "@phosphor-icons/react";
-import { inventoryGateway } from "../gateways/desktopBridge";
+import { inventoryGateway } from "../../gateways/desktopBridge";
 
 const integerFormatter = new Intl.NumberFormat("pt-BR");
 

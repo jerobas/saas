@@ -13,7 +13,7 @@ import {
   type CounterpartyRole,
   settingsGateway,
   type SettingsResponse,
-} from "../gateways/desktopBridge";
+} from "../../gateways/desktopBridge";
 
 interface SettingsFormState {
   businessName: string;

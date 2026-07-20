@@ -5,7 +5,7 @@ import {
   adjustmentGateway,
   inventoryGateway,
   referenceDataGateway,
-} from "../gateways/desktopBridge";
+} from "../../gateways/desktopBridge";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",

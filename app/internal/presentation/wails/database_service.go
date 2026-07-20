@@ -1,18 +1,19 @@
-package service
+package wails
 
 import (
 	"context"
 	"errors"
 
+	"github.com/jerobas/saas/database"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type DatabaseService struct {
-	db  *Database
+	db  *database.Database
 	ctx context.Context
 }
 
-func NewDatabaseService(db *Database) *DatabaseService {
+func NewDatabaseService(db *database.Database) *DatabaseService {
 	return &DatabaseService{db: db}
 }
 
