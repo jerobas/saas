@@ -12,7 +12,7 @@
 
 O backend de reporting já tem endpoints reais separados por domínio e o dashboard já faz o wiring oculto deles. A próxima decisão é visual: quando trocar os cards/gráficos fake por esses dados reais.
 
-- [ ] Decidir se o endpoint agregado `GetDashboardReport` ainda vale a pena ou se os endpoints separados viram a superfície oficial do dashboard.
+- [x] Decidir se o endpoint agregado `GetDashboardReport` ainda vale a pena ou se os endpoints separados viram a superfície oficial do dashboard.
 - [ ] Converter `DashboardPage.jsx` para `DashboardPage.tsx`.
 - [ ] Corrigir textos do dashboard que ainda dizem que as queries reais não existem; hoje o que falta é a visualização real.
 - [ ] Substituir os cards visíveis por dados reais:

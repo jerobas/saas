@@ -19,18 +19,6 @@ func NewReportingHandler(service *application.ReportingService) *ReportingHandle
 	return &ReportingHandler{service: service}
 }
 
-func (h *ReportingHandler) GetDashboardReport(req dto.ReportingPeriodRequest) (dto.DashboardReportResponse, error) {
-	input, err := parseReportingPeriodRequest(req)
-	if err != nil {
-		return dto.DashboardReportResponse{}, err
-	}
-	report, err := h.service.GetDashboardReport(handlerContext(), input)
-	if err != nil {
-		return dto.DashboardReportResponse{}, fmt.Errorf("get dashboard report: %w", err)
-	}
-	return mapDashboardReport(report), nil
-}
-
 func (h *ReportingHandler) GetSalesReport(req dto.ReportingPeriodRequest) (dto.SalesReportResponse, error) {
 	input, err := parseReportingPeriodRequest(req)
 	if err != nil {
@@ -129,10 +117,6 @@ func mapReportingPeriod(input application.ReportingPeriodInput) dto.ReportingPer
 		ToOccurredOn:   input.ToOccurredOn.String(),
 		Granularity:    string(input.Granularity),
 	}
-}
-
-func mapDashboardReport(application.DashboardReport) dto.DashboardReportResponse {
-	return dto.DashboardReportResponse{}
 }
 
 func mapSalesReport(report application.SalesReport) dto.SalesReportResponse {

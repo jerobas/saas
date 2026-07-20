@@ -22,27 +22,14 @@ documents, lines, lots, allocations, recipes, and `inventory_balances`.
 
 ## Endpoint surface
 
-### `GetDashboardReport`
-
-Aggregated endpoint used by the current dashboard page. The first real frontend
-implementation should keep the existing visual layout and connect only the
-current fake cards/charts to real data.
-
-Fields:
-
-- total revenue for the period;
-- number of sales for the period;
-- active/cataloged products;
-- growth versus the previous comparable period;
-- sales and revenue series by day/month;
-- monthly revenue series;
-- monthly sales series;
-- top products by quantity sold;
-- category mix placeholder.
+The dashboard composes the domain-specific endpoints below instead of using a
+separate aggregate endpoint. This keeps each read model small and avoids a
+second contract that would need to mirror sales, inventory, purchase,
+production, adjustment, and category placeholder data.
 
 ### `GetSalesReport`
 
-Sales-focused endpoint for future dashboard/report tabs.
+Sales-focused endpoint for dashboard/report tabs.
 
 Fields:
 
@@ -120,4 +107,3 @@ Fields:
 - `available: false`;
 - empty category rows;
 - reason explaining that catalog categories/tags are not modeled yet.
-

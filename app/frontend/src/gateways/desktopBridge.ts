@@ -775,25 +775,6 @@ export interface ReportingPeriodResponse {
   granularity: ReportingGranularity;
 }
 
-export interface DashboardReportResponse {
-  period: ReportingPeriodResponse;
-  currencyCode: string;
-  currencyMinorDigits: number;
-  cards: DashboardCardsResponse;
-  salesRevenueSeries: ReportingSeriesResponse[];
-  monthlyRevenueSeries: ReportingSeriesResponse[];
-  monthlySalesSeries: ReportingSeriesResponse[];
-  topProductsByQuantity: ReportingItemMetricResponse[];
-  categoryMix: CategoryMixReportResponse;
-}
-
-export interface DashboardCardsResponse {
-  totalRevenueMinor: number;
-  salesCount: number;
-  productCount: number;
-  growthBasisPoints?: number | null;
-}
-
 export interface SalesReportResponse {
   period: ReportingPeriodResponse;
   currencyCode: string;
@@ -1061,8 +1042,6 @@ export const inventoryGateway = {
 };
 
 export const reportingGateway = {
-  getDashboardReport: (request: ReportingPeriodRequest) =>
-    invoke<DashboardReportResponse>("ReportingHandler", "GetDashboardReport", request),
   getSalesReport: (request: ReportingPeriodRequest) =>
     invoke<SalesReportResponse>("ReportingHandler", "GetSalesReport", request),
   getInventoryReport: (request: ReportingPeriodRequest) =>

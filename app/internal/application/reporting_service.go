@@ -2,14 +2,11 @@ package application
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
 	"github.com/jerobas/saas/internal/domain"
 )
-
-var ErrReportingEndpointNotImplemented = errors.New("reporting endpoint not implemented")
 
 type ReportingGranularity string
 
@@ -57,8 +54,6 @@ func NewReportingPeriodInput(from, to domain.BusinessDate, granularity Reporting
 	}
 	return ReportingPeriodInput{FromOccurredOn: from, ToOccurredOn: to, Granularity: granularity}, nil
 }
-
-type DashboardReport struct{}
 
 type SalesReport struct {
 	Period                 ReportingPeriodInput
@@ -258,10 +253,6 @@ func NewReportingService(store ReportingStore) *ReportingService {
 		panic("reporting service requires a store")
 	}
 	return &ReportingService{store: store}
-}
-
-func (s *ReportingService) GetDashboardReport(context.Context, ReportingPeriodInput) (DashboardReport, error) {
-	return DashboardReport{}, ErrReportingEndpointNotImplemented
 }
 
 func (s *ReportingService) GetSalesReport(ctx context.Context, input ReportingPeriodInput) (SalesReport, error) {

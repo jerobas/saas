@@ -12,25 +12,6 @@ type ReportingPeriodResponse struct {
 	Granularity    string `json:"granularity"`
 }
 
-type DashboardReportResponse struct {
-	Period                ReportingPeriodResponse       `json:"period"`
-	CurrencyCode          string                        `json:"currencyCode"`
-	CurrencyMinorDigits   int64                         `json:"currencyMinorDigits"`
-	Cards                 DashboardCardsResponse        `json:"cards"`
-	SalesRevenueSeries    []ReportingSeriesResponse     `json:"salesRevenueSeries"`
-	MonthlyRevenueSeries  []ReportingSeriesResponse     `json:"monthlyRevenueSeries"`
-	MonthlySalesSeries    []ReportingSeriesResponse     `json:"monthlySalesSeries"`
-	TopProductsByQuantity []ReportingItemMetricResponse `json:"topProductsByQuantity"`
-	CategoryMix           CategoryMixReportResponse     `json:"categoryMix"`
-}
-
-type DashboardCardsResponse struct {
-	TotalRevenueMinor int64  `json:"totalRevenueMinor"`
-	SalesCount        int64  `json:"salesCount"`
-	ProductCount      int64  `json:"productCount"`
-	GrowthBasisPoints *int64 `json:"growthBasisPoints,omitempty"`
-}
-
 type SalesReportResponse struct {
 	Period                 ReportingPeriodResponse               `json:"period"`
 	CurrencyCode           string                                `json:"currencyCode"`
