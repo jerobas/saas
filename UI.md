@@ -2,7 +2,7 @@
 
 ## Estoque e lotes
 
-- [ ] Unificar Lotes como uma visão/filtro da página de Estoque, em vez de manter como uma página principal separada.
+- [x] Unificar Lotes como uma visão/filtro da página de Estoque, em vez de manter como uma página principal separada.
 
 ## Compras
 

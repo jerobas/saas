@@ -13,7 +13,6 @@ vi.mock("./components/AppLayout", () => ({
 
 vi.mock("./features/dashboard/DashboardPage", () => ({ default: () => <h1>Dashboard</h1> }));
 vi.mock("./features/inventory/InventoryPage", () => ({ default: () => <h1>Inventory</h1> }));
-vi.mock("./features/inventory/BatchesPage", () => ({ default: () => <h1>Batches</h1> }));
 vi.mock("./features/recipes/RecipesPage", () => ({ default: () => <h1>Recipes</h1> }));
 vi.mock("./features/catalog/ProductsPage", () => ({ default: () => <h1>Products</h1> }));
 vi.mock("./features/production/ProductionPage", () => ({ default: () => <h1>Production</h1> }));
@@ -41,5 +40,14 @@ describe("desktop routes", () => {
 
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/");
+  });
+
+  it("redirects the legacy batches route to the lots inventory view", async () => {
+    window.history.replaceState({}, "", "/batches");
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Inventory" })).toBeInTheDocument();
+    expect(`${window.location.pathname}${window.location.search}`).toBe("/inventory?view=lots");
   });
 });

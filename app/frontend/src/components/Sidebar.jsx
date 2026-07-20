@@ -29,12 +29,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       path: "/inventory",
     },
     {
-      icon: <Package size={24} />,
-      label: "Lotes",
-      id: "batches",
-      path: "/batches",
-    },
-    {
       icon: <FileText size={24} />,
       label: "Compras",
       id: "purchases",

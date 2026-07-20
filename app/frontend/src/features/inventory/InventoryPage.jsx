@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowsClockwise, Package, Warning } from "@phosphor-icons/react";
+import { useSearchParams } from "react-router";
 import {
   adjustmentGateway,
   inventoryGateway,
   referenceDataGateway,
 } from "../../gateways/desktopBridge";
+import InventoryLotsView from "./InventoryLotsView";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -69,6 +71,7 @@ const activeCapabilities = (capabilities) =>
   Object.entries(capabilityLabels).filter(([key]) => capabilities?.[key]);
 
 const InventoryPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [balances, setBalances] = useState([]);
   const [units, setUnits] = useState([]);
   const [search, setSearch] = useState("");
@@ -77,6 +80,16 @@ const InventoryPage = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [adjustmentForm, setAdjustmentForm] = useState(newAdjustmentForm);
+  const activeView = searchParams.get("view") === "lots" ? "lots" : "overview";
+
+  const selectView = (view) => {
+    if (view === "lots") {
+      setSearch("");
+      setSearchParams({ view: "lots" });
+      return;
+    }
+    setSearchParams({});
+  };
 
   const loadBalances = useCallback(async () => {
     try {
@@ -216,7 +229,7 @@ const InventoryPage = () => {
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Estoque</h1>
               <p className="text-slate-600 mt-2">
-                Saldos reais do inventário V2, calculados a partir do ledger local.
+                Consulte saldos e lotes reais calculados a partir do ledger local.
               </p>
             </div>
             <button
@@ -232,9 +245,39 @@ const InventoryPage = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-          O cadastro de itens fica em <strong>Produtos</strong>. Entrada de estoque será feita pelo
-          fluxo de <strong>compras/postagem</strong>; esta tela agora apenas lê os saldos V2 reais.
+        <div
+          role="tablist"
+          aria-label="Visões do estoque"
+          className="mb-6 inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === "overview"}
+            aria-controls="inventory-overview-panel"
+            onClick={() => selectView("overview")}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              activeView === "overview"
+                ? "bg-pink-600 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            Visão geral
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === "lots"}
+            aria-controls="inventory-lots-panel"
+            onClick={() => selectView("lots")}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              activeView === "lots"
+                ? "bg-pink-600 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            Lotes
+          </button>
         </div>
 
         {error && (
@@ -269,277 +312,294 @@ const InventoryPage = () => {
           </motion.div>
         )}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3"
-        >
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <h3 className="text-sm font-medium text-slate-600">Itens com saldo</h3>
-            <p className="mt-2 text-3xl font-bold text-slate-900">{balances.length}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <h3 className="text-sm font-medium text-slate-600">Valor em estoque</h3>
-            <p className="mt-2 text-3xl font-bold text-green-600">
-              {formatInventoryValue(totals.inventoryValueMicro)}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Warning size={20} className="text-orange-600" />
-              <h3 className="text-sm font-medium text-slate-600">Abaixo do ponto de reposição</h3>
+        {activeView === "overview" ? (
+          <div id="inventory-overview-panel" role="tabpanel">
+            <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+              O cadastro de itens fica em <strong>Produtos</strong>. Entradas são criadas pelos
+              fluxos de <strong>compras, produção e ajustes</strong>.
             </div>
-            <p className="mt-2 text-3xl font-bold text-orange-600">{totals.lowStockItems}</p>
-          </div>
-        </motion.div>
 
-        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:flex-row md:items-center">
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar item..."
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 px-4 py-2 outline-none transition focus:border-pink-500 focus:ring-2 focus:ring-pink-100"
-          />
-          <button
-            onClick={() => void loadBalances()}
-            disabled={loading}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-          >
-            Buscar
-          </button>
-        </div>
-
-        <section className="mb-8 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-lg font-semibold text-slate-900">Ajustar estoque</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Posta um documento V2 real: entrada cria lote; saida consome lotes por FEFO.
-            </p>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-4">
-            <label className="block text-sm font-semibold text-slate-700">
-              Item
-              <select
-                value={adjustmentForm.itemId}
-                onChange={(event) =>
-                  setAdjustmentForm({ ...adjustmentForm, itemId: event.target.value })
-                }
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                <option value="">Selecione</option>
-                {balances.map((item) => (
-                  <option key={item.itemId} value={item.itemId}>
-                    {item.itemName}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block text-sm font-semibold text-slate-700">
-              Direcao
-              <select
-                value={adjustmentForm.direction}
-                onChange={(event) => updateAdjustmentDirection(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                <option value="OUT">Saida</option>
-                <option value="IN">Entrada</option>
-              </select>
-            </label>
-
-            <label className="block text-sm font-semibold text-slate-700">
-              Razao
-              <select
-                value={adjustmentForm.reasonCode}
-                onChange={(event) =>
-                  setAdjustmentForm({ ...adjustmentForm, reasonCode: event.target.value })
-                }
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                {adjustmentReasons[adjustmentForm.direction].map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block text-sm font-semibold text-slate-700">
-              Quantidade atomica
-              <input
-                value={adjustmentForm.quantityAtomic}
-                onChange={(event) =>
-                  setAdjustmentForm({ ...adjustmentForm, quantityAtomic: event.target.value })
-                }
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                placeholder="250"
-              />
-            </label>
-          </div>
-
-          {adjustmentForm.direction === "IN" && (
-            <div className="mt-4 grid gap-4 lg:grid-cols-3">
-              <label className="block text-sm font-semibold text-slate-700">
-                Valor de estoque
-                <input
-                  value={adjustmentForm.inventoryValue}
-                  onChange={(event) =>
-                    setAdjustmentForm({ ...adjustmentForm, inventoryValue: event.target.value })
-                  }
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="25,00"
-                />
-              </label>
-              <label className="block text-sm font-semibold text-slate-700">
-                Lote
-                <input
-                  value={adjustmentForm.lotCode}
-                  onChange={(event) =>
-                    setAdjustmentForm({ ...adjustmentForm, lotCode: event.target.value })
-                  }
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                  placeholder="AJUSTE-001"
-                />
-              </label>
-              <label className="block text-sm font-semibold text-slate-700">
-                Validade
-                <input
-                  type="date"
-                  value={adjustmentForm.expiresOn}
-                  onChange={(event) =>
-                    setAdjustmentForm({ ...adjustmentForm, expiresOn: event.target.value })
-                  }
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                />
-              </label>
-            </div>
-          )}
-
-          <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-slate-600">
-              {selectedAdjustmentBalance
-                ? `Saldo atual: ${formatQuantity(
-                    selectedAdjustmentBalance.quantityAtomic,
-                    selectedAdjustmentBalance.baseUnitCode,
-                  )}`
-                : "Selecione um item."}
-            </p>
-            <button
-              type="button"
-              onClick={() => void postAdjustment()}
-              disabled={postingAdjustment || loading || !adjustmentForm.itemId}
-              className="rounded-xl bg-pink-600 px-5 py-3 font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3"
             >
-              {postingAdjustment ? "Postando..." : "Postar ajuste"}
-            </button>
-          </div>
-        </section>
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h3 className="text-sm font-medium text-slate-600">Itens com saldo</h3>
+                <p className="mt-2 text-3xl font-bold text-slate-900">{balances.length}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h3 className="text-sm font-medium text-slate-600">Valor em estoque</h3>
+                <p className="mt-2 text-3xl font-bold text-green-600">
+                  {formatInventoryValue(totals.inventoryValueMicro)}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Warning size={20} className="text-orange-600" />
+                  <h3 className="text-sm font-medium text-slate-600">
+                    Abaixo do ponto de reposição
+                  </h3>
+                </div>
+                <p className="mt-2 text-3xl font-bold text-orange-600">{totals.lowStockItems}</p>
+              </div>
+            </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b border-slate-200 bg-slate-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Item</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Saldo atual
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Valor
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Reposição
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Capacidades
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                    Último documento
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
-                      Carregando saldos...
-                    </td>
-                  </tr>
-                ) : balances.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
-                      <Package size={32} className="mx-auto mb-3 text-slate-400" />
-                      Nenhum saldo de estoque encontrado.
-                    </td>
-                  </tr>
-                ) : (
-                  balances.map((item) => {
-                    const lowStock =
-                      item.reorderQuantityAtomic != null &&
-                      item.quantityAtomic <= item.reorderQuantityAtomic;
-                    const capabilities = activeCapabilities(item.capabilities);
+            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:flex-row md:items-center">
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar item..."
+                className="min-w-0 flex-1 rounded-lg border border-slate-300 px-4 py-2 outline-none transition focus:border-pink-500 focus:ring-2 focus:ring-pink-100"
+              />
+              <button
+                onClick={() => void loadBalances()}
+                disabled={loading}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+              >
+                Buscar
+              </button>
+            </div>
 
-                    return (
-                      <tr
-                        key={item.itemId}
-                        className={`border-b border-slate-100 hover:bg-slate-50 ${
-                          lowStock ? "bg-orange-50" : ""
-                        }`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-slate-900">{item.itemName}</div>
-                          <div className="text-xs text-slate-500">#{item.itemId}</div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-700">
-                          {formatQuantity(item.quantityAtomic, item.baseUnitCode)}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                          {formatInventoryValue(item.inventoryValueMicro)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-700">
-                          {item.reorderQuantityAtomic == null ? (
-                            <span className="text-slate-400">Não definido</span>
-                          ) : (
-                            formatQuantity(item.reorderQuantityAtomic, item.baseUnitCode)
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            {capabilities.length === 0 ? (
-                              <span className="text-sm text-slate-400">Nenhuma</span>
-                            ) : (
-                              capabilities.map(([key, label]) => (
-                                <span
-                                  key={key}
-                                  className="rounded-full bg-pink-50 px-2 py-1 text-xs font-medium text-pink-700"
-                                >
-                                  {label}
-                                </span>
-                              ))
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-700">
-                          {item.lastDocumentId == null ? (
-                            <span className="text-slate-400">Nenhum</span>
-                          ) : (
-                            `#${item.lastDocumentId}`
-                          )}
+            <section className="mb-8 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <div className="mb-5">
+                <h2 className="text-lg font-semibold text-slate-900">Ajustar estoque</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Posta um documento V2 real: entrada cria lote; saida consome lotes por FEFO.
+                </p>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-4">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Item
+                  <select
+                    value={adjustmentForm.itemId}
+                    onChange={(event) =>
+                      setAdjustmentForm({ ...adjustmentForm, itemId: event.target.value })
+                    }
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                  >
+                    <option value="">Selecione</option>
+                    {balances.map((item) => (
+                      <option key={item.itemId} value={item.itemId}>
+                        {item.itemName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-700">
+                  Direcao
+                  <select
+                    value={adjustmentForm.direction}
+                    onChange={(event) => updateAdjustmentDirection(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                  >
+                    <option value="OUT">Saida</option>
+                    <option value="IN">Entrada</option>
+                  </select>
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-700">
+                  Razao
+                  <select
+                    value={adjustmentForm.reasonCode}
+                    onChange={(event) =>
+                      setAdjustmentForm({ ...adjustmentForm, reasonCode: event.target.value })
+                    }
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                  >
+                    {adjustmentReasons[adjustmentForm.direction].map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-700">
+                  Quantidade atomica
+                  <input
+                    value={adjustmentForm.quantityAtomic}
+                    onChange={(event) =>
+                      setAdjustmentForm({ ...adjustmentForm, quantityAtomic: event.target.value })
+                    }
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                    placeholder="250"
+                  />
+                </label>
+              </div>
+
+              {adjustmentForm.direction === "IN" && (
+                <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Valor de estoque
+                    <input
+                      value={adjustmentForm.inventoryValue}
+                      onChange={(event) =>
+                        setAdjustmentForm({ ...adjustmentForm, inventoryValue: event.target.value })
+                      }
+                      className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                      placeholder="25,00"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Lote
+                    <input
+                      value={adjustmentForm.lotCode}
+                      onChange={(event) =>
+                        setAdjustmentForm({ ...adjustmentForm, lotCode: event.target.value })
+                      }
+                      className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                      placeholder="AJUSTE-001"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Validade
+                    <input
+                      type="date"
+                      value={adjustmentForm.expiresOn}
+                      onChange={(event) =>
+                        setAdjustmentForm({ ...adjustmentForm, expiresOn: event.target.value })
+                      }
+                      className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                    />
+                  </label>
+                </div>
+              )}
+
+              <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-slate-600">
+                  {selectedAdjustmentBalance
+                    ? `Saldo atual: ${formatQuantity(
+                        selectedAdjustmentBalance.quantityAtomic,
+                        selectedAdjustmentBalance.baseUnitCode,
+                      )}`
+                    : "Selecione um item."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void postAdjustment()}
+                  disabled={postingAdjustment || loading || !adjustmentForm.itemId}
+                  className="rounded-xl bg-pink-600 px-5 py-3 font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {postingAdjustment ? "Postando..." : "Postar ajuste"}
+                </button>
+              </div>
+            </section>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-slate-200 bg-slate-50">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                        Item
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                        Saldo atual
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                        Valor
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                        Reposição
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                        Capacidades
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                        Último documento
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                          Carregando saldos...
                         </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                    ) : balances.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                          <Package size={32} className="mx-auto mb-3 text-slate-400" />
+                          Nenhum saldo de estoque encontrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      balances.map((item) => {
+                        const lowStock =
+                          item.reorderQuantityAtomic != null &&
+                          item.quantityAtomic <= item.reorderQuantityAtomic;
+                        const capabilities = activeCapabilities(item.capabilities);
+
+                        return (
+                          <tr
+                            key={item.itemId}
+                            className={`border-b border-slate-100 hover:bg-slate-50 ${
+                              lowStock ? "bg-orange-50" : ""
+                            }`}
+                          >
+                            <td className="px-6 py-4">
+                              <div className="font-medium text-slate-900">{item.itemName}</div>
+                              <div className="text-xs text-slate-500">#{item.itemId}</div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-slate-700">
+                              {formatQuantity(item.quantityAtomic, item.baseUnitCode)}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                              {formatInventoryValue(item.inventoryValueMicro)}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-slate-700">
+                              {item.reorderQuantityAtomic == null ? (
+                                <span className="text-slate-400">Não definido</span>
+                              ) : (
+                                formatQuantity(item.reorderQuantityAtomic, item.baseUnitCode)
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-2">
+                                {capabilities.length === 0 ? (
+                                  <span className="text-sm text-slate-400">Nenhuma</span>
+                                ) : (
+                                  capabilities.map(([key, label]) => (
+                                    <span
+                                      key={key}
+                                      className="rounded-full bg-pink-50 px-2 py-1 text-xs font-medium text-pink-700"
+                                    >
+                                      {label}
+                                    </span>
+                                  ))
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-slate-700">
+                              {item.lastDocumentId == null ? (
+                                <span className="text-slate-400">Nenhum</span>
+                              ) : (
+                                `#${item.lastDocumentId}`
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
+        ) : (
+          <div id="inventory-lots-panel" role="tabpanel">
+            <InventoryLotsView balances={balances} loadingBalances={loading} />
+          </div>
+        )}
       </main>
     </>
   );

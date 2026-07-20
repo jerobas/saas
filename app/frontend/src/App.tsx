@@ -3,7 +3,6 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import AppLayout from "./components/AppLayout";
 import { AppProvider } from "./context/AppContext";
 
-const BatchesPage = lazy(() => import("./features/inventory/BatchesPage"));
 const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage"));
 const DatabasePage = lazy(() => import("./features/database/DatabasePage"));
 const EnterprisePage = lazy(() => import("./features/settings/EnterprisePage"));
@@ -27,7 +26,7 @@ function App() {
         <Routes>
           <Route path="/" element={desktopPage(<DashboardPage />)} />
           <Route path="/inventory" element={desktopPage(<InventoryPage />)} />
-          <Route path="/batches" element={desktopPage(<BatchesPage />)} />
+          <Route path="/batches" element={<Navigate to="/inventory?view=lots" replace />} />
           <Route path="/purchases" element={desktopPage(<PurchasesPage />)} />
           <Route path="/production" element={desktopPage(<ProductionPage />)} />
           <Route path="/recipes" element={desktopPage(<RecipesPage />)} />
