@@ -6,7 +6,7 @@
 
 ## Compras
 
-- [ ] Redesenhar Compra como documento com cabeçalho compartilhado e múltiplas linhas:
+- [x] Redesenhar Compra como documento com cabeçalho compartilhado e múltiplas linhas:
   - fornecedor, data de ocorrência e observações no topo;
   - busca rápida de item + botão adicionar;
   - linhas editáveis para quantidade, unidade/embalagem, valor, lote e validade.

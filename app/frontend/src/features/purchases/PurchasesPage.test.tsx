@@ -48,6 +48,19 @@ const flourDetail = {
   packagings: [],
 };
 
+const sugarSummary = {
+  ...flourSummary,
+  id: 11,
+  name: "Açúcar",
+  sku: "ACU-001",
+};
+
+const sugarDetail = {
+  ...sugarSummary,
+  baseUnit: flourDetail.baseUnit,
+  packagings: [],
+};
+
 const supplier = {
   id: 20,
   name: "Fornecedor",
@@ -85,13 +98,33 @@ const postedPurchase = {
       originatedOn: "2026-07-15",
       expiresOn: null,
     },
+    {
+      id: 41,
+      lineOrder: 2,
+      itemId: 11,
+      quantityAtomic: 500,
+      enteredUnitCode: "g",
+      conversionNumeratorAtomic: 1000,
+      conversionDenominator: 1,
+      inventoryValueMicro: 20_000_000,
+      commercialTotalMinor: 2000,
+      lotId: 51,
+      lotCode: null,
+      originatedOn: "2026-07-15",
+      expiresOn: null,
+    },
   ],
 };
 
 describe("PurchasesPage", () => {
   beforeEach(() => {
-    gatewayMocks.catalogGateway.listItems.mockResolvedValue({ items: [flourSummary], next: null });
-    gatewayMocks.catalogGateway.getItem.mockResolvedValue(flourDetail);
+    gatewayMocks.catalogGateway.listItems.mockResolvedValue({
+      items: [flourSummary, sugarSummary],
+      next: null,
+    });
+    gatewayMocks.catalogGateway.getItem.mockImplementation((itemId: number) =>
+      Promise.resolve(itemId === sugarDetail.id ? sugarDetail : flourDetail),
+    );
     gatewayMocks.counterpartyGateway.listCounterparties.mockResolvedValue({
       items: [supplier],
       next: null,
@@ -107,17 +140,25 @@ describe("PurchasesPage", () => {
     vi.clearAllMocks();
   });
 
-  it("posts a purchase through the V2 gateway and refreshes the history", async () => {
+  it("posts a multi-line purchase through the V2 gateway and refreshes the history", async () => {
     const user = userEvent.setup();
 
     render(<PurchasesPage />);
 
-    expect(await screen.findByText("Farinha")).toBeInTheDocument();
+    await screen.findByRole("button", { name: "Adicionar item" });
     await user.selectOptions(screen.getByLabelText("Fornecedor"), "20");
-    await user.clear(screen.getByLabelText("Quantidade atomica"));
-    await user.type(screen.getByLabelText("Quantidade atomica"), "1000");
-    await user.type(screen.getByLabelText("Total comercial"), "50,00");
-    await user.type(screen.getByLabelText("Lote"), "LOTE-1");
+    await user.selectOptions(screen.getByLabelText("Item para adicionar"), "10");
+    await user.click(screen.getByRole("button", { name: "Adicionar item" }));
+
+    await user.type(screen.getByLabelText("Buscar item"), "acucar");
+    await user.selectOptions(screen.getByLabelText("Item para adicionar"), "11");
+    await user.click(screen.getByRole("button", { name: "Adicionar item" }));
+
+    await user.type(screen.getByLabelText("Quantidade atômica da linha 1"), "1000");
+    await user.type(screen.getByLabelText("Valor da linha 1"), "50,00");
+    await user.type(screen.getByLabelText("Lote da linha 1"), "LOTE-1");
+    await user.type(screen.getByLabelText("Quantidade atômica da linha 2"), "500");
+    await user.type(screen.getByLabelText("Valor da linha 2"), "20,00");
     await user.click(screen.getByRole("button", { name: "Postar compra" }));
 
     expect(gatewayMocks.purchaseGateway.postPurchase).toHaveBeenCalledWith(
@@ -134,12 +175,20 @@ describe("PurchasesPage", () => {
             commercialTotalMinor: 5000,
             lotCode: "LOTE-1",
           }),
+          expect.objectContaining({
+            itemId: 11,
+            quantityAtomic: 500,
+            enteredUnitCode: "g",
+            conversionNumeratorAtomic: 1000,
+            conversionDenominator: 1,
+            commercialTotalMinor: 2000,
+          }),
         ],
       }),
     );
     expect(await screen.findByText("#30 / seq 1")).toBeInTheDocument();
     expect(screen.getByText("Detalhe da compra: linhas, lotes e valores")).toBeInTheDocument();
-    expect(screen.getByText("Lote criado")).toBeInTheDocument();
+    expect(screen.getAllByText("Lote criado")).toHaveLength(2);
     expect(screen.getByText(/lote #50/)).toBeInTheDocument();
   });
 });
