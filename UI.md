@@ -45,7 +45,7 @@ cards/gráficos fake por esses dados reais.
 
 - [x] Converter `DashboardPage.jsx` para `DashboardPage.tsx`.
 - [x] Corrigir textos do dashboard que ainda dizem que as queries reais não existem; hoje o que falta é a visualização real.
-- [ ] Substituir os cards visíveis por dados reais:
+- [x] Substituir os cards visíveis por dados reais:
   - receita do período;
   - número de vendas;
   - produtos ativos/cadastrados;

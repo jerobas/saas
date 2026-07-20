@@ -16,7 +16,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ArrowUpRight, Package, ShoppingCart, CurrencyDollar } from "@phosphor-icons/react";
-import { reportingGateway, type ReportingPeriodRequest } from "../../gateways/desktopBridge";
+import {
+  catalogGateway,
+  reportingGateway,
+  type ReportingPeriodRequest,
+  type SalesReportResponse,
+} from "../../gateways/desktopBridge";
 
 type DashboardTab = "overview" | "revenue" | "sales" | "products";
 
@@ -27,6 +32,15 @@ interface HiddenReportingDump {
   status: "idle" | "loading" | "loaded";
   period: ReportingPeriodRequest | null;
   endpoints: Record<string, ReportingEndpointResult>;
+}
+
+interface DashboardMetricData {
+  salesReport: SalesReportResponse | null;
+  activeProductCount: number | null;
+}
+
+interface DashboardMetricsState extends DashboardMetricData {
+  status: "idle" | "loading" | "loaded";
 }
 
 type ReportingEndpoint = [name: string, load: () => Promise<unknown>];
@@ -50,9 +64,10 @@ const defaultReportingPeriod = (): ReportingPeriodRequest => {
 
 const loadHiddenReportingDump = async (
   period: ReportingPeriodRequest,
+  salesReportPromise: Promise<SalesReportResponse>,
 ): Promise<Record<string, ReportingEndpointResult>> => {
   const endpoints: ReportingEndpoint[] = [
-    ["salesReport", () => reportingGateway.getSalesReport(period)],
+    ["salesReport", () => salesReportPromise],
     ["inventoryReport", () => reportingGateway.getInventoryReport(period)],
     ["purchaseReport", () => reportingGateway.getPurchaseReport(period)],
     ["productionReport", () => reportingGateway.getProductionReport(period)],
@@ -79,6 +94,55 @@ const loadHiddenReportingDump = async (
   return Object.fromEntries(entries);
 };
 
+const loadActiveProductCount = async () => {
+  let count = 0;
+  let after: { name: string; id: number } | undefined;
+
+  do {
+    const page = await catalogGateway.listItems({
+      archiveFilter: "ACTIVE",
+      requireCapabilities: { purchasable: false, producible: false, sellable: false },
+      after,
+      pageSize: 100,
+    });
+    count += page.items.length;
+    after = page.next ? { name: page.next.name, id: page.next.id } : undefined;
+  } while (after);
+
+  return count;
+};
+
+const loadVisibleMetrics = async (
+  salesReportPromise: Promise<SalesReportResponse>,
+): Promise<DashboardMetricData> => {
+  const [salesResult, productsResult] = await Promise.allSettled([
+    salesReportPromise,
+    loadActiveProductCount(),
+  ]);
+  return {
+    salesReport: salesResult.status === "fulfilled" ? salesResult.value : null,
+    activeProductCount: productsResult.status === "fulfilled" ? productsResult.value : null,
+  };
+};
+
+const formatMoney = (minor: number, currencyCode: string, minorDigits: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: currencyCode,
+    minimumFractionDigits: minorDigits,
+    maximumFractionDigits: minorDigits,
+  }).format(minor / 10 ** minorDigits);
+
+const formatCount = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
+
+const formatGrowth = (basisPoints: number | null | undefined) => {
+  if (basisPoints === null || basisPoints === undefined) return "Sem comparativo";
+  const value = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(
+    basisPoints / 100,
+  );
+  return `${basisPoints > 0 ? "+" : ""}${value}%`;
+};
+
 const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const [hiddenReportingDump, setHiddenReportingDump] = useState<HiddenReportingDump>(() => ({
@@ -86,18 +150,28 @@ const DashboardPage = () => {
     period: null,
     endpoints: {},
   }));
+  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetricsState>(() => ({
+    status: "idle",
+    salesReport: null,
+    activeProductCount: null,
+  }));
 
   useEffect(() => {
     let cancelled = false;
     const period = defaultReportingPeriod();
+    const salesReportPromise = reportingGateway.getSalesReport(period);
 
     setHiddenReportingDump({
       status: "loading",
       period,
       endpoints: {},
     });
+    setDashboardMetrics({ status: "loading", salesReport: null, activeProductCount: null });
 
-    loadHiddenReportingDump(period).then((endpoints) => {
+    Promise.all([
+      loadHiddenReportingDump(period, salesReportPromise),
+      loadVisibleMetrics(salesReportPromise),
+    ]).then(([endpoints, metrics]) => {
       if (cancelled) {
         return;
       }
@@ -106,6 +180,7 @@ const DashboardPage = () => {
         period,
         endpoints,
       });
+      setDashboardMetrics({ status: "loaded", ...metrics });
     });
 
     return () => {
@@ -140,31 +215,43 @@ const DashboardPage = () => {
 
   const COLORS = ["#ec4899", "#f472b6", "#fbcfe8", "#fce7f3"];
 
+  const salesReport = dashboardMetrics.salesReport;
+  const loadingMetric = dashboardMetrics.status !== "loaded" ? "..." : "—";
+
   const metrics = [
     {
-      title: "Receita Total",
-      value: "R$ 24.500",
+      title: "Receita no período",
+      value: salesReport
+        ? formatMoney(
+            salesReport.commercialTotalMinor,
+            salesReport.currencyCode,
+            salesReport.currencyMinorDigits,
+          )
+        : loadingMetric,
       icon: <CurrencyDollar size={32} />,
       color: "bg-green-100",
       textColor: "text-green-600",
     },
     {
-      title: "Vendas",
-      value: "1.850",
+      title: "Vendas no período",
+      value: salesReport ? formatCount(salesReport.totalSalesCount) : loadingMetric,
       icon: <ShoppingCart size={32} />,
       color: "bg-blue-100",
       textColor: "text-blue-600",
     },
     {
-      title: "Produtos",
-      value: "45",
+      title: "Produtos ativos",
+      value:
+        dashboardMetrics.activeProductCount === null
+          ? loadingMetric
+          : formatCount(dashboardMetrics.activeProductCount),
       icon: <Package size={32} />,
       color: "bg-purple-100",
       textColor: "text-purple-600",
     },
     {
       title: "Crescimento",
-      value: "+12.5%",
+      value: salesReport ? formatGrowth(salesReport.growthBasisPoints) : loadingMetric,
       icon: <ArrowUpRight size={32} />,
       color: "bg-orange-100",
       textColor: "text-orange-600",
@@ -187,15 +274,15 @@ const DashboardPage = () => {
         <div className="max-w-7xl mx-auto px-6 py-8">
           <h1 className="text-3xl font-bold text-slate-900">Painel</h1>
           <p className="text-slate-600 mt-2">
-            Visão geral da operação. Os cards e gráficos visíveis ainda usam dados de demonstração.
+            Visão geral da operação no mês atual, com indicadores calculados pelos relatórios V2.
           </p>
         </div>
       </header>
 
       <div className="bg-amber-50 border-b border-amber-100">
         <div className="max-w-7xl mx-auto px-6 py-3 text-sm text-amber-900">
-          Os relatórios reais do backend V2 já estão conectados. A próxima etapa é apresentar esses
-          dados nos cards e gráficos desta tela.
+          Os cards já usam dados reais. Os gráficos abaixo ainda preservam dados de demonstração até
+          a próxima etapa visual.
         </div>
       </div>
 
