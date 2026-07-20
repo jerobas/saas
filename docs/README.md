@@ -43,6 +43,8 @@ new migration and then every dependent layer.
   where new files belong and how layer/package boundaries should stay readable.
 - [`development/frontend-gateway-split.md`](development/frontend-gateway-split.md):
   planned migration from one desktop bridge file to feature-owned gateways.
+- [`development/session-handoff.md`](development/session-handoff.md): current
+  continuation guide for a fresh Codex session.
 
 Phase 3 replaced the seven experimental migrations with the strict, checksummed
 V2 baseline. Phase 4 removed the incompatible Go persistence layer and added
