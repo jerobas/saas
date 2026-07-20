@@ -25,7 +25,7 @@
 
 ## Ajustes e reversões
 
-- [ ] Adicionar UI mínima para reversão exata de documentos.
+- [x] Adicionar UI mínima para reversão exata de documentos.
 - [ ] Refinar Ajustes: histórico mínimo de documentos e atalho para reversão.
 
 ## Receitas

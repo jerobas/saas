@@ -7,6 +7,7 @@ import {
   inventoryGateway,
   referenceDataGateway,
 } from "../../gateways/desktopBridge";
+import ExactReversalForm from "./ExactReversalForm";
 import InventoryLotsView from "./InventoryLotsView";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -488,6 +489,8 @@ const InventoryPage = () => {
                 </button>
               </div>
             </section>
+
+            <ExactReversalForm onPosted={() => void loadBalances()} />
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
