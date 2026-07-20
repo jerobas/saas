@@ -35,7 +35,7 @@
 
 ## Vendas
 
-- [ ] Refinar Vendas: permitir mais de uma linha/carrinho simples quando o detalhe/listagem estiver confortável.
+- [x] Refinar Vendas: permitir mais de uma linha/carrinho simples quando o detalhe/listagem estiver confortável.
 
 ## Dashboard / reporting visual
 
