@@ -10,7 +10,7 @@
   - fornecedor, data de ocorrência e observações no topo;
   - busca rápida de item + botão adicionar;
   - linhas editáveis para quantidade, unidade/embalagem, valor, lote e validade.
-- [ ] Adicionar um switch para informar lote/validade na compra:
+- [x] Adicionar um switch para informar lote/validade na compra:
   - desligado por padrão para manter a tela mais simples;
   - quando ligado, exibir campos de código do lote e validade;
   - manter lote/validade opcionais mesmo quando o switch estiver ligado;

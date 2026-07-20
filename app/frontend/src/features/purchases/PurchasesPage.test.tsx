@@ -154,6 +154,9 @@ describe("PurchasesPage", () => {
     await user.selectOptions(screen.getByLabelText("Item para adicionar"), "11");
     await user.click(screen.getByRole("button", { name: "Adicionar item" }));
 
+    expect(screen.queryByLabelText("Lote da linha 1")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Informar lote e validade" }));
+
     await user.type(screen.getByLabelText("Quantidade atômica da linha 1"), "1000");
     await user.type(screen.getByLabelText("Valor da linha 1"), "50,00");
     await user.type(screen.getByLabelText("Lote da linha 1"), "LOTE-1");
@@ -182,6 +185,8 @@ describe("PurchasesPage", () => {
             conversionNumeratorAtomic: 1000,
             conversionDenominator: 1,
             commercialTotalMinor: 2000,
+            lotCode: undefined,
+            expiresOn: undefined,
           }),
         ],
       }),

@@ -28,6 +28,7 @@ interface PurchaseFormState {
   counterpartyId: string;
   occurredOn: string;
   freeStock: boolean;
+  includeLotDetails: boolean;
   notes: string;
   lines: PurchaseLineFormState[];
 }
@@ -61,6 +62,7 @@ const emptyForm = (): PurchaseFormState => ({
   counterpartyId: "",
   occurredOn: todayISO(),
   freeStock: false,
+  includeLotDetails: false,
   notes: "",
   lines: [],
 });
@@ -171,6 +173,16 @@ function PurchaseDocumentForm({
     }));
   };
 
+  const toggleLotDetails = (includeLotDetails: boolean) => {
+    setForm((current) => ({
+      ...current,
+      includeLotDetails,
+      lines: includeLotDetails
+        ? current.lines
+        : current.lines.map((line) => ({ ...line, lotCode: "", expiresOn: "" })),
+    }));
+  };
+
   const selectPackaging = (line: PurchaseLineFormState, packagingId: string) => {
     const itemId = parseInteger(line.itemId);
     const item = itemId ? itemDetails[itemId] : undefined;
@@ -226,8 +238,8 @@ function PurchaseDocumentForm({
         conversionNumeratorAtomic,
         conversionDenominator,
         commercialTotalMinor,
-        lotCode: optionalText(line.lotCode),
-        expiresOn: optionalText(line.expiresOn),
+        lotCode: form.includeLotDetails ? optionalText(line.lotCode) : undefined,
+        expiresOn: form.includeLotDetails ? optionalText(line.expiresOn) : undefined,
       });
     }
 
@@ -366,11 +378,30 @@ function PurchaseDocumentForm({
         </div>
 
         <div>
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="font-bold text-slate-900">Itens da compra</h3>
-            <span className="text-sm text-slate-500">
-              {form.lines.length} {form.lines.length === 1 ? "linha" : "linhas"}
-            </span>
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-sm text-slate-500">
+                {form.lines.length} {form.lines.length === 1 ? "linha" : "linhas"}
+              </span>
+              <label className="inline-flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label="Informar lote e validade"
+                  checked={form.includeLotDetails}
+                  onChange={(event) => toggleLotDetails(event.target.checked)}
+                  className="peer sr-only"
+                />
+                <span className="relative h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-pink-600 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5" />
+                <span>
+                  <span className="block">Informar lote e validade</span>
+                  <span className="block text-xs font-normal text-slate-500">
+                    Opcional; o estoque cria o lote interno mesmo sem estes dados.
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
 
           {form.lines.length === 0 ? (
@@ -407,7 +438,11 @@ function PurchaseDocumentForm({
                       </button>
                     </div>
 
-                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <div
+                      className={`mt-4 grid gap-3 md:grid-cols-2 ${
+                        form.includeLotDetails ? "xl:grid-cols-5" : "xl:grid-cols-3"
+                      }`}
+                    >
                       <label className="block text-sm font-semibold text-slate-700">
                         Quantidade atômica
                         <input
@@ -453,31 +488,35 @@ function PurchaseDocumentForm({
                         />
                       </label>
 
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Lote
-                        <input
-                          aria-label={`Lote da linha ${index + 1}`}
-                          value={line.lotCode}
-                          onChange={(event) =>
-                            updateLine(line.key, { lotCode: event.target.value })
-                          }
-                          placeholder="LOTE-001"
-                          className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                        />
-                      </label>
+                      {form.includeLotDetails && (
+                        <>
+                          <label className="block text-sm font-semibold text-slate-700">
+                            Lote
+                            <input
+                              aria-label={`Lote da linha ${index + 1}`}
+                              value={line.lotCode}
+                              onChange={(event) =>
+                                updateLine(line.key, { lotCode: event.target.value })
+                              }
+                              placeholder="LOTE-001"
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                            />
+                          </label>
 
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Validade
-                        <input
-                          type="date"
-                          aria-label={`Validade da linha ${index + 1}`}
-                          value={line.expiresOn}
-                          onChange={(event) =>
-                            updateLine(line.key, { expiresOn: event.target.value })
-                          }
-                          className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
-                        />
-                      </label>
+                          <label className="block text-sm font-semibold text-slate-700">
+                            Validade
+                            <input
+                              type="date"
+                              aria-label={`Validade da linha ${index + 1}`}
+                              value={line.expiresOn}
+                              onChange={(event) =>
+                                updateLine(line.key, { expiresOn: event.target.value })
+                              }
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                            />
+                          </label>
+                        </>
+                      )}
                     </div>
 
                     <div className="mt-3 grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-2">
