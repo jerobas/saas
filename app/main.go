@@ -2,14 +2,15 @@ package main
 
 import (
 	"embed"
-	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
-	"time"
+	"strings"
 
 	"github.com/jerobas/saas/database"
-	"github.com/jerobas/saas/service"
+	"github.com/jerobas/saas/internal/application"
+	"github.com/jerobas/saas/internal/infrastructure/sqlite"
+	presentationwails "github.com/jerobas/saas/internal/presentation/wails"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -19,25 +20,22 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-type LicenseData struct {
-	ID             string `json:"id"`
-	Email          string `json:"email"`
-	Active         bool   `json:"active"`
-	ExpirationDate string `json:"expiration_date"`
-}
-
-var licenseFile string
-var license LicenseData
 var db *database.Database
 
 func initDat() {
-	dir, _ := os.UserConfigDir()
-	appDir := filepath.Join(dir, "app")
+	if bindingGeneration {
+		var err error
+		db, err = database.NewDatabase(":memory:")
+		if err != nil {
+			log.Fatalf("failed to initialise binding-generation database: %v", err)
+		}
+		return
+	}
+	appDir := dataDirectory()
 
-	_ = os.MkdirAll(appDir, 0700)
-
-	licenseFile = filepath.Join(appDir, "license.dat")
-	loadLicense()
+	if err := os.MkdirAll(appDir, 0700); err != nil {
+		log.Fatalf("failed to create application data directory: %v", err)
+	}
 
 	dbPath := filepath.Join(appDir, "app.db")
 	var err error
@@ -48,68 +46,12 @@ func initDat() {
 	log.Println("Banco de dados inicializado com sucesso")
 }
 
-func loadLicense() {
-	file, err := os.Open(licenseFile)
-	if os.IsNotExist(err) {
-		saveLicense()
-		return
-	} else if err != nil {
-		return
+func dataDirectory() string {
+	if configured := strings.TrimSpace(os.Getenv("SAAS_DATA_DIR")); configured != "" {
+		return configured
 	}
-	defer file.Close()
-
-	json.NewDecoder(file).Decode(&license)
-}
-
-func saveLicense() {
-	file, err := os.Create(licenseFile)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	json.NewEncoder(file).Encode(license)
-}
-
-func saveUserData(id string, email string) error {
-	license = LicenseData{
-		ID:             id,
-		Email:          email,
-		Active:         false,
-		ExpirationDate: "",
-	}
-
-	saveLicense()
-	return nil
-}
-
-func updateUserData(id string, active bool, expirationDate string) error {
-	if license.ID != id {
-		return nil
-	}
-
-	license.Active = active
-	license.ExpirationDate = expirationDate
-
-	saveLicense()
-	return nil
-}
-
-func getUserStatus() (bool, error) {
-	if !license.Active {
-		return false, nil
-	}
-
-	exp, err := time.Parse(time.RFC3339, license.ExpirationDate)
-	if err != nil {
-		return false, err
-	}
-
-	if time.Now().After(exp) {
-		return false, nil
-	}
-
-	return true, nil
+	dir, _ := os.UserConfigDir()
+	return filepath.Join(dir, "app")
 }
 
 func main() {
@@ -117,14 +59,60 @@ func main() {
 	defer db.Close()
 
 	app := NewApp()
-	userService := NewUserService()
-	itemService := service.NewItemService(db)
-	batchService := service.NewBatchService(db)
-	recipeService := service.NewRecipeService(db)
-	productService := service.NewProductService(db)
-	saleService := service.NewSaleService(db)
-	databaseService := service.NewDatabaseService(db)
+	databaseService := presentationwails.NewDatabaseService(db)
 	app.DatabaseService = databaseService
+
+	sqliteStore := sqlite.NewStore(db)
+	settingsService := application.NewSettingsService(application.NewSQLiteSettingsStore(sqliteStore), application.SystemClock{})
+	settingsHandler := presentationwails.NewSettingsHandler(settingsService)
+	referenceDataService := application.NewReferenceDataService(application.NewSQLiteReferenceDataStore(sqliteStore))
+	referenceDataHandler := presentationwails.NewReferenceDataHandler(referenceDataService)
+	catalogService := application.NewCatalogService(
+		application.NewSQLiteCatalogStore(sqliteStore),
+		application.SystemClock{},
+	)
+	catalogHandler := presentationwails.NewCatalogHandler(catalogService)
+	counterpartyService := application.NewCounterpartyService(
+		application.NewSQLiteCounterpartyStore(sqliteStore),
+		application.SystemClock{},
+	)
+	counterpartyHandler := presentationwails.NewCounterpartyHandler(counterpartyService)
+	purchaseService := application.NewPurchaseService(
+		application.NewSQLitePurchaseStore(sqliteStore),
+		application.SystemClock{},
+	)
+	purchaseHandler := presentationwails.NewPurchaseHandler(purchaseService)
+	adjustmentService := application.NewAdjustmentService(
+		application.NewSQLiteAdjustmentStore(sqliteStore),
+		application.SystemClock{},
+	)
+	adjustmentHandler := presentationwails.NewAdjustmentHandler(adjustmentService)
+	reversalService := application.NewReversalService(
+		application.NewSQLiteReversalStore(sqliteStore),
+		application.SystemClock{},
+	)
+	reversalHandler := presentationwails.NewReversalHandler(reversalService)
+	productionService := application.NewProductionService(
+		application.NewSQLiteProductionStore(sqliteStore),
+		application.SystemClock{},
+	)
+	productionHandler := presentationwails.NewProductionHandler(productionService)
+	saleService := application.NewSaleService(
+		application.NewSQLiteSaleStore(sqliteStore),
+		application.SystemClock{},
+	)
+	saleHandler := presentationwails.NewSaleHandler(saleService)
+	recipeService := application.NewRecipeService(
+		application.NewSQLiteRecipeStore(sqliteStore),
+		application.SystemClock{},
+	)
+	recipeHandler := presentationwails.NewRecipeHandler(recipeService)
+	inventoryHandler := presentationwails.NewInventoryHandler(application.NewInventoryService(
+		application.NewSQLiteInventoryStore(sqliteStore),
+	))
+	reportingHandler := presentationwails.NewReportingHandler(application.NewReportingService(
+		application.NewSQLiteReportingStore(sqliteStore),
+	))
 
 	err := wails.Run(&options.App{
 		Title:  "app",
@@ -136,13 +124,19 @@ func main() {
 		OnStartup: app.startup,
 		Bind: []interface{}{
 			app,
-			userService,
-			itemService,
-			batchService,
-			recipeService,
-			productService,
-			saleService,
 			databaseService,
+			settingsHandler,
+			referenceDataHandler,
+			catalogHandler,
+			counterpartyHandler,
+			purchaseHandler,
+			adjustmentHandler,
+			reversalHandler,
+			productionHandler,
+			saleHandler,
+			recipeHandler,
+			inventoryHandler,
+			reportingHandler,
 		},
 	})
 

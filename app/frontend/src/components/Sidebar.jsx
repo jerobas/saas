@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import {
   ArrowsClockwise as ArrowsClockwiseIcon,
   CurrencyDollar,
@@ -8,8 +8,8 @@ import {
   CaretRight,
   ShoppingCart,
   Egg,
-} from "phosphor-react";
-import { useNavigate, useLocation } from "react-router-dom";
+} from "@phosphor-icons/react";
+import { useLocation, useNavigate } from "react-router";
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navigate = useNavigate();
@@ -29,16 +29,22 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       path: "/inventory",
     },
     {
-      icon: <Package size={24} />,
-      label: "Lotes",
-      id: "batches",
-      path: "/batches",
+      icon: <FileText size={24} />,
+      label: "Compras",
+      id: "purchases",
+      path: "/purchases",
     },
     {
       icon: <FileText size={24} />,
       label: "Receitas",
       id: "recipes",
       path: "/recipes",
+    },
+    {
+      icon: <Package size={24} />,
+      label: "Produção",
+      id: "production",
+      path: "/production",
     },
     {
       icon: <Package size={24} />,
@@ -104,19 +110,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate(item.path)}
             className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${
-              isActive(item.path)
-                ? "bg-pink-600 text-white"
-                : "hover:bg-slate-700 text-white"
+              isActive(item.path) ? "bg-pink-600 text-white" : "hover:bg-slate-700 text-white"
             } ${isCollapsed ? "justify-center" : ""}`}
           >
-            <span
-              className={isActive(item.path) ? "text-white" : "text-pink-500"}
-            >
+            <span className={isActive(item.path) ? "text-white" : "text-pink-500"}>
               {item.icon}
             </span>
-            {!isCollapsed && (
-              <span className="text-sm font-medium">{item.label}</span>
-            )}
+            {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
           </motion.button>
         ))}
       </nav>

@@ -7,10 +7,7 @@ const AppLayout = ({ children }) => {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar
-        isCollapsed={sidebarCollapsed}
-        setIsCollapsed={setSidebarCollapsed}
-      />
+      <Sidebar isCollapsed={sidebarCollapsed} setIsCollapsed={setSidebarCollapsed} />
 
       <div
         className={`relative flex-1 transition-all duration-300 ${sidebarCollapsed ? "ml-20" : "ml-64"}`}

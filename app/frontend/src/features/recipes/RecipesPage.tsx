@@ -1,0 +1,883 @@
+import {
+  Archive,
+  ArrowClockwise,
+  FileText,
+  PencilSimple,
+  Plus,
+  Trash,
+  UploadSimple,
+} from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import ConversionPreview from "../../components/ConversionPreview";
+import {
+  catalogGateway,
+  type ItemResponse,
+  type ItemSummaryResponse,
+  type PackagingResponse,
+  recipeGateway,
+  type RecipeComponentRequest,
+  type RecipeResponse,
+  type RecipeRevisionResponse,
+  type RecipeSummaryResponse,
+} from "../../gateways/desktopBridge";
+
+interface RecipeFormState {
+  name: string;
+  outputItemId: string;
+  standardYieldQuantityAtomic: string;
+  instructions: string;
+  preparationTimeMinutes: string;
+  components: RecipeComponentFormState[];
+}
+
+interface RecipeComponentFormState {
+  rowId: number;
+  itemId: string;
+  quantityAtomic: string;
+  sourceType: "UNIT" | "PACKAGING";
+  packagingId: string;
+}
+
+let nextComponentRowId = 0;
+
+const newComponentRow = (): RecipeComponentFormState => ({
+  rowId: ++nextComponentRowId,
+  itemId: "",
+  quantityAtomic: "",
+  sourceType: "UNIT",
+  packagingId: "",
+});
+
+const emptyForm = (): RecipeFormState => ({
+  name: "",
+  outputItemId: "",
+  standardYieldQuantityAtomic: "1000",
+  instructions: "",
+  preparationTimeMinutes: "0",
+  components: [newComponentRow()],
+});
+
+const parseInteger = (value: string) => {
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const messageFromError = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+const activeOnly = (item: { archivedAtMs?: number | null }) =>
+  item.archivedAtMs === undefined || item.archivedAtMs === null;
+
+function RecipesPage() {
+  const [recipes, setRecipes] = useState<RecipeSummaryResponse[]>([]);
+  const [outputItems, setOutputItems] = useState<ItemSummaryResponse[]>([]);
+  const [componentItems, setComponentItems] = useState<ItemSummaryResponse[]>([]);
+  const [componentItemDetails, setComponentItemDetails] = useState<Record<number, ItemResponse>>(
+    {},
+  );
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeResponse | null>(null);
+  const [revisions, setRevisions] = useState<RecipeRevisionResponse[]>([]);
+  const [form, setForm] = useState<RecipeFormState>(() => emptyForm());
+  const [renameName, setRenameName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const catalogItemNames = useMemo(() => {
+    const names = new Map<number, string>();
+    [...outputItems, ...componentItems].forEach((item) => {
+      names.set(item.id, item.name);
+    });
+    return names;
+  }, [componentItems, outputItems]);
+
+  const loadSelectedRecipe = useCallback(async (id: number) => {
+    const [recipe, revisionList] = await Promise.all([
+      recipeGateway.getRecipe(id),
+      recipeGateway.listRecipeRevisions(id),
+    ]);
+    setSelectedRecipe(recipe);
+    setRevisions(revisionList);
+    setRenameName(recipe.name);
+  }, []);
+
+  const loadPage = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const [recipePage, produciblePage, itemPage] = await Promise.all([
+        recipeGateway.listRecipes({ archiveFilter: "ALL", pageSize: 100 }),
+        catalogGateway.listItems({
+          archiveFilter: "ACTIVE",
+          requireCapabilities: { purchasable: false, producible: true, sellable: false },
+          pageSize: 100,
+        }),
+        catalogGateway.listItems({
+          archiveFilter: "ACTIVE",
+          requireCapabilities: { purchasable: false, producible: false, sellable: false },
+          pageSize: 100,
+        }),
+      ]);
+      setRecipes(recipePage.items);
+      setOutputItems(produciblePage.items);
+      setComponentItems(itemPage.items);
+
+      const firstRecipe = recipePage.items[0];
+      if (firstRecipe) {
+        await loadSelectedRecipe(firstRecipe.id);
+      } else {
+        setSelectedRecipe(null);
+        setRevisions([]);
+        setRenameName("");
+      }
+
+      setForm((current) => ({
+        ...current,
+        outputItemId: current.outputItemId || String(produciblePage.items[0]?.id ?? ""),
+      }));
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: messageFromError(error, "Nao foi possivel carregar receitas."),
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [loadSelectedRecipe]);
+
+  useEffect(() => {
+    void loadPage();
+  }, [loadPage]);
+
+  const buildRevisionRequest = () => {
+    const outputItemId = parseInteger(form.outputItemId);
+    const standardYieldQuantityAtomic = parseInteger(form.standardYieldQuantityAtomic);
+    const preparationTimeMinutes = parseInteger(form.preparationTimeMinutes);
+
+    if (!outputItemId || !standardYieldQuantityAtomic) {
+      setMessage({
+        type: "error",
+        text: "Informe item de saida e rendimento.",
+      });
+      return null;
+    }
+
+    const componentRequests: RecipeComponentRequest[] = [];
+    const selectedItemIds = new Set<number>();
+    for (const [index, component] of form.components.entries()) {
+      const componentItemId = parseInteger(component.itemId);
+      const componentQuantityAtomic = parseInteger(component.quantityAtomic);
+      if (!componentItemId || !componentQuantityAtomic || componentQuantityAtomic <= 0) {
+        setMessage({
+          type: "error",
+          text: `Informe item e quantidade positiva para o componente ${index + 1}.`,
+        });
+        return null;
+      }
+      if (outputItemId === componentItemId) {
+        setMessage({ type: "error", text: "A receita nao pode consumir o proprio item de saida." });
+        return null;
+      }
+      if (selectedItemIds.has(componentItemId)) {
+        setMessage({ type: "error", text: "Cada componente pode aparecer apenas uma vez." });
+        return null;
+      }
+      const selectedItem = componentItems.find(
+        (item) => item.id === componentItemId && activeOnly(item),
+      );
+      if (!selectedItem) {
+        setMessage({
+          type: "error",
+          text: `Selecione um componente valido na linha ${index + 1}.`,
+        });
+        return null;
+      }
+      selectedItemIds.add(componentItemId);
+      if (component.sourceType === "PACKAGING") {
+        const packagingId = parseInteger(component.packagingId);
+        const packaging = packagingId
+          ? activePackagings(componentItemDetails[componentItemId]).find(
+              (candidate) => candidate.id === packagingId,
+            )
+          : undefined;
+        if (!packaging) {
+          setMessage({
+            type: "error",
+            text: `Selecione uma embalagem ativa para o componente ${index + 1}.`,
+          });
+          return null;
+        }
+        componentRequests.push({
+          order: index + 1,
+          itemId: componentItemId,
+          quantityAtomic: componentQuantityAtomic,
+          sourceType: "PACKAGING",
+          packagingId: packaging.id,
+        });
+      } else {
+        componentRequests.push({
+          order: index + 1,
+          itemId: componentItemId,
+          quantityAtomic: componentQuantityAtomic,
+          sourceType: "UNIT",
+          unitCode: selectedItem.baseUnitCode,
+        });
+      }
+    }
+
+    return {
+      outputItemId,
+      revision: {
+        standardYieldQuantityAtomic,
+        instructions: form.instructions,
+        preparationTimeMinutes: preparationTimeMinutes ?? 0,
+        components: componentRequests,
+      },
+    };
+  };
+
+  const updateOutputItem = (outputItemId: string) => {
+    setForm((current) => ({
+      ...current,
+      outputItemId,
+      components: current.components.map((component) => ({
+        ...component,
+        itemId: component.itemId === outputItemId ? "" : component.itemId,
+        sourceType: component.itemId === outputItemId ? "UNIT" : component.sourceType,
+        packagingId: component.itemId === outputItemId ? "" : component.packagingId,
+      })),
+    }));
+  };
+
+  const updateComponent = (
+    rowId: number,
+    patch: Partial<Omit<RecipeComponentFormState, "rowId">>,
+  ) => {
+    setForm((current) => ({
+      ...current,
+      components: current.components.map((component) =>
+        component.rowId === rowId ? { ...component, ...patch } : component,
+      ),
+    }));
+  };
+
+  const selectComponentItem = async (rowId: number, itemId: string) => {
+    updateComponent(rowId, { itemId, sourceType: "UNIT", packagingId: "" });
+    const parsedItemId = parseInteger(itemId);
+    if (!parsedItemId || componentItemDetails[parsedItemId]) return;
+    try {
+      const detail = await catalogGateway.getItem(parsedItemId);
+      setComponentItemDetails((current) => ({ ...current, [parsedItemId]: detail }));
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: messageFromError(error, "Nao foi possivel carregar as embalagens do componente."),
+      });
+    }
+  };
+
+  const selectComponentSource = (rowId: number, value: string) => {
+    updateComponent(
+      rowId,
+      value === "base"
+        ? { sourceType: "UNIT", packagingId: "" }
+        : { sourceType: "PACKAGING", packagingId: value },
+    );
+  };
+
+  const addComponent = () => {
+    setForm((current) => ({
+      ...current,
+      components: [...current.components, newComponentRow()],
+    }));
+  };
+
+  const removeComponent = (rowId: number) => {
+    setForm((current) => ({
+      ...current,
+      components: current.components.filter((component) => component.rowId !== rowId),
+    }));
+  };
+
+  const availableItemsForComponent = (rowId: number) => {
+    const selectedByOtherRows = new Set(
+      form.components
+        .filter((component) => component.rowId !== rowId && component.itemId)
+        .map((component) => component.itemId),
+    );
+    return componentItems.filter(
+      (item) =>
+        activeOnly(item) &&
+        String(item.id) !== form.outputItemId &&
+        !selectedByOtherRows.has(String(item.id)),
+    );
+  };
+
+  const createRecipe = async () => {
+    if (saving) return;
+    const revisionRequest = buildRevisionRequest();
+    if (!revisionRequest) return;
+    if (form.name.trim().length === 0) {
+      setMessage({ type: "error", text: "Informe o nome da receita." });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const created = await recipeGateway.createRecipe({
+        name: form.name.trim(),
+        outputItemId: revisionRequest.outputItemId,
+        revision: revisionRequest.revision,
+      });
+      setForm(emptyForm());
+      await loadPage();
+      await loadSelectedRecipe(created.id);
+      setMessage({ type: "success", text: `Receita "${created.name}" criada.` });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: messageFromError(error, "Nao foi possivel criar a receita."),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const publishRevision = async () => {
+    if (saving || !selectedRecipe) return;
+    const revisionRequest = buildRevisionRequest();
+    if (!revisionRequest) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const revision = await recipeGateway.publishRecipeRevision(selectedRecipe.id, {
+        expectedLatestRevision: selectedRecipe.currentRevision.number,
+        expectedUpdatedAtMs: selectedRecipe.updatedAtMs,
+        revision: revisionRequest.revision,
+      });
+      await loadPage();
+      await loadSelectedRecipe(selectedRecipe.id);
+      setMessage({ type: "success", text: `Revisao ${revision.number} publicada.` });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: messageFromError(error, "Nao foi possivel publicar a revisao."),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renameSelectedRecipe = async () => {
+    if (saving || !selectedRecipe) return;
+    const name = renameName.trim();
+    if (name.length === 0) {
+      setMessage({ type: "error", text: "Informe o novo nome da receita." });
+      return;
+    }
+    if (name === selectedRecipe.name) {
+      setMessage({ type: "error", text: "O novo nome precisa ser diferente do atual." });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const updated = await recipeGateway.renameRecipe(selectedRecipe.id, {
+        name,
+        expectedUpdatedAtMs: selectedRecipe.updatedAtMs,
+      });
+      await loadPage();
+      await loadSelectedRecipe(updated.id);
+      setMessage({ type: "success", text: `Receita renomeada para "${updated.name}".` });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: messageFromError(error, "Nao foi possivel renomear a receita."),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleArchive = async (recipe: RecipeSummaryResponse) => {
+    if (saving) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const updated = recipe.archivedAtMs
+        ? await recipeGateway.restoreRecipe(recipe.id, { expectedUpdatedAtMs: recipe.updatedAtMs })
+        : await recipeGateway.archiveRecipe(recipe.id, { expectedUpdatedAtMs: recipe.updatedAtMs });
+      await loadPage();
+      await loadSelectedRecipe(updated.id);
+      setMessage({
+        type: "success",
+        text: updated.archivedAtMs ? "Receita arquivada." : "Receita restaurada.",
+      });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: messageFromError(error, "Nao foi possivel alterar o estado da receita."),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-pink-600">
+                Receitas V2
+              </p>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950">Receitas e revisoes</h1>
+              <p className="mt-2 max-w-2xl text-slate-600">
+                Cadastro real local-first: receita com output fixo e revisoes imutaveis.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadPage()}
+              disabled={loading || saving}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            >
+              <ArrowClockwise size={18} />
+              Recarregar
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto grid max-w-7xl gap-6 px-6 py-8 xl:grid-cols-[420px_1fr]">
+        <aside className="space-y-6">
+          {message && (
+            <div
+              className={`rounded-2xl border p-4 text-sm font-medium ${
+                message.type === "success"
+                  ? "border-green-200 bg-green-50 text-green-800"
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+            >
+              {message.text}
+            </div>
+          )}
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <FileText size={28} className="text-pink-600" />
+              <div>
+                <h2 className="text-lg font-bold text-slate-950">Editar receita</h2>
+                <p className="text-sm text-slate-600">
+                  Monte a ficha tecnica com todos os componentes necessarios.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <label className="block text-sm font-semibold text-slate-700">
+                Nome
+                <input
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                  placeholder="Massa de bolo"
+                />
+              </label>
+
+              <label className="block text-sm font-semibold text-slate-700">
+                Item de saida
+                <select
+                  value={form.outputItemId}
+                  onChange={(event) => updateOutputItem(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  <option value="">Selecione</option>
+                  {outputItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} / base {item.baseUnitCode}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Rendimento atomico
+                  <input
+                    value={form.standardYieldQuantityAtomic}
+                    onChange={(event) =>
+                      setForm({ ...form, standardYieldQuantityAtomic: event.target.value })
+                    }
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                  />
+                </label>
+                <label className="block text-sm font-semibold text-slate-700">
+                  Preparo min.
+                  <input
+                    value={form.preparationTimeMinutes}
+                    onChange={(event) =>
+                      setForm({ ...form, preparationTimeMinutes: event.target.value })
+                    }
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Componentes</h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      A ordem abaixo sera preservada na revisao imutavel.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addComponent}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-pink-200 bg-white px-3 py-2 text-xs font-semibold text-pink-700 transition hover:bg-pink-50"
+                  >
+                    <Plus size={15} />
+                    Adicionar componente
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {form.components.map((component, index) => {
+                    const item = componentItems.find(
+                      (candidate) => String(candidate.id) === component.itemId,
+                    );
+                    const itemDetail = item ? componentItemDetails[item.id] : undefined;
+                    const packagings = activePackagings(itemDetail);
+                    const selectedPackaging = packagings.find(
+                      (packaging) => String(packaging.id) === component.packagingId,
+                    );
+                    return (
+                      <div
+                        key={component.rowId}
+                        className="rounded-xl border border-slate-200 bg-white p-3"
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Componente {index + 1}
+                          </span>
+                          {form.components.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeComponent(component.rowId)}
+                              aria-label={`Remover componente ${index + 1}`}
+                              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash size={16} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-[1fr_130px]">
+                          <label className="block text-xs font-semibold text-slate-700">
+                            Item do componente {index + 1}
+                            <select
+                              value={component.itemId}
+                              onChange={(event) =>
+                                void selectComponentItem(component.rowId, event.target.value)
+                              }
+                              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
+                            >
+                              <option value="">Selecione</option>
+                              {availableItemsForComponent(component.rowId).map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name} / base {item.baseUnitCode}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block text-xs font-semibold text-slate-700">
+                            Quantidade atomica {index + 1}
+                            <input
+                              value={component.quantityAtomic}
+                              onChange={(event) =>
+                                updateComponent(component.rowId, {
+                                  quantityAtomic: event.target.value,
+                                })
+                              }
+                              inputMode="numeric"
+                              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500"
+                              placeholder="500"
+                            />
+                          </label>
+                          <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+                            Unidade ou embalagem do componente {index + 1}
+                            <select
+                              value={
+                                component.sourceType === "PACKAGING"
+                                  ? component.packagingId
+                                  : "base"
+                              }
+                              onChange={(event) =>
+                                selectComponentSource(component.rowId, event.target.value)
+                              }
+                              disabled={!item}
+                              className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-500 disabled:bg-slate-100"
+                            >
+                              <option value="base">
+                                {item ? `${item.baseUnitCode} · unidade base` : "Unidade base"}
+                              </option>
+                              {packagings.map((packaging) => (
+                                <option key={packaging.id} value={packaging.id}>
+                                  {packaging.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        {selectedPackaging && itemDetail && (
+                          <ConversionPreview
+                            label={`1 ${selectedPackaging.name}`}
+                            numeratorAtomic={selectedPackaging.conversionNumeratorAtomic}
+                            denominator={selectedPackaging.conversionDenominator}
+                            baseUnit={itemDetail.baseUnit}
+                            className="mt-3 rounded-lg bg-pink-50 px-3 py-2 text-xs text-pink-800"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <label className="block text-sm font-semibold text-slate-700">
+                Instrucoes
+                <textarea
+                  value={form.instructions}
+                  onChange={(event) => setForm({ ...form, instructions: event.target.value })}
+                  className="mt-2 min-h-24 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                  placeholder="Misture, asse..."
+                />
+              </label>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => void createRecipe()}
+                  disabled={saving || loading}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-pink-600 px-4 py-3 font-semibold text-white hover:bg-pink-700 disabled:bg-slate-300"
+                >
+                  <Plus size={18} />
+                  Criar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void publishRevision()}
+                  disabled={saving || loading || !selectedRecipe}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                >
+                  <UploadSimple size={18} />
+                  Publicar revisao
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                Escolha a unidade base ou uma embalagem ativa; o app preserva a conversao exata na
+                revisao.
+              </p>
+            </div>
+          </div>
+        </aside>
+
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm font-semibold text-slate-500">Receitas</p>
+              <p className="mt-2 text-3xl font-bold text-slate-950">{recipes.length}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm font-semibold text-slate-500">Outputs produciveis</p>
+              <p className="mt-2 text-3xl font-bold text-green-700">{outputItems.length}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm font-semibold text-slate-500">Revisoes selecionadas</p>
+              <p className="mt-2 text-3xl font-bold text-blue-700">{revisions.length}</p>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-6 py-4">
+              <h2 className="text-lg font-bold text-slate-950">Receitas cadastradas</h2>
+            </div>
+            {loading ? (
+              <p className="p-6 text-slate-600">Carregando receitas...</p>
+            ) : recipes.length === 0 ? (
+              <p className="p-6 text-slate-600">
+                Nenhuma receita cadastrada. Crie um item producivel no Catalogo e use o formulario.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 text-left text-sm text-slate-700">
+                    <tr>
+                      <th className="px-6 py-3">Nome</th>
+                      <th className="px-6 py-3">Output</th>
+                      <th className="px-6 py-3">Revisao atual</th>
+                      <th className="px-6 py-3">Status</th>
+                      <th className="px-6 py-3">Acoes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recipes.map((recipe) => (
+                      <tr key={recipe.id} className="border-t border-slate-100">
+                        <td className="px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={() => void loadSelectedRecipe(recipe.id)}
+                            className="text-left font-semibold text-slate-950 hover:text-pink-700"
+                          >
+                            {recipe.name}
+                          </button>
+                          <div className="text-xs text-slate-500">#{recipe.id}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          {recipe.outputItemName}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          v{recipe.currentRevision.number} / rendimento{" "}
+                          {recipe.currentRevision.standardYieldQuantityAtomic}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                              recipe.archivedAtMs
+                                ? "bg-slate-100 text-slate-600"
+                                : "bg-green-100 text-green-700"
+                            }`}
+                          >
+                            {recipe.archivedAtMs ? "Arquivada" : "Ativa"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={() => void toggleArchive(recipe)}
+                            disabled={saving}
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                          >
+                            <Archive size={16} />
+                            {recipe.archivedAtMs ? "Restaurar" : "Arquivar"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-950">Detalhe</h2>
+            {!selectedRecipe ? (
+              <p className="mt-3 text-slate-600">Selecione uma receita para ver revisoes.</p>
+            ) : (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase text-slate-500">
+                    {selectedRecipe.name}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    Output #{selectedRecipe.outputItemId} · revisao atual v
+                    {selectedRecipe.currentRevision.number}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Renomear receita
+                    <input
+                      value={renameName}
+                      onChange={(event) => setRenameName(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void renameSelectedRecipe()}
+                    disabled={
+                      saving ||
+                      loading ||
+                      renameName.trim().length === 0 ||
+                      renameName.trim() === selectedRecipe.name
+                    }
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    <PencilSimple size={16} />
+                    Renomear
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {revisions.map((revision) => (
+                    <div key={revision.id} className="rounded-2xl border border-slate-200 p-4">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-950">
+                              Revisao {revision.number}
+                            </p>
+                            {revision.id === selectedRecipe.currentRevision.id && (
+                              <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">
+                                Atual
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-600">
+                            Rendimento {revision.standardYieldQuantityAtomic} · preparo{" "}
+                            {revision.preparationTimeMinutes} min
+                          </p>
+                        </div>
+                        <span className="text-xs text-slate-500">#{revision.id}</span>
+                      </div>
+                      <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
+                        Revisao publicada e imutavel. Para alterar a ficha tecnica, publique uma
+                        nova revisao.
+                      </p>
+                      <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
+                        {revision.instructions || "Sem instrucoes."}
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {revision.components.map((component) => (
+                          <div
+                            key={component.id}
+                            className="rounded-xl border border-slate-100 bg-white px-3 py-2 text-sm text-slate-700"
+                          >
+                            <div className="font-semibold text-slate-900">
+                              {component.order}.{" "}
+                              {catalogItemNames.get(component.itemId) ??
+                                `Item #${component.itemId}`}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {component.quantityAtomic} {component.enteredUnitCode}
+                              {component.enteredPackagingName
+                                ? ` via ${component.enteredPackagingName}`
+                                : " via unidade base"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+const activePackagings = (item?: ItemResponse): PackagingResponse[] =>
+  item?.packagings.filter(
+    (packaging) => packaging.archivedAtMs === null || packaging.archivedAtMs === undefined,
+  ) ?? [];
+
+export default RecipesPage;

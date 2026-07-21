@@ -1,0 +1,20 @@
+version: "2"
+
+sql:
+  - engine: "sqlite"
+    schema: "database/schemas"
+    queries: "internal/infrastructure/sqlite/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/infrastructure/sqlite/sqlcgen"
+        sql_package: "database/sql"
+        emit_interface: true
+        emit_empty_slices: true
+        emit_json_tags: false
+        emit_prepared_queries: false
+        omit_unused_structs: true
+        initialisms:
+          - "id"
+          - "sku"
+          - "utc"

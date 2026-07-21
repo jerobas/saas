@@ -1,106 +1,144 @@
-# SaaS Project
+# Sweeters Desktop
 
-## Arquitetura do Projeto
+Sweeters is a local-first desktop application for catalog, recipes, purchases,
+inventory, production, sales, and backups. It uses Wails, Go, SQLite, React,
+Vite, and Tailwind CSS. Application data is stored locally on the user's
+machine.
 
-Este projeto é uma aplicação SaaS (Software as a Service) composta por um backend desenvolvido em Node.js e um frontend desenvolvido em React. A arquitetura é baseada em uma abordagem modular e utiliza RabbitMQ para gerenciamento de filas e comunicação assíncrona.
+> **Current capability:** Phase 5 is in progress. The V2 schema, domain model,
+> aggregate SQLite stores, application/Wails contracts, typed desktop gateway,
+> and first real desktop screens are in place for settings, measurement units,
+> catalog items, item packagings, and counterparties. Purchase posting has
+> started at the backend/Wails/gateway layer: a purchase can create an immutable
+> stock document, inbound line, inventory lot, and updated balance, and the
+> desktop contract can read inventory balances, item lots, ledger entries, and
+> line allocations. Legacy pages for recipe, production, sales, and reporting
+> workflows are still not real V2 workflows.
 
-### Estrutura do Projeto
+The repository now contains only the local desktop application. The former
+remote API/payment/licensing experiment was removed from the active codebase.
 
-#### Backend (Pasta `api/`)
-O backend é responsável por gerenciar a lógica de negócios, comunicação com o banco de dados e integração com serviços externos. A estrutura do backend é organizada da seguinte forma:
+## Prerequisites
 
-- **docker-compose.yml**: Configuração para serviços Docker, incluindo RabbitMQ e outros serviços necessários.
-- **package.json**: Gerenciamento de dependências e scripts do Node.js.
-- **src/**: Contém o código-fonte principal do backend.
-  - **domain/**: Contém a lógica de domínio dividida em módulos, como `payments` e `users`.
-    - **entities/**: Define as entidades do domínio, como `payment.entity.js` e `user.entity.js`.
-    - **repositories/**: Gerencia a persistência de dados, como `payment.repository.js` e `user.repository.js`.
-    - **usecases/**: Contém os casos de uso, como `process-payment-webhook-usecase.js` e `simulate-payment-usecase.js`.
-  - **infra/**: Contém a infraestrutura do projeto.
-    - **database/**: Configuração e conexão com o banco de dados.
-    - **http/**: Gerencia a camada de API REST.
-      - **controllers/**: Controladores para lidar com as requisições HTTP.
-      - **errors/**: Gerenciamento de erros personalizados.
-      - **middlewares/**: Middlewares para tratamento de requisições.
-      - **routes/**: Configuração das rotas da API.
-      - **swagger/**: Configuração da documentação da API.
-    - **queue/**: Configuração e consumidores do RabbitMQ.
-      - **rabbitmq.js**: Configuração do cliente RabbitMQ.
-      - **user-strategy-consumer.js**: Consumidor para estratégias de criação de usuários e pagamentos Pix.
-    - **services/**: Serviços externos, como `abacatepay.service.js` e `license.service.js`.
+- Go 1.26 or newer as a bootstrap for the pinned Go 1.26.5 toolchain
+- Node.js 24.17.0 and npm 11.13.0
+- WebView2 on Windows
 
-#### Frontend (Pasta `app/frontend/`)
-O frontend é uma aplicação React que utiliza o Vite como ferramenta de build. Ele é responsável pela interface do usuário e pela interação com o backend.
+The setup command downloads development dependencies once. After setup, the
+desktop build and checks can run using the local dependency caches.
 
-- **index.html**: Arquivo HTML principal.
-- **vite.config.js**: Configuração do Vite.
-- **src/**: Contém o código-fonte principal do frontend.
-  - **assets/**: Arquivos estáticos, como fontes e imagens.
-  - **components/**: Componentes reutilizáveis, como `AppLayout.jsx` e `Sidebar.jsx`.
-  - **context/**: Gerenciamento de estado global com o Context API, como `AppContext.jsx`.
-  - **pages/**: Páginas principais da aplicação, como `CadastroPage.jsx` e `PixPaymentPage.jsx`.
-  - **services/**: Serviços para comunicação com o backend, como `apiService.js`.
+## Setup
 
-#### Comunicação Assíncrona
-O projeto utiliza o RabbitMQ para gerenciar filas e processar tarefas de forma assíncrona. Por exemplo:
-- Estratégias de criação de usuários e pagamentos Pix são processadas em filas específicas.
-- O backend envia mensagens para as filas, e consumidores dedicados processam essas mensagens.
+From Windows PowerShell at the repository root:
 
-#### SSE (Server-Sent Events)
-O frontend utiliza SSE para receber atualizações em tempo real do backend. Por exemplo:
-- Após o cadastro de um usuário, uma conexão SSE é aberta para monitorar o status do pagamento Pix.
-
-### Tecnologias Utilizadas
-- **Backend**:
-  - Node.js
-  - RabbitMQ
-  - Swagger para documentação da API
-- **Frontend**:
-  - React
-  - Vite
-  - Context API para gerenciamento de estado
-  - Framer Motion para animações
-- **Outros**:
-  - Wails para integração com o sistema operacional
-
-### Como Executar o Projeto
-
-#### Backend
-1. Navegue até a pasta `api/`.
-2. Execute `docker-compose up` para iniciar os serviços necessários (ex.: RabbitMQ).
-3. Instale as dependências com `npm install`.
-4. Inicie o servidor com `npm start`.
-
-#### Frontend
-1. Navegue até a pasta `app/frontend/`.
-2. Instale as dependências com `npm install`.
-3. Inicie o servidor de desenvolvimento com `npm run dev`.
-
-#### Aplicação Wails
-1. Navegue até a pasta `app/`.
-2. Execute `wails dev` para iniciar a aplicação desktop.
-
-### Contribuição
-Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests neste repositório.
-
-### Licença
-Este projeto está licenciado sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
-
-## Diagrama de Fluxo
-
-O diagrama abaixo representa o fluxo de execução do projeto SaaS, desde o cadastro do usuário até a ativação da licença:
-
-```mermaid
-flowchart TD
-    CadastroPage -->|POST /api/users| Backend
-    Backend -->|SSE /api/sse/[userId]| CadastroPage
-    CadastroPage -->|Navigate| PixPaymentPage
-    PixPaymentPage -->|Check License| Backend
-    PixPaymentPage -->|Activate License| Dashboard
-
-    Backend -->|Queue CREATE_USER_STRATEGY| UserStrategyConsumer
-    UserStrategyConsumer -->|Queue CREATE_PIX_STRATEGY| PixStrategyConsumer
-    PixStrategyConsumer -->|Process Payment| AbacatePayService
-    AbacatePayService -->|Payment Status| PixStrategyConsumer
-    PixStrategyConsumer -->|License Activated| Backend
+```powershell
+.\scripts\setup-dev.ps1
 ```
+
+## Run in development
+
+```powershell
+.\scripts\dev.ps1
+```
+
+The development script keeps its database in:
+
+```text
+%APPDATA%\saas-dev\app.db
+```
+
+To use another data directory:
+
+```powershell
+$env:SAAS_DATA_DIR = "C:\temp\sweeters-data"
+.\scripts\dev.ps1
+```
+
+## Generate disposable demo data
+
+To exercise inventory, sales, and dashboard screens with a larger local dataset,
+create a dedicated demo database:
+
+```powershell
+.\scripts\demo-data.ps1 Seed
+.\scripts\demo-data.ps1 Start
+```
+
+The default fixture contains suppliers, customers, ingredients, products,
+packagings, purchase lots, and six months of sales. Increase or reduce the
+number of sales generated per month with `-Scale`:
+
+```powershell
+.\scripts\demo-data.ps1 Seed -Scale 60
+```
+
+After closing the application, remove the entire disposable database and every
+record generated inside it:
+
+```powershell
+.\scripts\demo-data.ps1 Clean -Force
+```
+
+The workflow defaults to the ignored `tmp/demo-data` directory. Cleanup requires
+its exact marker file and refuses the normal development and packaged data
+directories, so it never performs row-by-row deletion in a real Sweeters
+database.
+
+## Verify the desktop application
+
+```powershell
+.\scripts\check-desktop.ps1
+```
+
+This command checks formatting, validates named SQL and committed generated
+queries, vets and tests the Go code, builds the frontend with Vite, runs ESLint,
+TypeScript, Vitest, Staticcheck, and the Go race detector when supported locally,
+then compiles a desktop executable without downloading dependencies or requiring
+remote runtime services. CI always enforces the race detector on Linux.
+
+The browser smoke test and online dependency audit are separate because they
+need a downloaded browser or current vulnerability data:
+
+```powershell
+Push-Location app\frontend
+npm run test:e2e
+Pop-Location
+.\scripts\audit-desktop.ps1
+```
+
+## Project layout
+
+```text
+app/
+  database/       SQLite lifecycle, migrations, and write coordinator
+  internal/
+    domain/       Strong values and aggregate snapshots
+    infrastructure/sqlite/
+                  Named SQL, generated queries, and aggregate stores
+  service/        Operating-system/database lifecycle Wails services
+  frontend/       React desktop interface
+docs/             Architecture, domain contract, ADRs, and development guides
+scripts/          Windows setup, development, and verification commands
+```
+
+The architecture is being migrated bottom-up. The accepted schema, strong
+domain model, and aggregate persistence boundary are implemented and tested
+before application use cases, Wails contracts, and frontend features.
+
+Start with the [documentation index](docs/README.md) for the accepted V2
+decisions, target data model, glossary, invariants, and use cases.
+The [toolchain guide](docs/development/toolchain.md) contains exact versions and
+upgrade instructions; the [testing guide](docs/development/testing.md) explains
+the local and CI quality gates.
+
+## Current development policy
+
+- The SQLite schema is the executable persistence contract.
+- Posted inventory history is immutable.
+- Repository and service behavior must be tested against real temporary SQLite
+  databases.
+- Generated SQLite queries are committed and must match their named SQL source.
+- React components call the typed desktop bridge instead of generated Wails
+  modules.
+- A feature is complete only when its tests and documentation are updated.
+- Generated Wails files and build output are not committed.

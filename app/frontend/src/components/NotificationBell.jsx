@@ -1,15 +1,11 @@
 import { useContext, useState, useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Bell } from "phosphor-react";
+import { AnimatePresence, motion } from "motion/react";
+import { Bell } from "@phosphor-icons/react";
 import { AppContext } from "../context/AppContext";
 
 const NotificationBell = () => {
-  const {
-    notifications,
-    unreadCount,
-    markAllNotificationsRead,
-    clearNotifications,
-  } = useContext(AppContext);
+  const { notifications, unreadCount, markAllNotificationsRead, clearNotifications } =
+    useContext(AppContext);
 
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -95,11 +91,7 @@ const NotificationBell = () => {
             <div className="max-h-80 overflow-auto">
               {notifications.length === 0 ? (
                 <div className="px-5 py-8 text-sm text-slate-400 text-center">
-                  <Bell
-                    size={32}
-                    className="mx-auto mb-2 text-slate-600"
-                    weight="duotone"
-                  />
+                  <Bell size={32} className="mx-auto mb-2 text-slate-600" weight="duotone" />
                   Sem notificações no momento
                 </div>
               ) : (
@@ -116,16 +108,12 @@ const NotificationBell = () => {
                     <div className="flex items-start gap-3">
                       <div
                         className={`w-2 h-2 rounded-full mt-1.5 ${
-                          item.read
-                            ? "bg-slate-600"
-                            : "bg-pink-500 shadow-lg shadow-pink-500/50"
+                          item.read ? "bg-slate-600" : "bg-pink-500 shadow-lg shadow-pink-500/50"
                         }`}
                       />
 
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-white">
-                          {item.title}
-                        </div>
+                        <div className="font-semibold text-white">{item.title}</div>
 
                         {item.message && (
                           <div className="text-slate-400 mt-1 text-xs leading-relaxed">

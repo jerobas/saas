@@ -33,6 +33,9 @@ yarn-error.log*
 # Build
 dist/
 build/
+coverage/
+playwright-report/
+test-results/
 
 # Runtime
 tmp/
