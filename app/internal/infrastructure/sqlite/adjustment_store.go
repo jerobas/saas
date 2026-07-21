@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/jerobas/saas/database"
@@ -539,7 +538,7 @@ func weightedAverageValue(totalValueMicro, totalQuantityAtomic, quantityAtomic i
 	if remainder.Cmp(denominator) >= 0 {
 		quotient.Add(quotient, big.NewInt(1))
 	}
-	if !quotient.IsInt64() || quotient.Int64() > math.MaxInt64 {
+	if !quotient.IsInt64() {
 		return domain.InventoryValue{}, domain.ErrOverflow
 	}
 	return domain.NewInventoryValue(quotient.Int64())
