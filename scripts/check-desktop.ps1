@@ -35,7 +35,6 @@ $previousNpmOffline = $env:npm_config_offline
 
 try {
     $env:GOTOOLCHAIN = "go1.26.5"
-    $env:GOPROXY = "off"
     $env:npm_config_offline = "true"
 
     Assert-DevelopmentToolchain
@@ -50,14 +49,19 @@ try {
 
     Push-Location $appDir
     try {
+        # `go mod tidy` loads the module graph for the development tools too.
+        # Its full graph is not guaranteed to be populated by `go mod download`,
+        # so let it use the configured proxy before enforcing offline checks.
+        go mod tidy -diff
+        if ($LASTEXITCODE -ne 0) { throw "go.mod or go.sum is not tidy." }
+
+        $env:GOPROXY = "off"
+
         go tool sqlc compile
         if ($LASTEXITCODE -ne 0) { throw "sqlc query validation failed." }
 
         go tool sqlc diff
         if ($LASTEXITCODE -ne 0) { throw "Generated sqlc code is stale. Run 'go tool sqlc generate'." }
-
-        go mod tidy -diff
-        if ($LASTEXITCODE -ne 0) { throw "go.mod or go.sum is not tidy." }
 
         $goPackages = Get-DesktopGoPackages
 
@@ -96,4 +100,4 @@ try {
     $env:npm_config_offline = $previousNpmOffline
 }
 
-Write-Host "Desktop checks passed without dependency downloads or remote runtime services."
+Write-Host "Desktop checks passed without remote runtime services."
